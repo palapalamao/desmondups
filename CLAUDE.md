@@ -31,7 +31,9 @@
 
 | 日期 | 环境/工具 | 现象 | 根因 | 正确写法 |
 |---|---|---|---|---|
-| 2026-09-18 | 浏览器 file:// 协议 | 双击 index.html 白屏/加载失败 | file:// 下 fetch() 本地 JSON 被 CORS 拦截 | 必须起本地静态服务（npx serve / http.server）再访问 |
+| 2026-09-18 | 浏览器 file:// 协议 | 双击 index.html 白屏/加载失败 | file:// 下 fetch() 本地 JSON 被 CORS 拦截 | 必须起本地静态服务（frontend/serve.js 或 npx serve）再访问 |
+| 2026-09-18 | Ractive 1.4 模板 | on-submit 写 event.preventDefault() 无效、表单原生提交整页刷新 | Ractive 模板作用域无 event 变量，须用 @event 特殊引用 | 写 @event.preventDefault(), @this.fire(...) |
+| 2026-09-18 | Ractive 1.4 fire() | fire('filter', obj) 后 handler 第二参数为 undefined，导航静默失败 | 单个对象参数会被 mixin 进事件上下文（第一参数） | 对象须逐字段从事件上下文取；标量参数不受影响 |
 
 ## 三、运维手册区（重建恢复标准顺序，随实现滚动补充）
 
@@ -58,4 +60,5 @@
 
 命名：模块 M1~Mn（需求主键）→ REQ-M<n>-<seq> / TC-M<n>-<seq>；里程碑 D1~Dn；
 错误码 UPS-0000 起；分支 feat/M<n>-<slug>；版本联动清单见 docs/dev/（阶段 4 建）。
+
 

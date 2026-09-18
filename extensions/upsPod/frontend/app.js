@@ -179,7 +179,7 @@
         data: { view: "loading" },
         oninit: function () {
           var self = this;
-          this.on("filter", function (e, data) { nav(data || {}); });
+          this.on("filter", function (e) { nav({ site: e.site || "", comm: e.comm || "", mode: e.mode || "", sev: e.sev || "" }); }); // 注：Ractive fire 单个对象参数会 mixin 进事件上下文，须逐字段取
           this.on("setPage", function (e, p) { var q = currentQ(); q.page = p; nav(q); });
           this.on("setPageSize", function (e) { var q = currentQ(); q.ps = e.node.value; q.page = 1; nav(q); });
           this.on("applySort", function () { renderOverview(currentQ()); }); // Q6 手动刷新排序
@@ -190,6 +190,7 @@
           }, s.pollPeriodMs);
         },
       });
+      window.__upsPod = ractive; // 调试/走查钩子（参照 docs/demo 先例）
       window.addEventListener("hashchange", render);
       render();
     }).catch(function (err) {
@@ -203,5 +204,9 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })(typeof window !== "undefined" ? window : globalThis);
+
+
+
+
 
 
