@@ -1,0 +1,34 @@
+// ============================================================================
+// desmondUPS 语义库 · 核心域（M1 最小集）v0.1 草案
+// 上游：docs/02-详细设计/M1-设备总览-详设.md
+// 纪律：M1 只建总览必需对象；M2（详情/电池串/模块）入段 2 再扩。
+// 验证状态（2026-09-18）：FIN Expert 离线校验不支持 xeto 语法（只覆盖 Haystack 4
+// 记录契约，报 HAYSTACK_GENERATION/RECORDS_MISSING，属验证通道不适配而非内容判定）。
+// 结论：语法正确性未验证——首次在目标实例 fan build 时以编译结果为 lint 证据，
+//       留档 docs/evidence/ 并回写本条。
+// ============================================================================
+
+using proj::Proj
+
+// ---- 站点：逻辑分组单元，权限隔离的边界（R1/A7） ----
+upsSite : Proj {
+  location: Str?
+  desc:     Str?
+}
+
+// ---- UPS 单元：一台物理 UPS 的数字化身 ----
+upsUnit : Proj {
+  site:      Ref<upsSite>   // 归属站点：结构红线——必填（推导链见阶段 2 红线表）
+  location:  Str?           // 机房/机位描述
+  make:      Str?           // 厂商
+  model:     Str?           // 型号
+  serial:    Str?           // 序列号
+  upsTopology: Marker?      // 拓扑：online / lineInteractive / modularN1（枚举口径待口径确认单）
+  commProtocol: Str?        // modbus / bacnet / snmp（接入方式，U-外部接口未决）
+  ratedKva:  Number?        // 额定容量 kVA
+}
+
+// ---- 点位归属约定（不落 xeto 记录，写入门禁） ----
+// 单元实时值（负载%/SOC/模式/温度…）为点位，经 hisRead 读取（Q7），
+// 点位必须带 equipRef → upsUnit；无 equipRef 的游离点位 = 审计脚本拦截对象。
+
