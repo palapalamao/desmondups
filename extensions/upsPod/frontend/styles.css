@@ -1,0 +1,58 @@
+/* desmondUPS upsPod M1 · 工业仪表盘深色主题（视觉基线：docs/demo/AI-CES-IoT-UPS） */
+:root {
+  --bg: #0d1117; --panel: #161b22; --border: #30363d;
+  --text: #e6edf3; --muted: #8b949e;
+  --crit: #f85149; --warn: #d29922; --ok: #3fb950; --info: #58a6ff; --lost: #6e7681;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+       font: 14px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; }
+.page-head { display: flex; align-items: baseline; gap: 12px; padding: 16px 24px;
+             border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.page-head h1 { font-size: 20px; margin: 0; }
+.muted { color: var(--muted); font-size: 12px; }
+.spacer { flex: 1; }
+
+.fatal { margin: 24px; padding: 16px; border: 1px dashed var(--lost);
+         color: var(--muted); border-radius: 8px; }
+.risk-banner { margin: 12px 24px; padding: 10px 14px; background: rgba(248,81,73,.12);
+  border: 1px solid var(--crit); border-radius: 8px; color: var(--crit);
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+.filter-bar { display: flex; gap: 16px; align-items: end; padding: 12px 24px; flex-wrap: wrap; }
+.filter-bar label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+select, .btn { background: var(--panel); color: var(--text); border: 1px solid var(--border);
+               border-radius: 6px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
+.btn:hover { border-color: var(--info); }
+.btn.primary { background: #1f6feb; border-color: #1f6feb; }
+.btn[disabled] { opacity: .4; cursor: default; }
+
+.stat-badges { display: flex; gap: 10px; align-items: center; padding: 4px 24px 12px; flex-wrap: wrap; }
+.badge { padding: 3px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); }
+.badge.crit { color: var(--crit); border-color: var(--crit); }
+.badge.warn { color: var(--warn); border-color: var(--warn); }
+.badge.ok   { color: var(--ok);   border-color: var(--ok); }
+.badge.lost { color: var(--lost); border-color: var(--lost); }
+.badge.sel  { background: rgba(88,166,255,.15); border-color: var(--info); }
+
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+             gap: 12px; padding: 0 24px 24px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+        padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+.card:hover, .card:focus-visible { border-color: var(--info); outline: none; }
+.card-head { display: flex; justify-content: space-between; align-items: center; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.mode-online { background: var(--ok); } .mode-battery { background: var(--warn); }
+.mode-unknown { background: var(--lost); }
+.metrics { display: flex; gap: 14px; align-items: center; }
+.metrics b { font-weight: 600; }
+.sev-label { font-size: 12px; margin-left: auto; }
+.sev-critical .sev-label { color: var(--crit); } .sev-warning .sev-label { color: var(--warn); }
+.sev-commLost .sev-label { color: var(--lost); } .sev-normal .sev-label { color: var(--ok); }
+.card-lost { opacity: .75; border-style: dashed; } /* Q5：断讯保留原位、整卡明示 */
+.fresh-ok { font-size: 11px; color: var(--muted); }
+.fresh-stale { font-size: 11px; color: var(--warn); }  /* 参考值 */
+.fresh-gap { font-size: 11px; color: var(--crit); }    /* 缺口 */
+
+.pager { display: flex; gap: 10px; justify-content: center; padding-bottom: 24px; }
+@media (max-width: 640px) { .card-grid { grid-template-columns: 1fr; } }

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>desmondUPS · UPS 车队监控</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="styles.css">
+<script src="vendor/ractive.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+
+<script id="overview-template" type="text/ractive">
+{{#if view === "loading"}}
+  <div class="fatal">加载中…</div>
+{{elseif view === "unit"}}
+  {{#if unit}}
+  <header class="page-head">
+    <button class="btn" on-click="@this.fire('goBack')">← 返回总览</button>
+    <h1>{{unit.name}}</h1>
+    <span class="muted">{{unit.siteName}} · {{unit.location}}</span>
+  </header>
+  <div class="fatal">M2 设备详情未开工（微流程纪律：M1 不越段实现 M2）。</div>
+  {{else}}
+  <div class="fatal">未找到设备 {{unitId}}（返回不兜底，明示缺口）</div>
+  {{/if}}
+{{else}}
+  <header class="page-head">
+    <h1>UPS 车队总览</h1>
+    <span class="muted">深链：#/ups/overview · 轮询 10s · Mock 数据（FinAdapter 待 U-API-01）</span>
+  </header>
+
+  {{#if newRisks.length}}
+  <div class="risk-banner">
+    ⚠ {{newRisks.length}} 台设备严重度恶化：
+    {{#each newRisks}}{{.name}}（{{.from}} → {{.to}}）{{/each}}
+    <button class="btn" on-click="@this.fire('applySort')">刷新排序</button>
+  </div>
+  {{/if}}
+
+  <form class="filter-bar" on-submit="@this.fire('filter', @this.get('filter')), event.preventDefault()">
+    <label>站点
+      <select value="{{filter.site}}">
+        <option value="">全部</option>
+        {{#each sites}}<option value="{{.id}}">{{.name}}</option>{{/each}}
+      </select>
+    </label>
+    <label>通讯
+      <select value="{{filter.comm}}">
+        <option value="">全部</option><option value="ok">正常</option><option value="lost">中断</option>
+      </select>
+    </label>
+    <label>模式
+      <select value="{{filter.mode}}">
+        <option value="">全部</option><option value="online">市电</option><option value="battery">电池</option><option value="unknown">未知</option>
+      </select>
+    </label>
+    <label>严重度
+      <select value="{{filter.sev}}">
+        <option value="">全部</option><option value="critical">严重</option><option value="warning">警告</option><option value="normal">正常</option><option value="commLost">断讯</option>
+      </select>
+    </label>
+    <button class="btn primary" type="submit">筛选</button>
+    <span class="spacer"></span>
+    <label>每页
+      <select value="{{pageSize}}" on-change="@this.fire('setPageSize')">
+        <option value="50">50</option><option value="100">100</option>
+      </select>
+    </label>
+  </form>
+
+  <div class="stat-badges">
+    <span class="badge crit {{badgeSel.critical ? 'sel' : ''}}">严重 {{stats.critical}}</span>
+    <span class="badge warn {{badgeSel.warning ? 'sel' : ''}}">警告 {{stats.warning}}</span>
+    <span class="badge ok {{badgeSel.normal ? 'sel' : ''}}">正常 {{stats.normal}}</span>
+    <span class="badge lost {{badgeSel.commLost ? 'sel' : ''}}">断讯 {{stats.commLost}}</span>
+    <span class="muted">共 {{pagination.total}} 台 · 第 {{pagination.page}}/{{pagination.pages}} 页</span>
+  </div>
+
+  <div class="card-grid">
+    {{#each badges}}
+    <div class="card sev-{{sev}} {{sev === 'commLost' ? 'card-lost' : ''}}" on-click="@this.fire('goUnit', .unit.id)" tabindex="0">
+      <div class="card-head">
+        <strong>{{.unit.name}}</strong>
+        <span class="dot mode-{{.unit.mode}}"></span>
+      </div>
+      <div class="muted">{{.unit.siteName}} · {{.unit.location}}</div>
+      <div class="metrics">
+        <span>负载 <b>{{.unit.loadPct === null ? '—' : .unit.loadPct + '%'}}</b></span>
+        <span>SOC <b>{{.unit.soc === null ? '—' : Math.round(.unit.soc) + '%'}}</b></span>
+        <span class="sev-label">{{sev === 'critical' ? '严重' : sev === 'warning' ? '警告' : sev === 'commLost' ? '通讯中断' : '正常'}}</span>
+      </div>
+      <div class="fresh-{{fresh}}">
+        {{fresh === 'ok' ? '采集 ' + tsText : fresh === 'stale' ? '参考值 · 采集 ' + tsText : '缺口 · 无数据'}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+
+  {{#if pagination.pages > 1}}
+  <nav class="pager">
+    <button class="btn" disabled="{{pagination.page <= 1}}" on-click="@this.fire('setPage', pagination.page - 1)">上一页</button>
+    <button class="btn" disabled="{{pagination.page >= pagination.pages}}" on-click="@this.fire('setPage', pagination.page + 1)">下一页</button>
+  </nav>
+  {{/if}}
+{{/if}}
+</script>
+<script src="app.js"></script>
+</body>
+</html>

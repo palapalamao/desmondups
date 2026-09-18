@@ -1,0 +1,2 @@
+// funcs.trio — Axon 函数声明（trio 形式，待目标实例探测后补签名细节）
+// upsOverview: 返回 UPS 车队总览聚合 Grid（见 UpsPodLib.fan 头注释）
