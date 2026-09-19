@@ -1,4 +1,4 @@
-using ext
+using skyarcd
 using concurrent
 
 ** 扩展入口：生命周期。所有初始化失败直接抛错——fail-closed，不静默。
