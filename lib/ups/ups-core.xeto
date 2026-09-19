@@ -32,3 +32,20 @@ upsUnit : Proj {
 // 单元实时值（负载%/SOC/模式/温度…）为点位，经 hisRead 读取（Q7），
 // 点位必须带 equipRef → upsUnit；无 equipRef 的游离点位 = 审计脚本拦截对象。
 
+
+// ---- 电池组/模块（M2 设备详情扩域，段 2 落地） ----
+// 组电压/内阻/温度/充电电流仍是 hisRead 点位（points.xeto）；本记录管结构化归属与基线。
+// 基线/预测类数值属参考值口径：来源必须标记（R3，D-M2-04），不得与实测混同。
+upsBatteryString : Proj {
+  parent:              Ref<upsUnit>        // 归属 UPS 单元
+  nominalVoltage:      Number?             // 标称组电压 V
+  impedanceBaseline:   Number?             // 内阻基线 mΩ——参考值口径，来源必填
+  impedanceBaselineSrc: Str?              // 基线来源（出厂/上次检测/同型统计）
+  cellCount:           Int?                // 单体数量
+}
+
+upsBatteryModule : Proj {
+  parent:     Ref<upsBatteryString> // 归属电池组
+  position:   Int                   // 组内序号
+  serial:     Str?                  // 单体序列号
+}
