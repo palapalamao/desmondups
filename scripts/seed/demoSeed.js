@@ -114,7 +114,7 @@ for (let i = 0; i < 60; i++) {
 }
 
 const out = {
-  seedVersion: "0.5.0",
+  seedVersion: "0.6.0",
   note: "tsOffsetSec=null 表示缺口；绝对时间由前端加载时计算（确定性：本文件不含墙钟）",
   pollPeriodMs: 10000,
   sites: SITES,

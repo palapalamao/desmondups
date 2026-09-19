@@ -6,7 +6,8 @@
  * REQ-M1-10 v0.3：卡片双 sparkline（SOC 主 + 负载次）+ 断讯等高占位
  * REQ-M2-xx v0.4：设备详情 8 面板（告警只读 R2 / 参考值标记 D-M2-04）
  * REQ-M3-xx v0.5：历史趋势全量视图（跨度四档/事件锚点/缺口留白 R3，D-M3-01~08）
- * 版本 0.5.0
+ * REQ-M4-xx v0.6：告警确认三段式（守门四路 gateAck/审计事件/行内确认，D-M4-01~05，首个写操作模块）
+ * 版本 0.6.0
  * ==========================================================================*/
 (function (global) {
   "use strict";
@@ -218,6 +219,59 @@
     return grainMs < 60000 ? (grainMs / 1000) + "s" : grainMs < 3600000 ? (grainMs / 60000) + "min" : (grainMs / 3600000) + "h";
   }
 
+  /* -- M4 守门引擎（D-M4 详设 §1/§2；本项目首个写操作模块） -- */
+  function collectAlarms(units) { // 聚合：拍平 detail.alarms，key=unitId#index，含档案字段（只读快照行）
+    var rows = [];
+    (units || []).forEach(function (u) {
+      var arr = u.detail && u.detail.alarms ? u.detail.alarms : [];
+      arr.forEach(function (a, i) {
+        rows.push({ key: u.id + "#" + i, unitId: u.id, unitName: u.name, siteId: u.siteId,
+          siteName: u.siteName, severity: a.severity, message: a.message, time: a.time, ack: !!a.ack });
+      });
+    });
+    return rows;
+  }
+
+  function gateAck(alarm, note, ctx) { // 四路拒绝按序短路（存在→状态→备注→站点授权），reason 一律用户可读中文
+    ctx = ctx || {};
+    if (!alarm) return { ok: false, reason: "告警不存在（可能已归档）" };
+    if (alarm.ack) return { ok: false, reason: "该告警已确认，不可重复操作（幂等保护）" };
+    if (!note || String(note).trim().length < 2) return { ok: false, reason: "备注必填（至少 2 字）——留痕质量要求" };
+    if (ctx.allowedSites && ctx.allowedSites.indexOf(ctx.siteId) < 0)
+      return { ok: false, reason: "站点越权：不在授权范围" };
+    return { ok: true };
+  }
+
+  function applyAck(units, auditLog, key, note, by, at, ctx) { // 状态机单向：通过则置位+发射审计事件，失败零副作用
+    var p = String(key).split("#"), unitId = p[0], idx = parseInt(p[1], 10);
+    var unit = (units || []).find(function (u) { return u.id === unitId; });
+    var alarm = unit && unit.detail && unit.detail.alarms && !isNaN(idx) ? unit.detail.alarms[idx] : null;
+    var g = gateAck(alarm, note, { allowedSites: ctx && ctx.allowedSites, siteId: unit ? unit.siteId : null });
+    if (!g.ok) return g;
+    alarm.ack = true; // 对象仍恰四字段（TC-M2-逻辑-04 不破）；by/at 只在审计事件
+    auditLog.push({ seq: auditLog.length + 1, type: "alarm.ack", alarmKey: key, unitId: unitId,
+      siteId: unit.siteId, severity: alarm.severity, message: alarm.message,
+      note: String(note).trim(), by: by, at: at });
+    return { ok: true };
+  }
+
+  function filterAlarms(rows, f) { // D-M4 §3 四维筛选 + 未确认优先（Q5 延续 M2 规）
+    f = f || {};
+    var out = (rows || []).filter(function (r) {
+      if (f.site && r.siteId !== f.site) return false;
+      if (f.sev && r.severity !== f.sev) return false;
+      if (f.state === "unack" && r.ack) return false;
+      if (f.state === "ack" && !r.ack) return false;
+      if (f.unit && r.unitName.toLowerCase().indexOf(String(f.unit).toLowerCase()) < 0
+                && r.unitId.toLowerCase().indexOf(String(f.unit).toLowerCase()) < 0) return false;
+      return true;
+    });
+    return out.sort(function (a, b) {
+      if (a.ack !== b.ack) return a.ack ? 1 : -1;
+      return a.time < b.time ? 1 : a.time > b.time ? -1 : 0; // 同状态按时间倒序
+    });
+  }
+
   var upsCore = {
     SEV_RANK: SEV_RANK,
     topSeverity: topSeverity,
@@ -239,6 +293,10 @@
     timeTicks: timeTicks,
     normalizeHistoryQuery: normalizeHistoryQuery,
     grainTextOf: grainTextOf,
+    collectAlarms: collectAlarms,
+    gateAck: gateAck,
+    applyAck: applyAck,
+    filterAlarms: filterAlarms,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;
@@ -318,7 +376,7 @@
   }
 
   /* ---------------- Ractive 应用 ---------------- */
-  var ractive = null, prevSevMap = {}, snapshot = null;
+  var ractive = null, prevSevMap = {}, snapshot = null, auditLog = []; // M4：审计事件流（boot 由 seed.auditLog 初始化，M6 消费同一数组）
 
   function snapshotSev(units) {
     var m = {};
@@ -330,6 +388,7 @@
     var r = parseHash();
     if (r.page === "unit" && r.unitId) { renderUnit(r.unitId); return; } // M2 占位
     if (r.page === "history" && r.unitId) { renderHistory(r.unitId, r.q); return; } // M3：全量历史
+    if (r.page === "alarms") { renderAlarms(r.q); return; } // M4：告警与确认（首个写操作模块）
     renderOverview(r.q);
   }
 
@@ -417,6 +476,34 @@
       eventMarks: events, events: events, ticks: ticks });
   }
 
+  function renderAlarms(q) { // M4：告警列表 + 行内确认（详设 §3）
+    q = q || {};
+    var keepOpen = ractive && ractive.get ? ractive.get("ackOpen") : null; // 轮询重渲染须保留编辑中状态（输入不丢）
+    var keepNote = keepOpen ? ractive.get("ackNote") : "";
+    var all = upsCore.collectAlarms(snapshot.units);
+    var alFilter = { site: q.site || "", sev: q.sev || "", state: q.state || "", unit: q.unit || "" };
+    var rows = upsCore.filterAlarms(all, alFilter).map(function (r) {
+      var ev = r.ack ? auditLog.filter(function (e) { return e.alarmKey === r.key; }).pop() : null; // by/at 取自审计事件
+      return { key: r.key, unitId: r.unitId, unitName: r.unitName, siteName: r.siteName,
+        severity: r.severity, message: r.message, time: r.time, ack: r.ack,
+        ackInfo: ev ? "已确认 · " + ev.by + " · " + new Date(ev.at).toLocaleString() : "已确认（审计缺失，fail-closed 明示）" };
+    });
+    var sevSel = {}; if (alFilter.sev) sevSel[alFilter.sev] = true;
+    var stateSel = {}; if (alFilter.state) stateSel[alFilter.state] = true;
+    var editorAlive = keepOpen && rows.some(function (r) { return r.key === keepOpen && !r.ack; }); // 行仍存在且未确认才保留
+    ractive.reset({ view: "alarms", sites: snapshot.sites, alFilter: alFilter, rows: rows,
+      ackOpen: editorAlive ? keepOpen : null, ackNote: editorAlive ? keepNote : "", ackError: null, // 同时只展开一行
+      alarmStats: { active: all.filter(function (r) { return !r.ack; }).length,
+                    acked: all.filter(function (r) { return r.ack; }).length,
+                    critical: all.filter(function (r) { return r.severity === "critical" && !r.ack; }).length },
+      sevSel: sevSel, stateSel: stateSel });
+  }
+
+  function navAlarms(f) { // M4：深链 #/ups/alarms?site=&sev=&state=&unit=（REQ-M1-07 同构）
+    var qs = Object.keys(f).filter(function (k) { return f[k]; })
+      .map(function (k) { return encodeURIComponent(k) + "=" + encodeURIComponent(f[k]); }).join("&");
+    location.hash = "/ups/alarms" + (qs ? "?" + qs : "");
+  }
   function upsCoreTimePad(n) { return (n < 10 ? "0" : "") + n; }
   function nav(q) { // 状态写入 hash → 返回时天然保留（REQ-M1-07）
     var qs = Object.keys(q).filter(function (k) { return q[k]; })
@@ -427,6 +514,7 @@
   function boot() {
     adapter.load().then(function (s) {
       snapshot = s;
+      auditLog = s.auditLog || []; // M4：审计事件流存 snapshot（seed 不含，运行时累积；M6 消费）
       ractive = new Ractive({
         el: "#app",
         template: "#overview-template",
@@ -451,10 +539,23 @@
             var r = parseHash(), q = r.q || {};
             location.hash = "/ups/history/" + encodeURIComponent(r.unitId) + "?metrics=" + encodeURIComponent(q.metrics || "soc,load") + "&span=" + encodeURIComponent(span);
           });
+          this.on("goAlarms", function (e, unitId) { navAlarms(unitId ? { unit: unitId } : {}); }); // M2 衔接：带 unit 参数深链
+          this.on("alarmNav", function (e) { navAlarms({ site: e.site || "", sev: e.sev || "", state: e.state || "", unit: e.unit || "" }); }); // 筛选（单对象 mixin 进上下文，逐字段取）
+          this.on("setAlarmSev", function (e, sev) { var f = this.get("alFilter") || {}; navAlarms({ site: f.site, sev: sev === f.sev ? "" : sev, state: f.state, unit: f.unit }); }); // 徽标再点取消
+          this.on("setAlarmState", function (e, st) { var f = this.get("alFilter") || {}; navAlarms({ site: f.site, sev: f.sev, state: st === f.state ? "" : st, unit: f.unit }); });
+          this.on("openAck", function (e, key) { this.set({ ackOpen: key, ackNote: "", ackError: null }); }); // 行内展开（同时只一行）
+          this.on("cancelAck", function () { this.set({ ackOpen: null, ackNote: "", ackError: null }); });
+          this.on("submitAck", function (e, key) { // M4 唯一写入口：守门四路（UI 只是门面，语义全在 upsCore.applyAck）
+            var r = upsCore.applyAck(snapshot.units, auditLog, key, this.get("ackNote"), "mock-operator", Date.now(), { allowedSites: null }); // R1 留位：Mock 全员
+            if (!r.ok) { this.set("ackError", r.reason); return; } // 否决留痕（铁律 3）：reason 明示
+            this.set({ ackOpen: null, ackNote: "", ackError: null });
+            renderAlarms(currentQ()); // 重渲染：行变"已确认 · by · at"，按钮消失（A21）
+          });
           setInterval(function () { // Q2：10s 轮询；详情视图刷新 detail（D-M2-01）
             var r = parseHash();
             if (r.page === "history") { adapter.poll(); return; } // M3：历史视图不整页重渲染（poll 保快照新鲜）
-            if (r.page !== "unit") { adapter.poll().then(function () { renderOverview(currentQ()); }); return; }
+            if (r.page !== "unit") { adapter.poll().then(function () { // M4：alarms 视图 poll 后重渲染列表（overview 分支语义）
+              if (parseHash().page === "alarms") renderAlarms(currentQ()); else renderOverview(currentQ()); }); return; }
             adapter.poll().then(function () { return adapter.detail(r.unitId); }).then(function () { renderUnit(r.unitId); })
               .catch(function (err) { if (ractive) ractive.set("detailError", String(err && err.message || err)); });
           }, s.pollPeriodMs);

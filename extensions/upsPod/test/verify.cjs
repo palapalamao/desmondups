@@ -169,7 +169,7 @@ tc("TC-M2-逻辑-04", "告警：契约恰四字段，无写操作字段", () => 
   assert.ok(n > 0, "种子应含至少一条告警以约束契约");
 });
 
-console.log(`\n${pass}/20 通过${process.exitCode ? "（存在失败）" : ""}`);
+
 
 // ===== M3 历史趋势逻辑（详设 §4/§6：派生确定性/跨度规格/空洞切分/事件规则/刻度） =====
 // TC-M3-逻辑-01 派生确定性（D-M3-05/06：同入参两次调用逐字节一致）
@@ -237,5 +237,71 @@ tc("TC-M3-逻辑-05", "timeTicks 恰 5 档格式合法；normalize 收敛", () =
   assert.deepStrictEqual(core.normalizeHistoryQuery(null), { metrics: ["soc", "load"], span: "24h" });
   assert.deepStrictEqual(core.normalizeHistoryQuery({ metrics: "", span: "7d" }), { metrics: [], span: "7d" }); // 显式空保持空（fail-closed 明示）
 });
+// ---- M4 告警确认（详设 D-M4 §1/§2/§5；本项目首个写操作模块）----
+const mkAlarmUnit = (id, siteId, alarms) =>
+  ({ id, name: id, siteId, siteName: "站点" + siteId, detail: { alarms } });
+const m4fixture = () => ([
+  mkAlarmUnit("U1", "s1", [{ severity: "warning", message: "市电中断", time: "10 分钟前", ack: false }]),
+  mkAlarmUnit("U2", "s2", [{ severity: "critical", message: "电容老化", time: "1 小时前", ack: false }]),
+  mkAlarmUnit("U3", "s1", [{ severity: "warning", message: "内阻超基线", time: "昨天", ack: true }]),
+]);
+// TC-M4-逻辑-01 守门四路拒绝按序短路 + reason 非空
+tc("TC-M4-逻辑-01", "gateAck：存在→状态→备注→站点 按序拒绝", () => {
+  const r1 = core.gateAck(null, "已复位", {});
+  assert.ok(!r1.ok && r1.reason.length > 0, "序1 不存在");
+  const r2 = core.gateAck({ ack: true }, "已复位", {});
+  assert.ok(!r2.ok && /已确认/.test(r2.reason), "序2 幂等保护");
+  const r3 = core.gateAck({ ack: false }, "x", {});
+  assert.ok(!r3.ok && /备注/.test(r3.reason), "序3 备注<2字");
+  const r4 = core.gateAck({ ack: false }, "已复位", { allowedSites: ["s2"], siteId: "s1" });
+  assert.ok(!r4.ok && /越权/.test(r4.reason), "序4 站点越权");
+  assert.ok(core.gateAck({ ack: false }, "已复位", { allowedSites: null, siteId: "s1" }).ok, "Mock 全员放行");
+  assert.ok(core.gateAck({ ack: false }, "已复位", { allowedSites: ["s1"], siteId: "s1" }).ok, "在授权范围放行");
+});
+// TC-M4-逻辑-02 applyAck 成功路径：ack=true + 审计事件字段完整 + alarm 恰四字段
+tc("TC-M4-逻辑-02", "applyAck：置位+审计事件字段完整", () => {
+  const units = m4fixture(), log = [], at = 1720000000000;
+  const r = core.applyAck(units, log, "U1#0", "  现场已复位  ", "mock-operator", at, { allowedSites: null });
+  assert.ok(r.ok);
+  const alarm = units[0].detail.alarms[0];
+  assert.strictEqual(alarm.ack, true);
+  assert.deepStrictEqual(Object.keys(alarm).sort(), ["ack", "message", "severity", "time"]); // TC-M2-逻辑-04 不破
+  assert.strictEqual(log.length, 1);
+  const ev = log[0];
+  ["seq", "type", "alarmKey", "unitId", "siteId", "severity", "message", "note", "by", "at"].forEach(k => assert.ok(ev[k] !== undefined, k));
+  assert.strictEqual(ev.seq, 1); assert.strictEqual(ev.type, "alarm.ack"); assert.strictEqual(ev.alarmKey, "U1#0");
+  assert.strictEqual(ev.note, "现场已复位"); assert.strictEqual(ev.by, "mock-operator"); assert.strictEqual(ev.at, at);
+});
+// TC-M4-逻辑-03 幂等：重复确认拒绝 + 审计不重复 + 无二次变更
+tc("TC-M4-逻辑-03", "幂等：双击/重试第二次被拒，零副作用", () => {
+  const units = m4fixture(), log = [];
+  assert.ok(core.applyAck(units, log, "U1#0", "首次确认", "op", 1, {}).ok);
+  const r2 = core.applyAck(units, log, "U1#0", "重复确认", "op", 2, {});
+  assert.ok(!r2.ok && /已确认/.test(r2.reason));
+  assert.strictEqual(log.length, 1, "审计不重复");
+  assert.deepStrictEqual(Object.keys(units[0].detail.alarms[0]).sort(), ["ack", "message", "severity", "time"]);
+});
+// TC-M4-逻辑-04 状态机单向 + 越权零副作用（数据层不可写）
+tc("TC-M4-逻辑-04", "单向：越权拒绝且 alarm/审计零变更", () => {
+  const units = m4fixture(), log = [];
+  const r = core.applyAck(units, log, "U1#0", "越权尝试", "op", 1, { allowedSites: ["s2"] });
+  assert.ok(!r.ok && /越权/.test(r.reason));
+  assert.strictEqual(units[0].detail.alarms[0].ack, false, "数据层不可写");
+  assert.strictEqual(log.length, 0, "审计不记录失败尝试（gateAck 只发射成功事件）");
+});
+// TC-M4-逻辑-05 collectAlarms 聚合 + filterAlarms 四维筛选/未确认优先
+tc("TC-M4-逻辑-05", "聚合筛选：站点/严重度/状态/关键字 + 未确认优先", () => {
+  const units = m4fixture(), rows = core.collectAlarms(units);
+  assert.strictEqual(rows.length, 3);
+  assert.deepStrictEqual(rows.map(r => r.key), ["U1#0", "U2#0", "U3#0"]);
+  assert.strictEqual(rows[0].siteName, "站点s1");
+  assert.strictEqual(core.filterAlarms(rows, { site: "s1" }).length, 2);
+  assert.strictEqual(core.filterAlarms(rows, { sev: "critical" })[0].unitId, "U2");
+  assert.deepStrictEqual(core.filterAlarms(rows, { state: "unack" }).map(r => r.unitId), ["U1", "U2"]);
+  const sorted = core.filterAlarms(rows, {});
+  assert.deepStrictEqual(sorted.map(r => r.unitId), ["U1", "U2", "U3"], "未确认优先，已确认垫底");
+  assert.strictEqual(core.filterAlarms(rows, { unit: "u2" })[0].unitId, "U2", "关键字大小写不敏感");
+  assert.strictEqual(core.collectAlarms([]).length, 0);
+});
 
-console.log(`\n${pass}/20 通过${process.exitCode ? "（存在失败）" : ""}`);
+console.log(`\n${pass}/25 通过${process.exitCode ? "（存在失败）" : ""}`);

@@ -94,7 +94,7 @@
       {{/each}}
     </section>
     <section class="panel alarm-panel">
-      <h2>告警与事件 <span class="muted">只读（确认操作=M4，R2）</span></h2>
+      <h2>告警与事件 <a class="hist-link" on-click="@this.fire('goAlarms', unit.id)">去处理 →</a> <span class="muted">列表只读（确认操作在告警页，R2 详情区不破）</span></h2>
       {{#if alarms.length}}
       <div class="alarm-filter">
         <button class="btn mini {{alarmFilter === 'all' ? 'primary' : ''}}" on-click="@this.fire('setAlarmFilter', 'all')">全部 {{alarms.length}}</button>
@@ -174,6 +174,68 @@
   {{else}}
   <div class="fatal">未找到设备 {{unitId}}（返回不兜底，明示缺口）</div>
   {{/if}}
+{{elseif view === "alarms"}}
+  <header class="page-head">
+    <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
+    <h1>告警与确认</h1>
+    <span class="muted">深链：#/ups/alarms?site=&sev=&state=&unit= · 操作者 mock-operator（无 FIN 会话，UI 明示口径）· 否决一律明示理由（铁律 3）</span>
+  </header>
+
+  <form class="filter-bar" on-submit="@event.preventDefault(), @this.fire('alarmNav', @this.get('alFilter'))">
+    <label>站点
+      <select value="{{alFilter.site}}">
+        <option value="">全部</option>
+        {{#each sites}}<option value="{{.id}}">{{.name}}</option>{{/each}}
+      </select>
+    </label>
+    <label>严重度
+      <select value="{{alFilter.sev}}">
+        <option value="">全部</option><option value="critical">严重</option><option value="warning">警告</option>
+      </select>
+    </label>
+    <label>状态
+      <select value="{{alFilter.state}}">
+        <option value="">全部</option><option value="unack">未确认</option><option value="ack">已确认</option>
+      </select>
+    </label>
+    <label>单元
+      <input value="{{alFilter.unit}}" placeholder="名称/编号关键字">
+    </label>
+    <button class="btn primary" type="submit">筛选</button>
+  </form>
+
+  <div class="stat-badges">
+    <button class="badge crit {{stateSel.unack ? 'sel' : ''}}" on-click="@this.fire('setAlarmState', 'unack')">活动 {{alarmStats.active}}</button>
+    <button class="badge ok {{stateSel.ack ? 'sel' : ''}}" on-click="@this.fire('setAlarmState', 'ack')">已确认 {{alarmStats.acked}}</button>
+    <button class="badge warn {{sevSel.critical ? 'sel' : ''}}" on-click="@this.fire('setAlarmSev', 'critical')">严重 {{alarmStats.critical}}</button>
+    <span class="muted">当前筛选 {{rows.length}} 条 · 未确认优先（Q5）</span>
+  </div>
+
+  <div class="alarm-list">
+    {{#each rows}}
+    <div class="alarm-item sev-{{.severity}}">
+      <span class="tag {{.severity === 'critical' ? 'tag-critical' : 'tag-warning'}}">{{.severity === 'critical' ? '严重' : '警告'}}</span>
+      <span class="alarm-msg">{{.message}}</span>
+      <span class="muted">{{.unitName}} · {{.siteName}} · {{.time}}</span>
+      {{#if .ack}}
+      <span class="alarm-state">{{.ackInfo}}</span>
+      {{else}}
+      <button class="btn mini" on-click="@this.fire('openAck', .key)">确认</button>
+      {{/if}}
+    </div>
+    {{#if ackOpen === .key}}
+    <div class="ack-editor">
+      <textarea value="{{ackNote}}" rows="2" placeholder="确认备注（至少 2 字，留痕必填）"></textarea>
+      {{#if ackError}}<div class="fatal">{{ackError}}</div>{{/if}}
+      <div class="ack-actions">
+        <button class="btn primary" on-click="@this.fire('submitAck', .key)">提交确认</button>
+        <button class="btn" on-click="@this.fire('cancelAck')">取消</button>
+      </div>
+    </div>
+    {{/if}}
+    {{/each}}
+    {{#if !rows.length}}<div class="muted">当前筛选无告警（不兜底，明示为空）</div>{{/if}}
+  </div>
 {{else}}
   <header class="page-head">
     <h1>UPS 车队总览</h1>
