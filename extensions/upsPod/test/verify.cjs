@@ -115,7 +115,58 @@ tc("TC-M1-逻辑-11", "趋势判定：断讯/点数不足→false，正常→tru
   assert.strictEqual(core.hasTrend(mk({ socHistory: [50, 51], loadHistory: [50, 51] })), true); // 2 点成线
 });
 
-console.log(`\n${pass}/11 通过${process.exitCode ? "（存在失败）" : ""}`);
 
+// ===== M2 设备详情逻辑（详设 §4/§6：buildDetail / pageFreshness / 参考值标记 / 告警只读契约） =====
+// TC-M2-逻辑-01 buildDetail（未找到 → null；断讯 → 档案在、detail=null，D-M2-02）
+tc("TC-M2-逻辑-01", "详情：取到/未知id→null/断讯→detail=null 档案保留", () => {
+  const det = { battery: {}, ts: { battery: now, load: now, electronics: now, environment: now, transfer: now } };
+  const units = [mk({ id: "a", detail: det }),
+                 mk({ id: "b", commLost: true, mode: "unknown", loadPct: null, soc: null, detail: null })];
+  const ok = core.buildDetail(units, "a");
+  assert.strictEqual(ok.unit.id, "a");
+  assert.strictEqual(ok.detail, det);
+  assert.strictEqual(core.buildDetail(units, "NOPE"), null); // fail-closed 不兜底
+  const lost = core.buildDetail(units, "b");
+  assert.strictEqual(lost.unit.id, "b");
+  assert.strictEqual(lost.detail, null); // D-M2-02：遥测整区不渲染，档案照常
+});
+// TC-M2-逻辑-02 pageFreshness（D-M2-05：各组最差 gap > stale > ok）
+tc("TC-M2-逻辑-02", "页面时效：最差聚合；detail=null→gap", () => {
+  assert.strictEqual(core.pageFreshness(null, now, P), "gap");
+  const tsOk = { battery: now, load: now, electronics: now, environment: now, transfer: now };
+  assert.strictEqual(core.pageFreshness({ ts: tsOk }, now, P), "ok");
+  assert.strictEqual(core.pageFreshness({ ts: Object.assign({}, tsOk, { load: now - 30000 }) }, now, P), "stale");
+  assert.strictEqual(core.pageFreshness({ ts: Object.assign({}, tsOk, { transfer: null }) }, now, P), "gap");
+});
+// TC-M2-逻辑-03 参考值标记完整性（D-M2-04，读种子全量断言）
+tc("TC-M2-逻辑-03", "参考值：预测类字段 reference=true 且 source 非空", () => {
+  const seed = require("../frontend/seed.json");
+  const details = seed.units.map(u => u.detail).filter(Boolean);
+  assert.ok(details.length > 0, "种子应含非空 detail");
+  details.forEach(d => {
+    assert.strictEqual(d.battery.reference, true);
+    assert.ok(d.battery.source && d.battery.source.length > 0, "battery.source 非空");
+    assert.strictEqual(d.runtimeEstimate.reference, true);
+    assert.ok(d.runtimeEstimate.source && d.runtimeEstimate.source.length > 0, "runtimeEstimate.source 非空");
+    d.predictions.forEach(p => {
+      assert.strictEqual(p.reference, true);
+      assert.ok(p.source && p.source.length > 0, "prediction.source 非空");
+    });
+  });
+});
+// TC-M2-逻辑-04 告警契约只读（详设 §6：每项恰 severity/message/time/ack 四字段）
+tc("TC-M2-逻辑-04", "告警：契约恰四字段，无写操作字段", () => {
+  const seed = require("../frontend/seed.json");
+  let n = 0;
+  seed.units.forEach(u => {
+    if (!u.detail) return;
+    u.detail.alarms.forEach(a => {
+      n++;
+      assert.deepStrictEqual(Object.keys(a).sort(), ["ack", "message", "severity", "time"]);
+      assert.strictEqual(typeof a.ack, "boolean");
+    });
+  });
+  assert.ok(n > 0, "种子应含至少一条告警以约束契约");
+});
 
-
+console.log(`\n${pass}/15 通过${process.exitCode ? "（存在失败）" : ""}`);

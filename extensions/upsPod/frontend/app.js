@@ -4,7 +4,8 @@
  * 数据适配器：MockAdapter（确定性种子 + 10s 抖动）/ FinAdapter（桩，待 U-API-01）
  * 红线落实：R1 权限=站点过滤参数留位（无环境，标注未验）；R3 时效标注 ok/stale/gap
  * REQ-M1-10 v0.3：卡片双 sparkline（SOC 主 + 负载次）+ 断讯等高占位
- * 版本 0.3.0
+ * REQ-M2-xx v0.4：设备详情 8 面板（告警只读 R2 / 参考值标记 D-M2-04）
+ * 版本 0.4.0
  * ==========================================================================*/
 (function (global) {
   "use strict";
@@ -99,6 +100,22 @@
     return !unit.commLost && Array.isArray(unit.socHistory) && unit.socHistory.length >= 2;
   }
 
+  function buildDetail(units, id) { // REQ-M2-01：取详情；未找到 → null（fail-closed 不兜底）
+    var u = units.find(function (x) { return x.id === id; });
+    if (!u) return null;
+    return { unit: u, detail: u.detail || null }; // 断讯/缺口 detail=null（D-M2-02，档案保留）
+  }
+
+  function pageFreshness(detail, now, periodMs) { // D-M2-05：各组取最差 gap > stale > ok
+    if (!detail || !detail.ts) return "gap";
+    var order = { ok: 0, stale: 1, gap: 2 }, worst = 0;
+    Object.keys(detail.ts).forEach(function (k) {
+      var f = classifyFreshness(detail.ts[k], now, periodMs);
+      if (order[f] > worst) worst = order[f];
+    });
+    return worst === 2 ? "gap" : worst === 1 ? "stale" : "ok";
+  }
+
   var upsCore = {
     SEV_RANK: SEV_RANK,
     topSeverity: topSeverity,
@@ -111,6 +128,8 @@
     sparklinePoints: sparklinePoints,
     rollHistory: rollHistory,
     hasTrend: hasTrend,
+    buildDetail: buildDetail,
+    pageFreshness: pageFreshness,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;
@@ -150,10 +169,19 @@
       });
       return Promise.resolve(s);
     },
+    detail: function (id) { // REQ-M2-09：详情；组级 ts 由快照 ts 派生（Mock 同采集周期，D-M2-01）
+      var found = upsCore.buildDetail(MockAdapter.seed.units, id);
+      if (found && found.detail) { // 每次读派生（poll 已刷新 unit.ts，组级 ts 须跟随，否则组时效永远不更新）
+        var ts = found.unit.ts;
+        found.detail.ts = { battery: ts, load: ts, electronics: ts, environment: ts, transfer: ts };
+      }
+      return Promise.resolve(found);
+    },
   };
   var FinAdapter = { // 桩：对接 upsOverview()（fan/UpsPodLib.fan），U-API-01 解锁
     load: function () { return Promise.reject(new Error("FinAdapter 未实现：待 FIN 5.3.0 实例（U-API-01）")); },
     poll: function () { return this.load(); },
+    detail: function () { return Promise.reject(new Error("FinAdapter.detail 未实现：待 FIN 5.3.0 实例（U-API-01）")); },
   };
   var adapter = /[?&]mock=0/.test(location.search) ? FinAdapter : MockAdapter; // R1 注：站点授权过滤在 FinAdapter 由 FIN 会话驱动；Mock 不过滤
 
@@ -210,9 +238,27 @@
     prevSevMap = snapshotSev(snapshot.units);
   }
 
-  function renderUnit(unitId) { // M2 未开工：占位 + 返回
-    var u = snapshot.units.find(function (x) { return x.id === unitId; });
-    ractive.reset({ view: "unit", unit: u || null, unitId: unitId });
+  function renderUnit(unitId) { // M2：8 面板全量渲染（详设 M2-详设 §1）
+    var found = upsCore.buildDetail(snapshot.units, unitId);
+    if (!found) { ractive.reset({ view: "unit", notFound: true, unitId: unitId, unit: null, detail: null }); return; }
+    var u = found.unit, d = found.detail, now = Date.now(), period = snapshot.pollPeriodMs;
+    if (d && !d.ts) { var ts0 = u.ts; d.ts = { battery: ts0, load: ts0, electronics: ts0, environment: ts0, transfer: ts0 }; } // D-M2-01
+    var groupFresh = {};
+    if (d) Object.keys(d.ts).forEach(function (k) { groupFresh[k] = upsCore.classifyFreshness(d.ts[k], now, period); });
+    var fresh = upsCore.pageFreshness(d, now, period);
+    var alarms = d ? d.alarms.slice().sort(function (a, b) { return (a.ack ? 1 : 0) - (b.ack ? 1 : 0); }) : []; // Q5 未确认优先
+    var show = upsCore.hasTrend(u);
+    var sev = upsCore.topSeverity(u);
+    ractive.reset({ view: "unit", notFound: false, unitId: unitId, unit: u, detail: d,
+      groupFresh: groupFresh, fresh: fresh,
+      freshLabel: fresh === "ok" ? "实测" : fresh === "stale" ? "参考值" : "缺口",
+      sevClass: sev,
+      sevText: sev === "critical" ? "严重" : sev === "warning" ? "警告" : sev === "commLost" ? "通讯中断" : "正常",
+      alarmFilter: "all", alarms: alarms,
+      unackCount: alarms.filter(function (a) { return !a.ack; }).length,
+      showTrend: show,
+      trendSoc: show ? upsCore.sparklinePoints(u.socHistory, 240, 60, 0, 100) : "",
+      trendLoad: show ? upsCore.sparklinePoints(u.loadHistory, 240, 50, 0, 100) : "" });
   }
 
   function nav(q) { // 状态写入 hash → 返回时天然保留（REQ-M1-07）
@@ -236,12 +282,17 @@
           this.on("applySort", function () { renderOverview(currentQ()); }); // Q6 手动刷新排序
           this.on("goUnit", function (e, id) { location.hash = "/ups/unit/" + encodeURIComponent(id); });
           this.on("goBack", function () { history.back(); });
-          setInterval(function () { // Q2：10s 轮询
-            adapter.poll().then(function () { if (parseHash().page !== "unit") renderOverview(currentQ()); });
+          this.on("setAlarmFilter", function (e, f) { this.set("alarmFilter", f); }); // M2：告警筛选仅切视图（R2 只读，确认=M4）
+          setInterval(function () { // Q2：10s 轮询；详情视图刷新 detail（D-M2-01）
+            var r = parseHash();
+            if (r.page !== "unit") { adapter.poll().then(function () { renderOverview(currentQ()); }); return; }
+            adapter.poll().then(function () { return adapter.detail(r.unitId); }).then(function () { renderUnit(r.unitId); })
+              .catch(function (err) { if (ractive) ractive.set("detailError", String(err && err.message || err)); });
           }, s.pollPeriodMs);
         },
       });
       window.__upsPod = ractive; // 调试/走查钩子（参照 docs/demo 先例）
+      window.__upsPod.adapter = adapter; // 走查/运维：手动 poll/detail 验证时效跟踪（只读调试入口）
       window.addEventListener("hashchange", render);
       render();
     }).catch(function (err) {

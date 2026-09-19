@@ -1,5 +1,5 @@
 {
-  "seedVersion": "0.3.0",
+  "seedVersion": "0.4.0",
   "note": "tsOffsetSec=null 表示缺口；绝对时间由前端加载时计算（确定性：本文件不含墙钟）",
   "pollPeriodMs": 10000,
   "sites": [
@@ -27,955 +27,3978 @@
       "model": "30kVA",
       "topology": "online",
       "ratedKva": 35,
+      "serial": "SNA0001",
       "commLost": false,
       "mode": "battery",
       "loadPct": 75,
       "soc": 40,
-      "tsOffsetSec": 9
+      "tsOffsetSec": 9,
+      "detail": {
+        "battery": {
+          "stringVoltage": 381,
+          "impedance": 13,
+          "impedanceBaseline": 8,
+          "temperature": 35,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 210,
+          "capacityKw": 28,
+          "requiredMinutes": 16
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 50,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 87
+        },
+        "environment": {
+          "ambientTempC": 29,
+          "humidityPct": 41,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 2,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "电池内阻呈上升趋势",
+            "value": "组 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 32,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          },
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B02",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-02",
-      "location": "3F 机房 机位12",
-      "make": "Eaton",
-      "model": "60kVA",
+      "location": "2F UPS 间 机位9",
+      "make": "APC",
+      "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 64,
+      "ratedKva": 41,
+      "serial": "SNB0002",
       "commLost": false,
       "mode": "online",
-      "loadPct": 73,
-      "soc": 86,
-      "tsOffsetSec": 227
+      "loadPct": 33,
+      "soc": 82,
+      "tsOffsetSec": 7,
+      "detail": {
+        "battery": {
+          "stringVoltage": 385,
+          "impedance": 14,
+          "impedanceBaseline": 8,
+          "temperature": 20,
+          "chargeCurrent": 3,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 108.2,
+          "capacityKw": 32.800000000000004,
+          "requiredMinutes": 24
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "warning",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 90
+        },
+        "environment": {
+          "ambientTempC": 24,
+          "humidityPct": 65,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": false,
+          "lastTransferMs": 8,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 149,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C03",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-03",
-      "location": "3F 机房 机位4",
-      "make": "Huawei",
-      "model": "Modular 32kVA",
+      "location": "1F 配电室 机位10",
+      "make": "APC",
+      "model": "Modular 44kVA",
       "topology": "modularN1",
-      "ratedKva": 42,
+      "ratedKva": 33,
+      "serial": "SNC0003",
       "commLost": false,
       "mode": "online",
-      "loadPct": 79,
-      "soc": 73,
-      "tsOffsetSec": 2
+      "loadPct": 53,
+      "soc": 94,
+      "tsOffsetSec": 3,
+      "detail": {
+        "battery": {
+          "stringVoltage": 410,
+          "impedance": 9,
+          "impedanceBaseline": 4,
+          "temperature": 21,
+          "chargeCurrent": 4,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 139.9,
+          "capacityKw": 26.400000000000002,
+          "requiredMinutes": 28
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 2,
+          "rectifierStatus": "critical",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 85
+        },
+        "environment": {
+          "ambientTempC": 22,
+          "humidityPct": 49,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 8,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 106,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A04",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-04",
-      "location": "2F UPS 间 机位4",
-      "make": "Huawei",
-      "model": "40kVA",
+      "location": "1F 配电室 机位3",
+      "make": "APC",
+      "model": "30kVA",
       "topology": "online",
-      "ratedKva": 74,
+      "ratedKva": 63,
+      "serial": "SNA0004",
       "commLost": false,
       "mode": "online",
-      "loadPct": 39,
-      "soc": 77,
-      "tsOffsetSec": 1
+      "loadPct": 77,
+      "soc": 84,
+      "tsOffsetSec": 5,
+      "detail": {
+        "battery": {
+          "stringVoltage": 383,
+          "impedance": 14,
+          "impedanceBaseline": 4,
+          "temperature": 29,
+          "chargeCurrent": 3,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 388.1,
+          "capacityKw": 50.400000000000006,
+          "requiredMinutes": 16
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 74
+        },
+        "environment": {
+          "ambientTempC": 25,
+          "humidityPct": 34,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 11,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 65,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B05",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-05",
-      "location": "3F 机房 机位11",
-      "make": "Vertiv",
-      "model": "40kVA",
+      "location": "1F 配电室 机位8",
+      "make": "Kehua",
+      "model": "60kVA",
       "topology": "lineInteractive",
-      "ratedKva": 57,
+      "ratedKva": 27,
+      "serial": "SNB0005",
       "commLost": false,
       "mode": "online",
-      "loadPct": 60,
-      "soc": 72,
-      "tsOffsetSec": 7
+      "loadPct": 66,
+      "soc": 95,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 399,
+          "impedance": 12,
+          "impedanceBaseline": 5,
+          "temperature": 34,
+          "chargeCurrent": 6,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 142.6,
+          "capacityKw": 21.6,
+          "requiredMinutes": 30
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 50,
+          "inverterThd": 2,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 84
+        },
+        "environment": {
+          "ambientTempC": 21,
+          "humidityPct": 50,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 0,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "电池内阻呈上升趋势",
+            "value": "组 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 86,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C06",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-06",
-      "location": "3F 机房 机位9",
-      "make": "Eaton",
-      "model": "Modular 60kVA",
+      "location": "2F UPS 间 机位1",
+      "make": "Huawei",
+      "model": "Modular 45kVA",
       "topology": "modularN1",
-      "ratedKva": 33,
+      "ratedKva": 41,
+      "serial": "SNC0006",
       "commLost": false,
       "mode": "online",
-      "loadPct": 70,
-      "soc": 89,
-      "tsOffsetSec": 3
+      "loadPct": 57,
+      "soc": 88,
+      "tsOffsetSec": 198,
+      "detail": {
+        "battery": {
+          "stringVoltage": 385,
+          "impedance": 5,
+          "impedanceBaseline": 5,
+          "temperature": 21,
+          "chargeCurrent": 5,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 187,
+          "capacityKw": 32.800000000000004,
+          "requiredMinutes": 28
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 50,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 66
+        },
+        "environment": {
+          "ambientTempC": 28,
+          "humidityPct": 65,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 7,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 93,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A07",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-07",
-      "location": "2F UPS 间 机位4",
-      "make": "Eaton",
-      "model": "30kVA",
+      "location": "B1 电池室 机位5",
+      "make": "APC",
+      "model": "40kVA",
       "topology": "online",
-      "ratedKva": 69,
-      "commLost": false,
-      "mode": "online",
-      "loadPct": 30,
-      "soc": 88,
-      "tsOffsetSec": 5
+      "ratedKva": 55,
+      "serial": "SNA0007",
+      "commLost": true,
+      "mode": "unknown",
+      "loadPct": null,
+      "soc": null,
+      "tsOffsetSec": 2479,
+      "detail": null
     },
     {
       "id": "UPS-B08",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-08",
-      "location": "2F UPS 间 机位12",
-      "make": "Eaton",
-      "model": "30kVA",
+      "location": "B1 电池室 机位7",
+      "make": "Huawei",
+      "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 26,
+      "ratedKva": 30,
+      "serial": "SNB0008",
       "commLost": false,
       "mode": "online",
-      "loadPct": 36,
-      "soc": 70,
-      "tsOffsetSec": 5
+      "loadPct": 39,
+      "soc": 77,
+      "tsOffsetSec": 2,
+      "detail": {
+        "battery": {
+          "stringVoltage": 392,
+          "impedance": 9,
+          "impedanceBaseline": 4,
+          "temperature": 27,
+          "chargeCurrent": 2,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 93.6,
+          "capacityKw": 24,
+          "requiredMinutes": 25
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 87
+        },
+        "environment": {
+          "ambientTempC": 20,
+          "humidityPct": 56,
+          "airQuality": "normal",
+          "waterDetected": true
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 4,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 118,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C09",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-09",
-      "location": "1F 配电室 机位9",
+      "location": "2F UPS 间 机位4",
       "make": "APC",
-      "model": "Modular 56kVA",
+      "model": "Modular 21kVA",
       "topology": "modularN1",
-      "ratedKva": 42,
+      "ratedKva": 37,
+      "serial": "SNC0009",
       "commLost": false,
       "mode": "online",
-      "loadPct": 53,
-      "soc": 71,
-      "tsOffsetSec": 9
+      "loadPct": 32,
+      "soc": 87,
+      "tsOffsetSec": 2,
+      "detail": {
+        "battery": {
+          "stringVoltage": 392,
+          "impedance": 10,
+          "impedanceBaseline": 5,
+          "temperature": 25,
+          "chargeCurrent": 1,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 94.7,
+          "capacityKw": 29.6,
+          "requiredMinutes": 26
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "critical",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 74
+        },
+        "environment": {
+          "ambientTempC": 27,
+          "humidityPct": 34,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 7,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 163,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A10",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-10",
-      "location": "1F 配电室 机位4",
+      "location": "B1 电池室 机位11",
       "make": "Kehua",
       "model": "40kVA",
       "topology": "online",
-      "ratedKva": 33,
+      "ratedKva": 77,
+      "serial": "SNA0010",
       "commLost": false,
-      "mode": "online",
-      "loadPct": 24,
-      "soc": 75,
-      "tsOffsetSec": 1
+      "mode": "battery",
+      "loadPct": 42,
+      "soc": 43,
+      "tsOffsetSec": 7,
+      "detail": {
+        "battery": {
+          "stringVoltage": 407,
+          "impedance": 5,
+          "impedanceBaseline": 7,
+          "temperature": 21,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 258.7,
+          "capacityKw": 61.6,
+          "requiredMinutes": 5
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 98
+        },
+        "environment": {
+          "ambientTempC": 22,
+          "humidityPct": 55,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 11,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 61,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B11",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-11",
-      "location": "2F UPS 间 机位5",
-      "make": "Eaton",
-      "model": "40kVA",
+      "location": "3F 机房 机位1",
+      "make": "Huawei",
+      "model": "60kVA",
       "topology": "lineInteractive",
-      "ratedKva": 80,
-      "commLost": false,
-      "mode": "online",
-      "loadPct": 24,
-      "soc": 89,
-      "tsOffsetSec": 3
+      "ratedKva": 48,
+      "serial": "SNB0011",
+      "commLost": true,
+      "mode": "unknown",
+      "loadPct": null,
+      "soc": null,
+      "tsOffsetSec": 2796,
+      "detail": null
     },
     {
       "id": "UPS-C12",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-12",
-      "location": "1F 配电室 机位6",
+      "location": "B1 电池室 机位12",
       "make": "Eaton",
-      "model": "Modular 37kVA",
+      "model": "Modular 21kVA",
       "topology": "modularN1",
       "ratedKva": 27,
+      "serial": "SNC0012",
       "commLost": false,
       "mode": "online",
-      "loadPct": 47,
-      "soc": 86,
-      "tsOffsetSec": 0
+      "loadPct": 78,
+      "soc": 100,
+      "tsOffsetSec": 4,
+      "detail": {
+        "battery": {
+          "stringVoltage": 408,
+          "impedance": 12,
+          "impedanceBaseline": 8,
+          "temperature": 26,
+          "chargeCurrent": 10,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 168.5,
+          "capacityKw": 21.6,
+          "requiredMinutes": 19
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 59
+        },
+        "environment": {
+          "ambientTempC": 20,
+          "humidityPct": 61,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 17,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 77,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A13",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-13",
-      "location": "3F 机房 机位7",
-      "make": "Vertiv",
+      "location": "3F 机房 机位11",
+      "make": "Huawei",
       "model": "60kVA",
       "topology": "online",
-      "ratedKva": 66,
+      "ratedKva": 40,
+      "serial": "SNA0013",
       "commLost": false,
       "mode": "online",
-      "loadPct": 24,
-      "soc": 74,
-      "tsOffsetSec": 9
+      "loadPct": 42,
+      "soc": 98,
+      "tsOffsetSec": 4,
+      "detail": {
+        "battery": {
+          "stringVoltage": 407,
+          "impedance": 11,
+          "impedanceBaseline": 7,
+          "temperature": 21,
+          "chargeCurrent": 9,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 134.4,
+          "capacityKw": 32,
+          "requiredMinutes": 9
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 60,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 58
+        },
+        "environment": {
+          "ambientTempC": 21,
+          "humidityPct": 43,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 20,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 140,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B14",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-14",
-      "location": "B1 电池室 机位10",
-      "make": "Eaton",
-      "model": "80kVA",
+      "location": "3F 机房 机位2",
+      "make": "Kehua",
+      "model": "30kVA",
       "topology": "lineInteractive",
-      "ratedKva": 62,
+      "ratedKva": 30,
+      "serial": "SNB0014",
       "commLost": false,
       "mode": "online",
-      "loadPct": 70,
-      "soc": 80,
-      "tsOffsetSec": 5
+      "loadPct": 25,
+      "soc": 87,
+      "tsOffsetSec": 109,
+      "detail": {
+        "battery": {
+          "stringVoltage": 377,
+          "impedance": 10,
+          "impedanceBaseline": 5,
+          "temperature": 30,
+          "chargeCurrent": 1,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 60,
+          "capacityKw": 24,
+          "requiredMinutes": 22
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 60,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 91
+        },
+        "environment": {
+          "ambientTempC": 28,
+          "humidityPct": 47,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 12,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 209,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C15",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-15",
-      "location": "1F 配电室 机位4",
-      "make": "Eaton",
+      "location": "1F 配电室 机位1",
+      "make": "Kehua",
       "model": "Modular 29kVA",
       "topology": "modularN1",
-      "ratedKva": 59,
+      "ratedKva": 67,
+      "serial": "SNC0015",
       "commLost": false,
-      "mode": "online",
-      "loadPct": 74,
-      "soc": 100,
-      "tsOffsetSec": 5
+      "mode": "battery",
+      "loadPct": 37,
+      "soc": 43,
+      "tsOffsetSec": 4,
+      "detail": {
+        "battery": {
+          "stringVoltage": 376,
+          "impedance": 12,
+          "impedanceBaseline": 5,
+          "temperature": 29,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 198.3,
+          "capacityKw": 53.6,
+          "requiredMinutes": 11
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "critical",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 74
+        },
+        "environment": {
+          "ambientTempC": 19,
+          "humidityPct": 55,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 12,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 70,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          },
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A16",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-16",
-      "location": "3F 机房 机位4",
-      "make": "Vertiv",
+      "location": "B1 电池室 机位12",
+      "make": "Kehua",
       "model": "60kVA",
       "topology": "online",
-      "ratedKva": 30,
+      "ratedKva": 36,
+      "serial": "SNA0016",
       "commLost": false,
       "mode": "online",
-      "loadPct": 30,
-      "soc": 95,
-      "tsOffsetSec": 4
+      "loadPct": 59,
+      "soc": 91,
+      "tsOffsetSec": 2,
+      "detail": {
+        "battery": {
+          "stringVoltage": 391,
+          "impedance": 11,
+          "impedanceBaseline": 6,
+          "temperature": 29,
+          "chargeCurrent": 5,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 169.9,
+          "capacityKw": 28.8,
+          "requiredMinutes": 16
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 60,
+          "inverterThd": 2,
+          "rectifierStatus": "warning",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 90
+        },
+        "environment": {
+          "ambientTempC": 27,
+          "humidityPct": 37,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 7,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 93,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B17",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-17",
-      "location": "B1 电池室 机位8",
-      "make": "APC",
-      "model": "60kVA",
+      "location": "1F 配电室 机位1",
+      "make": "Eaton",
+      "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 57,
-      "commLost": true,
-      "mode": "unknown",
-      "loadPct": null,
-      "soc": null,
-      "tsOffsetSec": 773
+      "ratedKva": 49,
+      "serial": "SNB0017",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 41,
+      "soc": 97,
+      "tsOffsetSec": 3,
+      "detail": {
+        "battery": {
+          "stringVoltage": 387,
+          "impedance": 6,
+          "impedanceBaseline": 6,
+          "temperature": 33,
+          "chargeCurrent": 3,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 160.7,
+          "capacityKw": 39.2,
+          "requiredMinutes": 6
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 78
+        },
+        "environment": {
+          "ambientTempC": 26,
+          "humidityPct": 39,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 15,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 142,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-C18",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-18",
-      "location": "1F 配电室 机位3",
-      "make": "Vertiv",
-      "model": "Modular 39kVA",
+      "location": "2F UPS 间 机位11",
+      "make": "Kehua",
+      "model": "Modular 23kVA",
       "topology": "modularN1",
-      "ratedKva": 28,
+      "ratedKva": 73,
+      "serial": "SNC0018",
       "commLost": false,
       "mode": "online",
-      "loadPct": 64,
-      "soc": 77,
-      "tsOffsetSec": 1
+      "loadPct": 47,
+      "soc": 92,
+      "tsOffsetSec": 6,
+      "detail": {
+        "battery": {
+          "stringVoltage": 398,
+          "impedance": 11,
+          "impedanceBaseline": 6,
+          "temperature": 22,
+          "chargeCurrent": 5,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 274.5,
+          "capacityKw": 58.400000000000006,
+          "requiredMinutes": 9
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 2,
+          "rectifierStatus": "warning",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 60
+        },
+        "environment": {
+          "ambientTempC": 18,
+          "humidityPct": 50,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 15,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 117,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A19",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-19",
-      "location": "3F 机房 机位10",
-      "make": "Kehua",
-      "model": "60kVA",
+      "location": "2F UPS 间 机位7",
+      "make": "Vertiv",
+      "model": "30kVA",
       "topology": "online",
-      "ratedKva": 35,
+      "ratedKva": 79,
+      "serial": "SNA0019",
       "commLost": false,
-      "mode": "online",
-      "loadPct": 73,
-      "soc": 73,
-      "tsOffsetSec": 0
+      "mode": "battery",
+      "loadPct": 34,
+      "soc": 25,
+      "tsOffsetSec": 1,
+      "detail": {
+        "battery": {
+          "stringVoltage": 389,
+          "impedance": 14,
+          "impedanceBaseline": 8,
+          "temperature": 29,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 214.9,
+          "capacityKw": 63.2,
+          "requiredMinutes": 17
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 69
+        },
+        "environment": {
+          "ambientTempC": 27,
+          "humidityPct": 56,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 18,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 44,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          },
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B20",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-20",
-      "location": "B1 电池室 机位5",
+      "location": "1F 配电室 机位7",
       "make": "APC",
-      "model": "40kVA",
+      "model": "60kVA",
       "topology": "lineInteractive",
-      "ratedKva": 55,
+      "ratedKva": 67,
+      "serial": "SNB0020",
       "commLost": false,
-      "mode": "battery",
-      "loadPct": 59,
-      "soc": 31,
-      "tsOffsetSec": 6
+      "mode": "online",
+      "loadPct": 19,
+      "soc": 84,
+      "tsOffsetSec": 5,
+      "detail": {
+        "battery": {
+          "stringVoltage": 406,
+          "impedance": 4,
+          "impedanceBaseline": 7,
+          "temperature": 32,
+          "chargeCurrent": 9,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 101.8,
+          "capacityKw": 53.6,
+          "requiredMinutes": 30
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 80
+        },
+        "environment": {
+          "ambientTempC": 20,
+          "humidityPct": 39,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 5,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 265,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-C21",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-21",
-      "location": "3F 机房 机位3",
-      "make": "APC",
-      "model": "Modular 29kVA",
+      "location": "2F UPS 间 机位3",
+      "make": "Kehua",
+      "model": "Modular 56kVA",
       "topology": "modularN1",
-      "ratedKva": 35,
+      "ratedKva": 67,
+      "serial": "SNC0021",
       "commLost": false,
       "mode": "online",
-      "loadPct": 34,
-      "soc": 86,
-      "tsOffsetSec": 0
+      "loadPct": 72,
+      "soc": 94,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 374,
+          "impedance": 4,
+          "impedanceBaseline": 5,
+          "temperature": 23,
+          "chargeCurrent": 4,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 385.9,
+          "capacityKw": 53.6,
+          "requiredMinutes": 19
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 60,
+          "inverterThd": 3,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 75
+        },
+        "environment": {
+          "ambientTempC": 20,
+          "humidityPct": 47,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 13,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 78,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-A22",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-22",
-      "location": "1F 配电室 机位2",
-      "make": "Vertiv",
-      "model": "60kVA",
+      "location": "2F UPS 间 机位4",
+      "make": "APC",
+      "model": "80kVA",
       "topology": "online",
-      "ratedKva": 39,
+      "ratedKva": 53,
+      "serial": "SNA0022",
       "commLost": false,
-      "mode": "battery",
-      "loadPct": 73,
-      "soc": 45,
-      "tsOffsetSec": 7
+      "mode": "online",
+      "loadPct": 51,
+      "soc": 93,
+      "tsOffsetSec": 253,
+      "detail": {
+        "battery": {
+          "stringVoltage": 373,
+          "impedance": 11,
+          "impedanceBaseline": 8,
+          "temperature": 33,
+          "chargeCurrent": 8,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 216.2,
+          "capacityKw": 42.400000000000006,
+          "requiredMinutes": 26
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 2,
+          "rectifierStatus": "normal",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 95
+        },
+        "environment": {
+          "ambientTempC": 28,
+          "humidityPct": 56,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 16,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 109,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B23",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-23",
-      "location": "2F UPS 间 机位1",
+      "location": "2F UPS 间 机位7",
       "make": "Vertiv",
       "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 33,
+      "ratedKva": 25,
+      "serial": "SNB0023",
       "commLost": false,
       "mode": "online",
-      "loadPct": 40,
-      "soc": 82,
-      "tsOffsetSec": 9
+      "loadPct": 56,
+      "soc": 83,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 387,
+          "impedance": 4,
+          "impedanceBaseline": 4,
+          "temperature": 21,
+          "chargeCurrent": 10,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 112,
+          "capacityKw": 20,
+          "requiredMinutes": 27
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 79
+        },
+        "environment": {
+          "ambientTempC": 22,
+          "humidityPct": 33,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 18,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 89,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-C24",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-24",
-      "location": "2F UPS 间 机位1",
-      "make": "APC",
-      "model": "Modular 30kVA",
+      "location": "1F 配电室 机位5",
+      "make": "Huawei",
+      "model": "Modular 43kVA",
       "topology": "modularN1",
-      "ratedKva": 54,
+      "ratedKva": 67,
+      "serial": "SNC0024",
       "commLost": false,
-      "mode": "online",
-      "loadPct": 81,
-      "soc": 78,
-      "tsOffsetSec": 6
+      "mode": "battery",
+      "loadPct": 77,
+      "soc": 30,
+      "tsOffsetSec": 109,
+      "detail": {
+        "battery": {
+          "stringVoltage": 377,
+          "impedance": 5,
+          "impedanceBaseline": 8,
+          "temperature": 33,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 412.7,
+          "capacityKw": 53.6,
+          "requiredMinutes": 7
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 60,
+          "inverterThd": 3,
+          "rectifierStatus": "normal",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 75
+        },
+        "environment": {
+          "ambientTempC": 30,
+          "humidityPct": 53,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 2,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 23,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A25",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-25",
-      "location": "1F 配电室 机位5",
-      "make": "Vertiv",
-      "model": "40kVA",
+      "location": "3F 机房 机位2",
+      "make": "Huawei",
+      "model": "30kVA",
       "topology": "online",
-      "ratedKva": 67,
+      "ratedKva": 20,
+      "serial": "SNA0025",
       "commLost": false,
       "mode": "online",
-      "loadPct": 73,
-      "soc": 82,
-      "tsOffsetSec": 7
+      "loadPct": 50,
+      "soc": 77,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 393,
+          "impedance": 6,
+          "impedanceBaseline": 8,
+          "temperature": 30,
+          "chargeCurrent": 5,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 80,
+          "capacityKw": 16,
+          "requiredMinutes": 24
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 60,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 58
+        },
+        "environment": {
+          "ambientTempC": 21,
+          "humidityPct": 46,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 10,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 92,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B26",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-26",
-      "location": "1F 配电室 机位10",
-      "make": "Huawei",
-      "model": "80kVA",
+      "location": "2F UPS 间 机位7",
+      "make": "Kehua",
+      "model": "60kVA",
       "topology": "lineInteractive",
-      "ratedKva": 77,
+      "ratedKva": 76,
+      "serial": "SNB0026",
       "commLost": false,
       "mode": "online",
-      "loadPct": 40,
-      "soc": 75,
-      "tsOffsetSec": 9
+      "loadPct": 33,
+      "soc": 83,
+      "tsOffsetSec": 73,
+      "detail": {
+        "battery": {
+          "stringVoltage": 403,
+          "impedance": 12,
+          "impedanceBaseline": 5,
+          "temperature": 20,
+          "chargeCurrent": 4,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 200.6,
+          "capacityKw": 60.800000000000004,
+          "requiredMinutes": 26
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 60,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 58
+        },
+        "environment": {
+          "ambientTempC": 19,
+          "humidityPct": 42,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 2,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 151,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C27",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-27",
-      "location": "B1 电池室 机位11",
-      "make": "Kehua",
-      "model": "Modular 38kVA",
+      "location": "2F UPS 间 机位4",
+      "make": "Eaton",
+      "model": "Modular 20kVA",
       "topology": "modularN1",
-      "ratedKva": 77,
+      "ratedKva": 37,
+      "serial": "SNC0027",
       "commLost": false,
-      "mode": "battery",
-      "loadPct": 42,
-      "soc": 43,
-      "tsOffsetSec": 7
+      "mode": "online",
+      "loadPct": 57,
+      "soc": 88,
+      "tsOffsetSec": 7,
+      "detail": {
+        "battery": {
+          "stringVoltage": 374,
+          "impedance": 14,
+          "impedanceBaseline": 7,
+          "temperature": 22,
+          "chargeCurrent": 6,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 168.7,
+          "capacityKw": 29.6,
+          "requiredMinutes": 9
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 60,
+          "inverterThd": 4,
+          "rectifierStatus": "critical",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 89
+        },
+        "environment": {
+          "ambientTempC": 21,
+          "humidityPct": 30,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 4,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 93,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A28",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-28",
-      "location": "3F 机房 机位2",
+      "location": "B1 电池室 机位2",
       "make": "Huawei",
-      "model": "30kVA",
+      "model": "40kVA",
       "topology": "online",
-      "ratedKva": 35,
+      "ratedKva": 20,
+      "serial": "SNA0028",
       "commLost": false,
       "mode": "online",
-      "loadPct": 68,
-      "soc": 87,
-      "tsOffsetSec": 9
+      "loadPct": 19,
+      "soc": 80,
+      "tsOffsetSec": 1,
+      "detail": {
+        "battery": {
+          "stringVoltage": 381,
+          "impedance": 4,
+          "impedanceBaseline": 7,
+          "temperature": 24,
+          "chargeCurrent": 8,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 30.4,
+          "capacityKw": 16,
+          "requiredMinutes": 18
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 2,
+          "rectifierStatus": "warning",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 65
+        },
+        "environment": {
+          "ambientTempC": 24,
+          "humidityPct": 34,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 18,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "电池内阻呈上升趋势",
+            "value": "组 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 253,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B29",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-29",
-      "location": "2F UPS 间 机位9",
-      "make": "Vertiv",
-      "model": "40kVA",
+      "location": "2F UPS 间 机位8",
+      "make": "Eaton",
+      "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 43,
-      "commLost": true,
-      "mode": "unknown",
-      "loadPct": null,
-      "soc": null,
-      "tsOffsetSec": 2671
+      "ratedKva": 47,
+      "serial": "SNB0029",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 26,
+      "soc": 82,
+      "tsOffsetSec": 4,
+      "detail": {
+        "battery": {
+          "stringVoltage": 408,
+          "impedance": 10,
+          "impedanceBaseline": 4,
+          "temperature": 20,
+          "chargeCurrent": 4,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 97.8,
+          "capacityKw": 37.6,
+          "requiredMinutes": 25
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 3,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 80
+        },
+        "environment": {
+          "ambientTempC": 28,
+          "humidityPct": 56,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 12,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 189,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C30",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-30",
-      "location": "3F 机房 机位1",
-      "make": "Kehua",
-      "model": "Modular 21kVA",
+      "location": "1F 配电室 机位10",
+      "make": "APC",
+      "model": "Modular 24kVA",
       "topology": "modularN1",
-      "ratedKva": 58,
+      "ratedKva": 31,
+      "serial": "SNC0030",
       "commLost": false,
       "mode": "online",
-      "loadPct": 55,
-      "soc": 84,
-      "tsOffsetSec": 2
+      "loadPct": 76,
+      "soc": 79,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 391,
+          "impedance": 12,
+          "impedanceBaseline": 5,
+          "temperature": 21,
+          "chargeCurrent": 7,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 188.5,
+          "capacityKw": 24.8,
+          "requiredMinutes": 6
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "critical",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 68
+        },
+        "environment": {
+          "ambientTempC": 21,
+          "humidityPct": 33,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 15,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 62,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A31",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-31",
-      "location": "3F 机房 机位5",
+      "location": "2F UPS 间 机位3",
       "make": "Vertiv",
-      "model": "30kVA",
+      "model": "40kVA",
       "topology": "online",
-      "ratedKva": 74,
+      "ratedKva": 77,
+      "serial": "SNA0031",
       "commLost": false,
-      "mode": "online",
-      "loadPct": 84,
-      "soc": 97,
-      "tsOffsetSec": 9
+      "mode": "battery",
+      "loadPct": 65,
+      "soc": 43,
+      "tsOffsetSec": 2,
+      "detail": {
+        "battery": {
+          "stringVoltage": 410,
+          "impedance": 8,
+          "impedanceBaseline": 7,
+          "temperature": 24,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 400.4,
+          "capacityKw": 61.6,
+          "requiredMinutes": 21
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 60,
+          "inverterThd": 5,
+          "rectifierStatus": "critical",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 59
+        },
+        "environment": {
+          "ambientTempC": 30,
+          "humidityPct": 39,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 19,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 40,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B32",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-32",
-      "location": "2F UPS 间 机位11",
+      "location": "1F 配电室 机位9",
       "make": "Eaton",
-      "model": "40kVA",
+      "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 32,
+      "ratedKva": 37,
+      "serial": "SNB0032",
       "commLost": false,
       "mode": "online",
-      "loadPct": 61,
-      "soc": 76,
-      "tsOffsetSec": 0
+      "loadPct": 41,
+      "soc": 73,
+      "tsOffsetSec": 138,
+      "detail": {
+        "battery": {
+          "stringVoltage": 389,
+          "impedance": 11,
+          "impedanceBaseline": 6,
+          "temperature": 20,
+          "chargeCurrent": 10,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 121.4,
+          "capacityKw": 29.6,
+          "requiredMinutes": 19
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 95
+        },
+        "environment": {
+          "ambientTempC": 25,
+          "humidityPct": 45,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 10,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 107,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C33",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-33",
-      "location": "1F 配电室 机位11",
-      "make": "Kehua",
-      "model": "Modular 57kVA",
+      "location": "3F 机房 机位3",
+      "make": "Vertiv",
+      "model": "Modular 39kVA",
       "topology": "modularN1",
-      "ratedKva": 44,
+      "ratedKva": 28,
+      "serial": "SNC0033",
       "commLost": false,
       "mode": "online",
-      "loadPct": 43,
-      "soc": 95,
-      "tsOffsetSec": 9
+      "loadPct": 41,
+      "soc": 83,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 394,
+          "impedance": 4,
+          "impedanceBaseline": 6,
+          "temperature": 23,
+          "chargeCurrent": 2,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 91.8,
+          "capacityKw": 22.400000000000002,
+          "requiredMinutes": 7
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 73
+        },
+        "environment": {
+          "ambientTempC": 23,
+          "humidityPct": 48,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 3,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 121,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-A34",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-34",
-      "location": "3F 机房 机位11",
-      "make": "Huawei",
-      "model": "60kVA",
+      "location": "B1 电池室 机位5",
+      "make": "Vertiv",
+      "model": "80kVA",
       "topology": "online",
-      "ratedKva": 40,
+      "ratedKva": 29,
+      "serial": "SNA0034",
       "commLost": false,
-      "mode": "online",
-      "loadPct": 42,
-      "soc": 98,
-      "tsOffsetSec": 4
+      "mode": "battery",
+      "loadPct": 21,
+      "soc": 41,
+      "tsOffsetSec": 9,
+      "detail": {
+        "battery": {
+          "stringVoltage": 386,
+          "impedance": 9,
+          "impedanceBaseline": 5,
+          "temperature": 26,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 48.7,
+          "capacityKw": 23.200000000000003,
+          "requiredMinutes": 26
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 3,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 95
+        },
+        "environment": {
+          "ambientTempC": 21,
+          "humidityPct": 51,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 0,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 117,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          },
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B35",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-35",
-      "location": "B1 电池室 机位2",
-      "make": "Kehua",
+      "location": "1F 配电室 机位7",
+      "make": "Huawei",
       "model": "60kVA",
       "topology": "lineInteractive",
-      "ratedKva": 44,
+      "ratedKva": 39,
+      "serial": "SNB0035",
       "commLost": false,
       "mode": "online",
-      "loadPct": 77,
-      "soc": 100,
-      "tsOffsetSec": 253
+      "loadPct": 65,
+      "soc": 98,
+      "tsOffsetSec": 269,
+      "detail": {
+        "battery": {
+          "stringVoltage": 407,
+          "impedance": 7,
+          "impedanceBaseline": 6,
+          "temperature": 31,
+          "chargeCurrent": 1,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 202.8,
+          "capacityKw": 31.200000000000003,
+          "requiredMinutes": 28
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 60,
+          "inverterThd": 5,
+          "rectifierStatus": "critical",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 82
+        },
+        "environment": {
+          "ambientTempC": 29,
+          "humidityPct": 62,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 6,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 90,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C36",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-36",
-      "location": "3F 机房 机位3",
-      "make": "APC",
-      "model": "Modular 34kVA",
+      "location": "B1 电池室 机位10",
+      "make": "Vertiv",
+      "model": "Modular 39kVA",
       "topology": "modularN1",
-      "ratedKva": 42,
-      "commLost": true,
-      "mode": "unknown",
-      "loadPct": null,
-      "soc": null,
-      "tsOffsetSec": 2332
+      "ratedKva": 28,
+      "serial": "SNC0036",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 18,
+      "soc": 78,
+      "tsOffsetSec": 7,
+      "detail": {
+        "battery": {
+          "stringVoltage": 376,
+          "impedance": 10,
+          "impedanceBaseline": 7,
+          "temperature": 34,
+          "chargeCurrent": 1,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 40.3,
+          "capacityKw": 22.400000000000002,
+          "requiredMinutes": 10
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 56
+        },
+        "environment": {
+          "ambientTempC": 24,
+          "humidityPct": 54,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 20,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 260,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A37",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-37",
-      "location": "2F UPS 间 机位12",
-      "make": "Huawei",
+      "location": "B1 电池室 机位12",
+      "make": "Eaton",
       "model": "30kVA",
       "topology": "online",
-      "ratedKva": 42,
-      "commLost": true,
-      "mode": "unknown",
-      "loadPct": null,
-      "soc": null,
-      "tsOffsetSec": 2470
+      "ratedKva": 70,
+      "serial": "SNA0037",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 22,
+      "soc": 79,
+      "tsOffsetSec": 7,
+      "detail": {
+        "battery": {
+          "stringVoltage": 402,
+          "impedance": 10,
+          "impedanceBaseline": 4,
+          "temperature": 20,
+          "chargeCurrent": 4,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 123.2,
+          "capacityKw": 56,
+          "requiredMinutes": 19
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 3,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 89
+        },
+        "environment": {
+          "ambientTempC": 20,
+          "humidityPct": 57,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 3,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "电池内阻呈上升趋势",
+            "value": "组 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 215,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B38",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-38",
-      "location": "1F 配电室 机位12",
-      "make": "Vertiv",
-      "model": "30kVA",
+      "location": "B1 电池室 机位11",
+      "make": "Huawei",
+      "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 28,
+      "ratedKva": 22,
+      "serial": "SNB0038",
       "commLost": false,
       "mode": "online",
-      "loadPct": 54,
-      "soc": 70,
-      "tsOffsetSec": 1
+      "loadPct": 83,
+      "soc": 92,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 410,
+          "impedance": 6,
+          "impedanceBaseline": 5,
+          "temperature": 30,
+          "chargeCurrent": 2,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 146.1,
+          "capacityKw": 17.6,
+          "requiredMinutes": 29
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 96
+        },
+        "environment": {
+          "ambientTempC": 26,
+          "humidityPct": 31,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 18,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 67,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C39",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-39",
-      "location": "B1 电池室 机位2",
-      "make": "Kehua",
-      "model": "Modular 32kVA",
+      "location": "B1 电池室 机位10",
+      "make": "Vertiv",
+      "model": "Modular 59kVA",
       "topology": "modularN1",
-      "ratedKva": 77,
+      "ratedKva": 33,
+      "serial": "SNC0039",
       "commLost": false,
       "mode": "online",
-      "loadPct": 60,
-      "soc": 81,
-      "tsOffsetSec": 7
+      "loadPct": 77,
+      "soc": 73,
+      "tsOffsetSec": 3,
+      "detail": {
+        "battery": {
+          "stringVoltage": 409,
+          "impedance": 13,
+          "impedanceBaseline": 7,
+          "temperature": 25,
+          "chargeCurrent": 6,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 203.3,
+          "capacityKw": 26.400000000000002,
+          "requiredMinutes": 21
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 60,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 72
+        },
+        "environment": {
+          "ambientTempC": 21,
+          "humidityPct": 53,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 5,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 57,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A40",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-40",
-      "location": "3F 机房 机位6",
-      "make": "Huawei",
-      "model": "80kVA",
+      "location": "1F 配电室 机位6",
+      "make": "Vertiv",
+      "model": "30kVA",
       "topology": "online",
-      "ratedKva": 41,
+      "ratedKva": 27,
+      "serial": "SNA0040",
       "commLost": false,
       "mode": "online",
-      "loadPct": 34,
-      "soc": 88,
-      "tsOffsetSec": 5
+      "loadPct": 43,
+      "soc": 72,
+      "tsOffsetSec": 4,
+      "detail": {
+        "battery": {
+          "stringVoltage": 376,
+          "impedance": 6,
+          "impedanceBaseline": 6,
+          "temperature": 22,
+          "chargeCurrent": 4,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 92.9,
+          "capacityKw": 21.6,
+          "requiredMinutes": 15
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 2,
+          "rectifierStatus": "critical",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 55
+        },
+        "environment": {
+          "ambientTempC": 19,
+          "humidityPct": 50,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 14,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 100,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B41",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-41",
-      "location": "1F 配电室 机位1",
+      "location": "2F UPS 间 机位1",
       "make": "Kehua",
       "model": "30kVA",
       "topology": "lineInteractive",
-      "ratedKva": 67,
-      "commLost": false,
-      "mode": "battery",
-      "loadPct": 37,
-      "soc": 43,
-      "tsOffsetSec": 4
+      "ratedKva": 22,
+      "serial": "SNB0041",
+      "commLost": true,
+      "mode": "unknown",
+      "loadPct": null,
+      "soc": null,
+      "tsOffsetSec": 2383,
+      "detail": null
     },
     {
       "id": "UPS-C42",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-42",
-      "location": "2F UPS 间 机位8",
-      "make": "Vertiv",
-      "model": "Modular 36kVA",
+      "location": "1F 配电室 机位12",
+      "make": "APC",
+      "model": "Modular 39kVA",
       "topology": "modularN1",
-      "ratedKva": 24,
+      "ratedKva": 62,
+      "serial": "SNC0042",
       "commLost": false,
       "mode": "online",
-      "loadPct": 59,
-      "soc": 95,
-      "tsOffsetSec": 4
+      "loadPct": 17,
+      "soc": 78,
+      "tsOffsetSec": 2,
+      "detail": {
+        "battery": {
+          "stringVoltage": 372,
+          "impedance": 12,
+          "impedanceBaseline": 5,
+          "temperature": 23,
+          "chargeCurrent": 6,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 84.3,
+          "capacityKw": 49.6,
+          "requiredMinutes": 25
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 50,
+          "inverterThd": 2,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 94
+        },
+        "environment": {
+          "ambientTempC": 26,
+          "humidityPct": 38,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 2,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 275,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A43",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-43",
-      "location": "1F 配电室 机位9",
-      "make": "APC",
-      "model": "60kVA",
+      "location": "2F UPS 间 机位4",
+      "make": "Kehua",
+      "model": "40kVA",
       "topology": "online",
-      "ratedKva": 49,
+      "ratedKva": 43,
+      "serial": "SNA0043",
       "commLost": false,
       "mode": "online",
-      "loadPct": 70,
-      "soc": 89,
-      "tsOffsetSec": 7
+      "loadPct": 42,
+      "soc": 86,
+      "tsOffsetSec": 4,
+      "detail": {
+        "battery": {
+          "stringVoltage": 374,
+          "impedance": 5,
+          "impedanceBaseline": 6,
+          "temperature": 21,
+          "chargeCurrent": 9,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 144.5,
+          "capacityKw": 34.4,
+          "requiredMinutes": 30
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 86
+        },
+        "environment": {
+          "ambientTempC": 22,
+          "humidityPct": 49,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 19,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 123,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-B44",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-44",
-      "location": "B1 电池室 机位12",
-      "make": "Kehua",
-      "model": "60kVA",
+      "location": "1F 配电室 机位10",
+      "make": "Eaton",
+      "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 36,
+      "ratedKva": 77,
+      "serial": "SNB0044",
       "commLost": false,
       "mode": "online",
-      "loadPct": 59,
-      "soc": 91,
-      "tsOffsetSec": 2
+      "loadPct": 48,
+      "soc": 71,
+      "tsOffsetSec": 147,
+      "detail": {
+        "battery": {
+          "stringVoltage": 401,
+          "impedance": 5,
+          "impedanceBaseline": 4,
+          "temperature": 24,
+          "chargeCurrent": 8,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 295.7,
+          "capacityKw": 61.6,
+          "requiredMinutes": 28
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 2,
+          "rectifierStatus": "normal",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 74
+        },
+        "environment": {
+          "ambientTempC": 30,
+          "humidityPct": 41,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 18,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 89,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C45",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-45",
-      "location": "2F UPS 间 机位8",
-      "make": "Eaton",
-      "model": "Modular 54kVA",
+      "location": "B1 电池室 机位8",
+      "make": "Kehua",
+      "model": "Modular 24kVA",
       "topology": "modularN1",
-      "ratedKva": 23,
+      "ratedKva": 73,
+      "serial": "SNC0045",
       "commLost": false,
       "mode": "online",
-      "loadPct": 83,
-      "soc": 78,
-      "tsOffsetSec": 4
+      "loadPct": 79,
+      "soc": 82,
+      "tsOffsetSec": 2,
+      "detail": {
+        "battery": {
+          "stringVoltage": 401,
+          "impedance": 9,
+          "impedanceBaseline": 7,
+          "temperature": 35,
+          "chargeCurrent": 6,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 461.4,
+          "capacityKw": 58.400000000000006,
+          "requiredMinutes": 11
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 60,
+          "inverterThd": 3,
+          "rectifierStatus": "normal",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 75
+        },
+        "environment": {
+          "ambientTempC": 19,
+          "humidityPct": 49,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 20,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 62,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A46",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-46",
-      "location": "2F UPS 间 机位9",
-      "make": "APC",
-      "model": "30kVA",
+      "location": "B1 电池室 机位8",
+      "make": "Eaton",
+      "model": "80kVA",
       "topology": "online",
-      "ratedKva": 34,
+      "ratedKva": 66,
+      "serial": "SNA0046",
       "commLost": false,
-      "mode": "online",
-      "loadPct": 22,
-      "soc": 94,
-      "tsOffsetSec": 1
+      "mode": "battery",
+      "loadPct": 40,
+      "soc": 31,
+      "tsOffsetSec": 5,
+      "detail": {
+        "battery": {
+          "stringVoltage": 404,
+          "impedance": 12,
+          "impedanceBaseline": 8,
+          "temperature": 27,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 211.2,
+          "capacityKw": 52.800000000000004,
+          "requiredMinutes": 6
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 82
+        },
+        "environment": {
+          "ambientTempC": 28,
+          "humidityPct": 40,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 4,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 47,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          },
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B47",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-47",
-      "location": "1F 配电室 机位2",
-      "make": "Vertiv",
-      "model": "40kVA",
+      "location": "3F 机房 机位11",
+      "make": "Huawei",
+      "model": "60kVA",
       "topology": "lineInteractive",
-      "ratedKva": 71,
-      "commLost": false,
-      "mode": "battery",
-      "loadPct": 49,
-      "soc": 32,
-      "tsOffsetSec": 4
+      "ratedKva": 39,
+      "serial": "SNB0047",
+      "commLost": true,
+      "mode": "unknown",
+      "loadPct": null,
+      "soc": null,
+      "tsOffsetSec": 2132,
+      "detail": null
     },
     {
       "id": "UPS-C48",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-48",
-      "location": "1F 配电室 机位7",
+      "location": "1F 配电室 机位12",
       "make": "Kehua",
-      "model": "Modular 31kVA",
+      "model": "Modular 44kVA",
       "topology": "modularN1",
-      "ratedKva": 27,
+      "ratedKva": 69,
+      "serial": "SNC0048",
       "commLost": false,
       "mode": "online",
-      "loadPct": 23,
+      "loadPct": 66,
       "soc": 83,
-      "tsOffsetSec": 4
+      "tsOffsetSec": 5,
+      "detail": {
+        "battery": {
+          "stringVoltage": 382,
+          "impedance": 10,
+          "impedanceBaseline": 7,
+          "temperature": 33,
+          "chargeCurrent": 3,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 364.3,
+          "capacityKw": 55.2,
+          "requiredMinutes": 17
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 89
+        },
+        "environment": {
+          "ambientTempC": 24,
+          "humidityPct": 43,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 10,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 75,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A49",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-49",
-      "location": "1F 配电室 机位8",
-      "make": "APC",
+      "location": "3F 机房 机位8",
+      "make": "Huawei",
       "model": "30kVA",
       "topology": "online",
-      "ratedKva": 55,
+      "ratedKva": 54,
+      "serial": "SNA0049",
       "commLost": false,
-      "mode": "online",
-      "loadPct": 56,
-      "soc": 96,
-      "tsOffsetSec": 3
+      "mode": "battery",
+      "loadPct": 46,
+      "soc": 47,
+      "tsOffsetSec": 5,
+      "detail": {
+        "battery": {
+          "stringVoltage": 391,
+          "impedance": 13,
+          "impedanceBaseline": 8,
+          "temperature": 33,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 198.7,
+          "capacityKw": 43.2,
+          "requiredMinutes": 7
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 60,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 74
+        },
+        "environment": {
+          "ambientTempC": 27,
+          "humidityPct": 58,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 3,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "电池内阻呈上升趋势",
+            "value": "组 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 61,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          },
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B50",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-50",
-      "location": "1F 配电室 机位5",
-      "make": "Kehua",
+      "location": "1F 配电室 机位7",
+      "make": "Huawei",
       "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 25,
+      "ratedKva": 30,
+      "serial": "SNB0050",
       "commLost": false,
       "mode": "online",
-      "loadPct": 77,
-      "soc": 84,
-      "tsOffsetSec": 1
+      "loadPct": 70,
+      "soc": 100,
+      "tsOffsetSec": 1,
+      "detail": {
+        "battery": {
+          "stringVoltage": 375,
+          "impedance": 13,
+          "impedanceBaseline": 6,
+          "temperature": 34,
+          "chargeCurrent": 10,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 168,
+          "capacityKw": 24,
+          "requiredMinutes": 21
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 62
+        },
+        "environment": {
+          "ambientTempC": 22,
+          "humidityPct": 51,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 0,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 86,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-C51",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-51",
-      "location": "B1 电池室 机位6",
-      "make": "Vertiv",
-      "model": "Modular 39kVA",
+      "location": "2F UPS 间 机位7",
+      "make": "APC",
+      "model": "Modular 23kVA",
       "topology": "modularN1",
-      "ratedKva": 43,
+      "ratedKva": 61,
+      "serial": "SNC0051",
       "commLost": false,
       "mode": "online",
-      "loadPct": 22,
-      "soc": 74,
-      "tsOffsetSec": 7
+      "loadPct": 38,
+      "soc": 78,
+      "tsOffsetSec": 0,
+      "detail": {
+        "battery": {
+          "stringVoltage": 389,
+          "impedance": 4,
+          "impedanceBaseline": 5,
+          "temperature": 27,
+          "chargeCurrent": 7,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 185.4,
+          "capacityKw": 48.800000000000004,
+          "requiredMinutes": 25
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 81
+        },
+        "environment": {
+          "ambientTempC": 28,
+          "humidityPct": 41,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 13,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 123,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-A52",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-52",
-      "location": "2F UPS 间 机位3",
-      "make": "Vertiv",
-      "model": "60kVA",
+      "location": "3F 机房 机位1",
+      "make": "APC",
+      "model": "40kVA",
       "topology": "online",
-      "ratedKva": 71,
+      "ratedKva": 69,
+      "serial": "SNA0052",
       "commLost": false,
-      "mode": "battery",
-      "loadPct": 71,
-      "soc": 26,
-      "tsOffsetSec": 7
+      "mode": "online",
+      "loadPct": 50,
+      "soc": 89,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 394,
+          "impedance": 14,
+          "impedanceBaseline": 5,
+          "temperature": 32,
+          "chargeCurrent": 5,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 276,
+          "capacityKw": 55.2,
+          "requiredMinutes": 28
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 2,
+          "rectifierStatus": "warning",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 56
+        },
+        "environment": {
+          "ambientTempC": 30,
+          "humidityPct": 38,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 13,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 107,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-B53",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-53",
-      "location": "3F 机房 机位7",
-      "make": "Vertiv",
-      "model": "40kVA",
+      "location": "2F UPS 间 机位3",
+      "make": "APC",
+      "model": "80kVA",
       "topology": "lineInteractive",
-      "ratedKva": 54,
+      "ratedKva": 26,
+      "serial": "SNB0053",
       "commLost": false,
       "mode": "online",
-      "loadPct": 22,
-      "soc": 76,
-      "tsOffsetSec": 2
+      "loadPct": 48,
+      "soc": 89,
+      "tsOffsetSec": 1,
+      "detail": {
+        "battery": {
+          "stringVoltage": 395,
+          "impedance": 4,
+          "impedanceBaseline": 7,
+          "temperature": 29,
+          "chargeCurrent": 8,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 99.8,
+          "capacityKw": 20.8,
+          "requiredMinutes": 10
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 60,
+          "inverterThd": 2,
+          "rectifierStatus": "normal",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 70
+        },
+        "environment": {
+          "ambientTempC": 28,
+          "humidityPct": 50,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 0,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 111,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-C54",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-54",
-      "location": "1F 配电室 机位6",
-      "make": "Kehua",
+      "location": "3F 机房 机位1",
+      "make": "Huawei",
       "model": "Modular 60kVA",
       "topology": "modularN1",
-      "ratedKva": 57,
+      "ratedKva": 21,
+      "serial": "SNC0054",
       "commLost": false,
       "mode": "online",
-      "loadPct": 18,
-      "soc": 80,
-      "tsOffsetSec": 0
+      "loadPct": 30,
+      "soc": 89,
+      "tsOffsetSec": 7,
+      "detail": {
+        "battery": {
+          "stringVoltage": 402,
+          "impedance": 10,
+          "impedanceBaseline": 5,
+          "temperature": 33,
+          "chargeCurrent": 7,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 50.4,
+          "capacityKw": 16.8,
+          "requiredMinutes": 15
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 3,
+          "rectifierStatus": "critical",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 92
+        },
+        "environment": {
+          "ambientTempC": 30,
+          "humidityPct": 51,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 17,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 178,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
     },
     {
       "id": "UPS-A55",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-55",
-      "location": "2F UPS 间 机位3",
-      "make": "Eaton",
+      "location": "3F 机房 机位7",
+      "make": "Vertiv",
       "model": "60kVA",
       "topology": "online",
-      "ratedKva": 65,
-      "commLost": false,
-      "mode": "online",
-      "loadPct": 23,
-      "soc": 88,
-      "tsOffsetSec": 1
+      "ratedKva": 66,
+      "serial": "SNA0055",
+      "commLost": true,
+      "mode": "unknown",
+      "loadPct": null,
+      "soc": null,
+      "tsOffsetSec": 2674,
+      "detail": null
     },
     {
       "id": "UPS-B56",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-56",
-      "location": "B1 电池室 机位11",
-      "make": "Kehua",
+      "location": "2F UPS 间 机位9",
+      "make": "Huawei",
       "model": "30kVA",
       "topology": "lineInteractive",
-      "ratedKva": 51,
+      "ratedKva": 43,
+      "serial": "SNB0056",
       "commLost": false,
       "mode": "online",
-      "loadPct": 41,
-      "soc": 87,
-      "tsOffsetSec": 0
+      "loadPct": 70,
+      "soc": 71,
+      "tsOffsetSec": 4,
+      "detail": {
+        "battery": {
+          "stringVoltage": 410,
+          "impedance": 6,
+          "impedanceBaseline": 8,
+          "temperature": 29,
+          "chargeCurrent": 3,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 240.8,
+          "capacityKw": 34.4,
+          "requiredMinutes": 26
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 60,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 80
+        },
+        "environment": {
+          "ambientTempC": 19,
+          "humidityPct": 34,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 9,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 61,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-C57",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-57",
-      "location": "B1 电池室 机位11",
-      "make": "Vertiv",
-      "model": "Modular 50kVA",
+      "location": "2F UPS 间 机位8",
+      "make": "Eaton",
+      "model": "Modular 37kVA",
       "topology": "modularN1",
-      "ratedKva": 69,
+      "ratedKva": 63,
+      "serial": "SNC0057",
       "commLost": false,
       "mode": "online",
-      "loadPct": 74,
+      "loadPct": 56,
       "soc": 83,
-      "tsOffsetSec": 1
+      "tsOffsetSec": 0,
+      "detail": {
+        "battery": {
+          "stringVoltage": 394,
+          "impedance": 5,
+          "impedanceBaseline": 5,
+          "temperature": 27,
+          "chargeCurrent": 10,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 282.2,
+          "capacityKw": 50.400000000000006,
+          "requiredMinutes": 10
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "critical",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 76
+        },
+        "environment": {
+          "ambientTempC": 18,
+          "humidityPct": 41,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 12,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 89,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-A58",
       "siteId": "site-a",
       "siteName": "A站点 · 数据中心",
       "name": "UPS A-58",
-      "location": "2F UPS 间 机位7",
-      "make": "Kehua",
-      "model": "30kVA",
+      "location": "1F 配电室 机位8",
+      "make": "Eaton",
+      "model": "80kVA",
       "topology": "online",
-      "ratedKva": 35,
+      "ratedKva": 22,
+      "serial": "SNA0058",
       "commLost": false,
-      "mode": "online",
-      "loadPct": 73,
-      "soc": 98,
-      "tsOffsetSec": null
+      "mode": "battery",
+      "loadPct": 66,
+      "soc": 30,
+      "tsOffsetSec": null,
+      "detail": null
     },
     {
       "id": "UPS-B59",
       "siteId": "site-b",
       "siteName": "B站点 · 制造工厂",
       "name": "UPS B-59",
-      "location": "2F UPS 间 机位7",
-      "make": "Kehua",
-      "model": "40kVA",
+      "location": "B1 电池室 机位7",
+      "make": "APC",
+      "model": "60kVA",
       "topology": "lineInteractive",
-      "ratedKva": 33,
+      "ratedKva": 75,
+      "serial": "SNB0059",
       "commLost": false,
       "mode": "online",
-      "loadPct": 82,
-      "soc": 97,
-      "tsOffsetSec": 8
+      "loadPct": 17,
+      "soc": 73,
+      "tsOffsetSec": 0,
+      "detail": {
+        "battery": {
+          "stringVoltage": 374,
+          "impedance": 6,
+          "impedanceBaseline": 8,
+          "temperature": 22,
+          "chargeCurrent": 8,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 102,
+          "capacityKw": 60,
+          "requiredMinutes": 7
+        },
+        "electronics": {
+          "inverterVoltage": 240,
+          "inverterFrequency": 50,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 100
+        },
+        "environment": {
+          "ambientTempC": 18,
+          "humidityPct": 49,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 11,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "风扇转速偏差",
+            "value": "风扇 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 258,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": []
+      }
     },
     {
       "id": "UPS-C60",
       "siteId": "site-c",
       "siteName": "C站点 · 区域仓库",
       "name": "UPS C-60",
-      "location": "3F 机房 机位1",
-      "make": "Vertiv",
-      "model": "Modular 36kVA",
+      "location": "1F 配电室 机位11",
+      "make": "APC",
+      "model": "Modular 45kVA",
       "topology": "modularN1",
-      "ratedKva": 31,
+      "ratedKva": 50,
+      "serial": "SNC0060",
       "commLost": false,
       "mode": "online",
-      "loadPct": 39,
-      "soc": 89,
-      "tsOffsetSec": 9
+      "loadPct": 60,
+      "soc": 100,
+      "tsOffsetSec": 7,
+      "detail": {
+        "battery": {
+          "stringVoltage": 385,
+          "impedance": 14,
+          "impedanceBaseline": 4,
+          "temperature": 33,
+          "chargeCurrent": 10,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 240,
+          "capacityKw": 40,
+          "requiredMinutes": 8
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 99
+        },
+        "environment": {
+          "ambientTempC": 28,
+          "humidityPct": 46,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": false,
+          "lastTransferMs": 14,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 100,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
     }
   ]
 }
