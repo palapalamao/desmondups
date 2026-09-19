@@ -1,5 +1,5 @@
 // ============================================================================
-// desmondUPS 语义库 · 核心域（M1 最小集）v0.1 草案
+// desmondUPS 语义库 · 核心域（M1 最小集 → P3 v0.3 五步补齐：枚举/点位/映射见同库文件）
 // 上游：docs/02-详细设计/M1-设备总览-详设.md
 // 纪律：M1 只建总览必需对象；M2（详情/电池串/模块）入段 2 再扩。
 // 验证状态（2026-09-18）：FIN Expert 离线校验不支持 xeto 语法（只覆盖 Haystack 4
@@ -23,7 +23,7 @@ upsUnit : Proj {
   make:      Str?           // 厂商
   model:     Str?           // 型号
   serial:    Str?           // 序列号
-  upsTopology: Marker?      // 拓扑：online / lineInteractive / modularN1（枚举口径待口径确认单）
+  upsTopology: Ref?         // 拓扑：枚举口径 tags.xeto upsTopology（online/lineInteractive/modularN1）
   commProtocol: Str?        // modbus / bacnet / snmp（接入方式，U-外部接口未决）
   ratedKva:  Number?        // 额定容量 kVA
 }

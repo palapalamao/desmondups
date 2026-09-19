@@ -1,0 +1,14 @@
+// ============================================================================
+// lib/ups/points.xeto — 专属点位（P3 五步③；全部只读，红线 R2）
+// 归属约束：每点位必须带 equipRef → upsUnit；无 equipRef 的游离点位 = 审计拦截对象。
+// 事故复盘点位（方法论：出事之后监管第一句会问什么）——市电中断后切换是否成功、
+// 当时负载多少、电池最低单体电压。事后补测代价极高，点表阶段必须盘入。
+// ============================================================================
+
+upsLoadPct : Number { doc: "负载率" unit: "%" minVal: 0 maxVal: 100 his }
+upsSocPct : Number { doc: "电池荷电状态" unit: "%" minVal: 0 maxVal: 100 his }
+upsBatteryTemp : Number { doc: "电池温度" unit: "°C" his }
+upsInputFail : Marker { doc: "市电中断事件（his 事件型点位）" his }
+upsTransferOk : Marker { doc: "切换成功事件：市电中断→电池承供电（事故复盘第一问）" his }
+upsBatteryMinCellVolt : Number { doc: "电池组最低单体电压（事故复盘必查）" unit: "V" his }
+upsRuntimeRemainingMin : Number { doc: "预估备电时长（估算值必须带 reference 级来源标记，R3）" unit: "min" his }

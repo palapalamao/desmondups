@@ -1,0 +1,11 @@
+// ============================================================================
+// lib/ups/lib.xeto — 库声明与依赖（P3 五步①）
+// 依赖顺序即抽象层次顺序，不得倒挂：sys → ph → ph.points → ph.equips → ups
+// 语法草案待编译验证（U-DATA-01，首次 fan build 以编译结果为 lint 证据）
+// ============================================================================
+
+upsLib : Lib {
+  doc: "desmondUPS UPS fleet monitoring semantic library"
+  version: Version("0.3.0")
+  dependsOn: [sys, ph, ph::points, ph::equips]
+}

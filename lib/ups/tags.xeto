@@ -1,0 +1,32 @@
+// ============================================================================
+// lib/ups/tags.xeto — 全局标签与枚举（P3 五步②：枚举先行）
+// 纪律：ph/base 已定义的不得重定义（R4）；严重度复用 FIN alarm 内核 severity（Q3），本库不设。
+// ============================================================================
+
+upsTopology : Enum {
+  doc: "UPS 拓扑结构（型号能力矩阵的差异维度，M5 配置校验用）"
+  online:          Marker { doc: "在线双变换" }
+  lineInteractive: Marker { doc: "后备式/线互动" }
+  modularN1:       Marker { doc: "模块化 N+1 冗余" }
+}
+
+upsPowerMode : Enum {
+  doc: "当前供电模式（点位实时值口径，M1 筛选维度）"
+  online:  Marker { doc: "市电供电" }
+  battery: Marker { doc: "电池供电" }
+  bypass:  Marker { doc: "旁路供电" }
+  unknown: Marker { doc: "模式未知/未采集（宁缺毋假，不猜）" }
+}
+
+upsDataFreshness : Enum {
+  doc: "数据时效三态（红线 R3 的模型位）"
+  ok:    Marker { doc: "实测值且在 2×轮询周期内" }
+  stale: Marker { doc: "超时参考值——仅展示，不得充当实测参与任何计算" }
+  gap:   Marker { doc: "缺口无数据——禁止插值/默认值/最后已知值填补" }
+}
+
+upsCommState : Enum {
+  doc: "通讯状态（断讯卡保留原位虚线置灰，Q5：不隐藏不沉底）"
+  ok:   Marker { doc: "通讯正常" }
+  lost: Marker { doc: "通讯中断" }
+}

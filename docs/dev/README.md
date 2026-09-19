@@ -4,7 +4,7 @@
 
 1. `00-conventions.md` — 编码与提交规范
 2. `01-architecture.md` — 分层 + 复用边界表 + 并发/事务模型
-3. `02-ups-lib.md` — 语义库说明（对应 `lib/ups/*.xeto`）
+3. `02-ups-lib.md` — 语义库说明（对应 `lib/ups/*.xeto`；库级铁律与命名规约以 `lib/ups/README.md` 第一屏为准）
 4. `03-domain.md` — 领域类构造期不变式 + Repo 契约
 5. `04-guard-engine.md` — 守门引擎（fail-closed 规则全量清单）
 6. `08-api.md` — 接口契约（分页/幂等/错误格式）
