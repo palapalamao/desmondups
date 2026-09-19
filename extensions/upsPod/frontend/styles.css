@@ -140,3 +140,13 @@ button.badge:hover { border-color: var(--info); }
 .ack-editor textarea { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-family: inherit; resize: vertical; }
 .ack-editor .fatal { margin: 0; padding: 8px; }
 .ack-actions { display: flex; gap: 8px; }
+/* M5：配置管理（详设 §5） */
+.config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 24px 24px; }
+@media (max-width: 900px) { .config-grid { grid-template-columns: 1fr; } }
+.draft-row { display: flex; gap: 10px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+.draft-row label { min-width: 170px; }
+.draft-row input { width: 100px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+.version-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.version-item { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; flex-wrap: wrap; }
+.version-item.cur { border-left: 3px solid var(--ok); }
+.version-item .vsum { font-size: 12px; color: var(--muted); flex: 1; min-width: 160px; }

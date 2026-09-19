@@ -7,7 +7,8 @@
  * REQ-M2-xx v0.4：设备详情 8 面板（告警只读 R2 / 参考值标记 D-M2-04）
  * REQ-M3-xx v0.5：历史趋势全量视图（跨度四档/事件锚点/缺口留白 R3，D-M3-01~08）
  * REQ-M4-xx v0.6：告警确认三段式（守门四路 gateAck/审计事件/行内确认，D-M4-01~05，首个写操作模块）
- * 版本 0.6.0
+ * REQ-M5-xx v0.7：配置管理闭环（validateConfig 守门 V1~V4/append-only 版本/红冲回滚，D-M5-01~07，第二个写操作模块）
+ * 版本 0.7.0
  * ==========================================================================*/
 (function (global) {
   "use strict";
@@ -272,6 +273,65 @@
     });
   }
 
+  /* -- M5 配置管理（D-M5 详设 §2/§3；第二个写操作模块） -- */
+  function cloneValues(v) { return JSON.parse(JSON.stringify(v)); }
+
+  function validateConfig(values, defs, ctx) { // V1~V4 全量收集（非短路），fail-closed（A22 逐条明示）
+    var reasons = [];
+    values = values || {}; defs = defs || {}; ctx = ctx || {};
+    Object.keys(defs).forEach(function (k) {
+      var d = defs[k], v = values[k];
+      if (v === undefined || v === null) { reasons.push("配置项 " + k + " 缺失"); return; }
+      if (typeof v !== "number" || !isFinite(v)) { reasons.push(k + " 不是有效数值"); return; }
+      if (v < d.min || v > d.max) reasons.push(k + " 超出允许范围（" + d.min + "~" + d.max + "）");
+    });
+    if (ctx.allowedSites && ctx.allowedSiteId && ctx.allowedSites.indexOf(ctx.allowedSiteId) < 0)
+      reasons.push("站点越权：不在授权范围");
+    return { ok: reasons.length === 0, reasons: reasons };
+  }
+
+  function diffSummary(defs, oldV, newV) { // 变更摘要（版本列表/审计用）
+    var parts = [];
+    Object.keys(defs).forEach(function (k) {
+      if (oldV[k] !== newV[k]) parts.push(defs[k].label + " " + oldV[k] + "→" + newV[k]);
+    });
+    return parts.length ? "变更 " + parts.length + " 项：" + parts.join("；") : "无数值变更";
+  }
+
+  function effectiveConfig(store) { // 当前生效值（快照深拷贝；无当前版本 → null，fail-closed）
+    var v = (store.versions || []).find(function (x) { return x.seq === store.currentSeq; });
+    return v ? cloneValues(v.values) : null;
+  }
+
+  function publishConfig(store, auditLog, draft, by, at, ctx) { // 守门通过 → append-only 新版本（铁律 4）
+    var g = validateConfig(draft, store.defs, ctx);
+    if (!g.ok) return g; // 零副作用：versions/currentSeq/audit 不动
+    var cur = effectiveConfig(store) || {};
+    var seq = store.versions.length ? store.versions[store.versions.length - 1].seq + 1 : 1;
+    var version = { seq: seq, at: at, by: by, kind: "publish", fromSeq: null,
+      summary: diffSummary(store.defs, cur, draft), values: cloneValues(draft) };
+    store.versions.push(version);
+    store.currentSeq = seq;
+    auditLog.push({ seq: auditLog.length + 1, type: "config.publish", versionSeq: seq, kind: "publish",
+      summary: version.summary, by: by, at: at });
+    return { ok: true, version: version };
+  }
+
+  function rollbackConfig(store, auditLog, targetSeq, by, at, ctx) { // 红冲：历史零修改，旧版内容 100% 重放（A23）
+    var target = (store.versions || []).find(function (x) { return x.seq === targetSeq; });
+    if (!target) return { ok: false, reasons: ["版本 " + targetSeq + " 不存在（可能已归档）"] };
+    if (ctx && ctx.allowedSites && ctx.allowedSiteId && ctx.allowedSites.indexOf(ctx.allowedSiteId) < 0)
+      return { ok: false, reasons: ["站点越权：不在授权范围"] };
+    var seq = store.versions[store.versions.length - 1].seq + 1;
+    var version = { seq: seq, at: at, by: by, kind: "rollback", fromSeq: targetSeq,
+      summary: "回滚到 v" + targetSeq + "（红冲，历史零修改）", values: cloneValues(target.values) };
+    store.versions.push(version);
+    store.currentSeq = seq;
+    auditLog.push({ seq: auditLog.length + 1, type: "config.rollback", versionSeq: seq, kind: "rollback",
+      summary: version.summary, by: by, at: at });
+    return { ok: true, version: version };
+  }
+
   var upsCore = {
     SEV_RANK: SEV_RANK,
     topSeverity: topSeverity,
@@ -297,6 +357,11 @@
     gateAck: gateAck,
     applyAck: applyAck,
     filterAlarms: filterAlarms,
+    validateConfig: validateConfig,
+    diffSummary: diffSummary,
+    effectiveConfig: effectiveConfig,
+    publishConfig: publishConfig,
+    rollbackConfig: rollbackConfig,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;
@@ -377,6 +442,7 @@
 
   /* ---------------- Ractive 应用 ---------------- */
   var ractive = null, prevSevMap = {}, snapshot = null, auditLog = []; // M4：审计事件流（boot 由 seed.auditLog 初始化，M6 消费同一数组）
+  var configStore = null; // M5：配置版本库（boot 由 seed.configStore 初始化，运行期 append-only）
 
   function snapshotSev(units) {
     var m = {};
@@ -389,6 +455,7 @@
     if (r.page === "unit" && r.unitId) { renderUnit(r.unitId); return; } // M2 占位
     if (r.page === "history" && r.unitId) { renderHistory(r.unitId, r.q); return; } // M3：全量历史
     if (r.page === "alarms") { renderAlarms(r.q); return; } // M4：告警与确认（首个写操作模块）
+    if (r.page === "config") { renderConfig(); return; } // M5：配置管理（第二个写操作模块）
     renderOverview(r.q);
   }
 
@@ -499,6 +566,26 @@
       sevSel: sevSel, stateSel: stateSel });
   }
 
+  function renderConfig() { // M5：配置管理渲染（详设 §5；轮询重渲染保留草稿/理由/历史展开态）
+    var prevRows = ractive && ractive.get && ractive.get("view") === "config" ? ractive.get("defRows") : null;
+    var keepErr = prevRows ? ractive.get("publishError") : null;
+    var keepHist = prevRows ? ractive.get("showVersions") : false;
+    var defs = configStore.defs, eff = upsCore.effectiveConfig(configStore); // boot fail-closed 已守存在性
+    var defRows = Object.keys(defs).map(function (k) {
+      var pv = prevRows ? prevRows.filter(function (r) { return r.key === k; })[0] : null;
+      return { key: k, label: defs[k].label, unit: defs[k].unit, min: defs[k].min, max: defs[k].max,
+        effValue: eff[k], draftValue: pv ? pv.draftValue : eff[k] };
+    });
+    var versions = configStore.versions.slice().reverse().map(function (v) {
+      return { seq: v.seq, kind: v.kind, kindText: v.kind === "publish" ? "发布" : "回滚",
+        by: v.by, atText: v.at === null ? "（种子 base）" : new Date(v.at).toLocaleString(),
+        summary: v.summary, fromSeq: v.fromSeq, isCurrent: v.seq === configStore.currentSeq };
+    });
+    ractive.reset({ view: "config", defRows: defRows,
+      publishError: keepErr || null, showVersions: keepHist, versions: versions,
+      currentSeq: configStore.currentSeq, totalVersions: configStore.versions.length });
+  }
+  function goConfigNav() { location.hash = "/ups/config"; }
   function navAlarms(f) { // M4：深链 #/ups/alarms?site=&sev=&state=&unit=（REQ-M1-07 同构）
     var qs = Object.keys(f).filter(function (k) { return f[k]; })
       .map(function (k) { return encodeURIComponent(k) + "=" + encodeURIComponent(f[k]); }).join("&");
@@ -515,6 +602,8 @@
     adapter.load().then(function (s) {
       snapshot = s;
       auditLog = s.auditLog || []; // M4：审计事件流存 snapshot（seed 不含，运行时累积；M6 消费）
+      configStore = s.configStore || null; // M5：版本库（seed 含 base v1；运行期 append-only 内存累积）
+      if (!configStore) throw new Error("seed 缺 configStore（fail-closed，不兜底）");
       ractive = new Ractive({
         el: "#app",
         template: "#overview-template",
@@ -540,6 +629,25 @@
             location.hash = "/ups/history/" + encodeURIComponent(r.unitId) + "?metrics=" + encodeURIComponent(q.metrics || "soc,load") + "&span=" + encodeURIComponent(span);
           });
           this.on("goAlarms", function (e, unitId) { navAlarms(unitId ? { unit: unitId } : {}); }); // M2 衔接：带 unit 参数深链
+          this.on("goConfig", function () { goConfigNav(); }); // M5：配置管理入口（纯导航）
+          this.on("submitPublish", function () { // M5 写入口①：守门 fail-closed（语义全在 upsCore.publishConfig）
+            var draft = {}; this.get("defRows").forEach(function (r) { draft[r.key] = (r.draftValue === "" || r.draftValue === null || r.draftValue === undefined) ? null : Number(r.draftValue); }); // 空值=null → 守门序 V1
+            var r = upsCore.publishConfig(configStore, auditLog, draft, "mock-operator", Date.now(), { allowedSites: null, allowedSiteId: null }); // R1 留位
+            if (!r.ok) { this.set("publishError", r.reasons); return; } // 逐条明示（A22），生效区不动（A25）
+            this.set("publishError", null);
+            renderConfig(); // 新版本生效，草稿行回读新生效值
+          });
+          this.on("resetDraft", function () { // 放弃草稿：各行草稿值回生效值（不碰生效区，A25）
+            var rows = this.get("defRows").map(function (r) { r.draftValue = r.effValue; return r; });
+            this.set({ defRows: rows, publishError: null });
+          });
+          this.on("toggleVersions", function () { this.set("showVersions", !this.get("showVersions")); });
+          this.on("rollbackTo", function (e, seq) { // M5 写入口②：红冲回滚（历史零修改，A23）
+            var r = upsCore.rollbackConfig(configStore, auditLog, seq, "mock-operator", Date.now(), { allowedSites: null, allowedSiteId: null });
+            if (!r.ok) { this.set("publishError", r.reasons); return; }
+            this.set("publishError", null);
+            renderConfig();
+          });
           this.on("alarmNav", function (e) { navAlarms({ site: e.site || "", sev: e.sev || "", state: e.state || "", unit: e.unit || "" }); }); // 筛选（单对象 mixin 进上下文，逐字段取）
           this.on("setAlarmSev", function (e, sev) { var f = this.get("alFilter") || {}; navAlarms({ site: f.site, sev: sev === f.sev ? "" : sev, state: f.state, unit: f.unit }); }); // 徽标再点取消
           this.on("setAlarmState", function (e, st) { var f = this.get("alFilter") || {}; navAlarms({ site: f.site, sev: f.sev, state: st === f.state ? "" : st, unit: f.unit }); });
@@ -555,7 +663,8 @@
             var r = parseHash();
             if (r.page === "history") { adapter.poll(); return; } // M3：历史视图不整页重渲染（poll 保快照新鲜）
             if (r.page !== "unit") { adapter.poll().then(function () { // M4：alarms 视图 poll 后重渲染列表（overview 分支语义）
-              if (parseHash().page === "alarms") renderAlarms(currentQ()); else renderOverview(currentQ()); }); return; }
+              var pg = parseHash().page; // M5：config 视图同规——重渲染保留草稿态
+              if (pg === "alarms") renderAlarms(currentQ()); else if (pg === "config") renderConfig(); else renderOverview(currentQ()); }); return; }
             adapter.poll().then(function () { return adapter.detail(r.unitId); }).then(function () { renderUnit(r.unitId); })
               .catch(function (err) { if (ractive) ractive.set("detailError", String(err && err.message || err)); });
           }, s.pollPeriodMs);

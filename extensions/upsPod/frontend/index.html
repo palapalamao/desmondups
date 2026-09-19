@@ -236,10 +236,61 @@
     {{/each}}
     {{#if !rows.length}}<div class="muted">当前筛选无告警（不兜底，明示为空）</div>{{/if}}
   </div>
+{{elseif view === "config"}}
+  <header class="page-head">
+    <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
+    <h1>配置管理</h1>
+    <span class="muted">深链：#/ups/config · 操作者 mock-operator · 演示环境：重载回 base 版本（D-M5 §4）</span>
+  </header>
+
+  <div class="config-grid">
+    <section class="panel">
+      <h2>当前生效 <span class="muted">来源版本 v{{currentSeq}} / 共 {{totalVersions}} 版</span></h2>
+      {{#each defRows}}
+      <div class="stat-row"><span>{{label}}（{{min}}~{{max}}{{unit}}）</span><b>{{effValue}}{{unit}}</b></div>
+      {{/each}}
+      <button class="btn" on-click="@this.fire('toggleVersions')">{{showVersions ? '收起版本历史' : '版本历史'}}</button>
+      {{#if showVersions}}
+      <div class="version-list">
+        {{#each versions}}
+        <div class="version-item {{isCurrent ? 'cur' : ''}}">
+          <span class="tag {{kind === 'publish' ? 'tag-normal' : 'tag-warning'}}">v{{seq}} {{kindText}}</span>
+          <span class="muted">{{atText}} · {{by}}</span>
+          <span class="vsum">{{summary}}</span>
+          {{#unless isCurrent}}
+          <button class="btn mini" on-click="@this.fire('rollbackTo', seq)">回滚到此</button>
+          {{/unless}}
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+    </section>
+    <section class="panel">
+      <h2>草稿编辑 <span class="muted">不影响生效值（A25）；校验不过不可发布（A3）</span></h2>
+      {{#each defRows}}
+      <div class="draft-row">
+        <label>{{label}}</label>
+        <input type="number" step="0.5" min="{{min}}" max="{{max}}" value="{{.draftValue}}">
+        <span class="muted">域 {{min}}~{{max}}{{unit}} · 生效 {{effValue}}{{unit}}</span>
+      </div>
+      {{/each}}
+      {{#if publishError}}
+      <div class="fatal">
+        守门拒绝（fail-closed，生效值未变）：
+        {{#each publishError}}<div>· {{.}}</div>{{/each}}
+      </div>
+      {{/if}}
+      <div class="ack-actions">
+        <button class="btn primary" on-click="@this.fire('submitPublish')">校验并发布</button>
+        <button class="btn" on-click="@this.fire('resetDraft')">放弃草稿</button>
+      </div>
+    </section>
+  </div>
 {{else}}
   <header class="page-head">
     <h1>UPS 车队总览</h1>
     <span class="muted">深链：#/ups/overview · 轮询 10s · Mock 数据（FinAdapter 待 U-API-01）</span>
+    <a class="hist-link" on-click="@this.fire('goConfig')">配置管理 →</a>
   </header>
 
   {{#if newRisks.length}}

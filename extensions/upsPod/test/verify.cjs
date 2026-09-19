@@ -302,6 +302,81 @@ tc("TC-M4-逻辑-05", "聚合筛选：站点/严重度/状态/关键字 + 未确
   assert.deepStrictEqual(sorted.map(r => r.unitId), ["U1", "U2", "U3"], "未确认优先，已确认垫底");
   assert.strictEqual(core.filterAlarms(rows, { unit: "u2" })[0].unitId, "U2", "关键字大小写不敏感");
   assert.strictEqual(core.collectAlarms([]).length, 0);
+});// ---- M5 配置管理（详设 D-M5 §2/§3/§6）----
+const m5defs = {
+  socLowPct:       { label: "SOC 告警下限",       unit: "%",  min: 5,  max: 50, def: 20 },
+  impedanceDevPct: { label: "内阻基线偏差告警阈", unit: "%",  min: 5,  max: 50, def: 15 },
+  battTempHighC:   { label: "电池温度上限",        unit: "°C", min: 30, max: 60, def: 40 },
+};
+const m5store = () => ({ defs: m5defs,
+  versions: [{ seq: 1, at: null, by: "seed", kind: "publish", fromSeq: null, summary: "base", values: { socLowPct: 20, impedanceDevPct: 15, battTempHighC: 40 } }],
+  currentSeq: 1 });
+// TC-M5-逻辑-01 守门四路全量收集（非短路）
+tc("TC-M5-逻辑-01", "validateConfig：缺失/非数值/越域/越权 逐条收集", () => {
+  const r = core.validateConfig({ socLowPct: null, impedanceDevPct: "abc", battTempHighC: 99 },
+    m5defs, { allowedSites: ["s2"], allowedSiteId: "s1" });
+  assert.ok(!r.ok);
+  assert.strictEqual(r.reasons.length, 4, "四路全收集：实际 " + r.reasons.length);
+  assert.ok(/缺失/.test(r.reasons[0]));
+  assert.ok(/有效数值/.test(r.reasons[1]));
+  assert.ok(/超出允许范围/.test(r.reasons[2]));
+  assert.ok(/越权/.test(r.reasons[3]));
+  assert.ok(core.validateConfig({ socLowPct: 20, impedanceDevPct: 15, battTempHighC: 40 }, m5defs, { allowedSites: null }).ok);
+});
+// TC-M5-逻辑-02 publish：seq 递增 + values 深拷贝隔离 + 审计字段完整
+tc("TC-M5-逻辑-02", "publish：版本化+深拷贝隔离+审计", () => {
+  const store = m5store(), log = [];
+  const draft = { socLowPct: 15, impedanceDevPct: 15, battTempHighC: 40 };
+  const r = core.publishConfig(store, log, draft, "mock-operator", 1720000000000, { allowedSites: null });
+  assert.ok(r.ok);
+  assert.strictEqual(r.version.seq, 2);
+  assert.strictEqual(store.currentSeq, 2);
+  assert.strictEqual(store.versions.length, 2);
+  draft.socLowPct = 99; // 改草稿不回染已发布版本（隔离）
+  assert.strictEqual(store.versions[1].values.socLowPct, 15);
+  assert.strictEqual(store.versions[0].values.socLowPct, 20); // base 不动
+  assert.strictEqual(log.length, 1);
+  const ev = log[0];
+  assert.strictEqual(ev.type, "config.publish"); assert.strictEqual(ev.versionSeq, 2);
+  assert.strictEqual(ev.by, "mock-operator"); assert.strictEqual(ev.at, 1720000000000);
+  assert.ok(/变更 1 项/.test(ev.summary));
+});
+// TC-M5-逻辑-03 草稿/生效隔离（A25）：守门失败 zero side-effect
+tc("TC-M5-逻辑-03", "守门失败：versions/currentSeq/审计零变更", () => {
+  const store = m5store(), log = [];
+  const r = core.publishConfig(store, log, { socLowPct: 3, impedanceDevPct: 15, battTempHighC: 40 }, "op", 1, {});
+  assert.ok(!r.ok && r.reasons.length > 0);
+  assert.strictEqual(store.versions.length, 1, "无效配置不可发布（A3）");
+  assert.strictEqual(store.currentSeq, 1, "生效值不动（A25）");
+  assert.strictEqual(log.length, 0);
+  assert.deepStrictEqual(core.effectiveConfig(store), { socLowPct: 20, impedanceDevPct: 15, battTempHighC: 40 });
+});
+// TC-M5-逻辑-04 rollback 红冲：历史零修改 + 100% 重放 + 审计
+tc("TC-M5-逻辑-04", "rollback：红冲语义，历史版本逐字节不变", () => {
+  const store = m5store(), log = [];
+  core.publishConfig(store, log, { socLowPct: 10, impedanceDevPct: 15, battTempHighC: 40 }, "op", 2, {});
+  const v1Snapshot = JSON.stringify(store.versions[0]);
+  const r = core.rollbackConfig(store, log, 1, "mock-operator", 3, {});
+  assert.ok(r.ok);
+  assert.strictEqual(r.version.kind, "rollback"); assert.strictEqual(r.version.fromSeq, 1);
+  assert.strictEqual(store.currentSeq, 3);
+  assert.strictEqual(JSON.stringify(store.versions[0]), v1Snapshot, "历史版本零修改（铁律 4）");
+  assert.deepStrictEqual(store.versions[2].values, { socLowPct: 20, impedanceDevPct: 15, battTempHighC: 40 }, "旧版内容 100% 重放（A23）");
+  assert.strictEqual(log.length, 2);
+  assert.strictEqual(log[1].type, "config.rollback");
+});
+// TC-M5-逻辑-05 幂等重放 + 非法目标拒绝
+tc("TC-M5-逻辑-05", "重复 rollback 同版本=内容一致新版本；非法 seq 拒绝", () => {
+  const store = m5store(), log = [];
+  core.rollbackConfig(store, log, 1, "op", 2, {});
+  const r2 = core.rollbackConfig(store, log, 1, "op", 3, {});
+  assert.ok(r2.ok);
+  assert.strictEqual(r2.version.seq, 3, "重复回滚=新版本 seq 递增");
+  assert.deepStrictEqual(store.versions[2].values, store.versions[1].values, "重放内容一致");
+  const bad = core.rollbackConfig(store, log, 99, "op", 4, {});
+  assert.ok(!bad.ok && /不存在/.test(bad.reasons[0]));
+  assert.strictEqual(store.versions.length, 3, "拒绝零副作用");
+  assert.strictEqual(store.currentSeq, 3, "两次成功回滚后 currentSeq=3，拒绝不动");
 });
 
-console.log(`\n${pass}/25 通过${process.exitCode ? "（存在失败）" : ""}`);
+console.log(`\n${pass}/30 通过${process.exitCode ? "（存在失败）" : ""}`);

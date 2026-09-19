@@ -113,12 +113,27 @@ for (let i = 0; i < 60; i++) {
   units.push(u);
 }
 
+// M5 配置管理：配置域定义 + base 版本（确定性；运行期 versions 内存累积，D-M5 详设 §4）
+const CONFIG_DEFS = {
+  socLowPct:         { label: "SOC 告警下限",     unit: "%",  min: 5,  max: 50, def: 20 },
+  impedanceDevPct:   { label: "内阻基线偏差告警阈", unit: "%",  min: 5,  max: 50, def: 15 },
+  battTempHighC:     { label: "电池温度上限",      unit: "°C", min: 30, max: 60, def: 40 },
+};
+const configBaseValues = {};
+Object.keys(CONFIG_DEFS).forEach(k => configBaseValues[k] = CONFIG_DEFS[k].def);
+
 const out = {
-  seedVersion: "0.6.0",
+  seedVersion: "0.7.0",
   note: "tsOffsetSec=null 表示缺口；绝对时间由前端加载时计算（确定性：本文件不含墙钟）",
   pollPeriodMs: 10000,
   sites: SITES,
   units: units, // 保留 tsOffsetSec 相对偏移 —— 文件逐字节确定，可重建
+  configStore: { // M5：defs + base 版本（v1）；运行期 publish/rollback 在内存累积（不入 seed，防膨胀）
+    defs: CONFIG_DEFS,
+    versions: [{ seq: 1, at: null, by: "seed", kind: "publish", fromSeq: null,
+      summary: "base 版本（种子默认值）", values: configBaseValues }],
+    currentSeq: 1,
+  },
 };
 const dest = path.join(__dirname, "..", "..", "extensions", "upsPod", "frontend", "seed.json");
 fs.writeFileSync(dest, JSON.stringify(out, null, 2));
