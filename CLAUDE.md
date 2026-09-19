@@ -8,11 +8,11 @@
 
 | # | 红线 | 存量状态 | 强制执行机制 |
 |---|---|---|---|
-| R1 | 永不绕过 FIN 授权模型：所有读写经 FIN 会话与权限服务，前端不自带认证 | 无存量（未开工） | 阶段 6 源码检查 scripts/check-* + 人工评审 |
-| R2 | 只读优先：UPS 点位默认只读集成；任何写操作（配置下发/告警确认）必经守门引擎，fail-closed，全量留痕 | 无存量 | 守门引擎构造期断言 + 审计脚本 |
-| R3 | 数据宁缺毋假：无实测值标"缺口"，估算值标"参考值"，禁止静默兜底 | 无存量 | 写入校验表 + 数据审计脚本（evidence/） |
-| R4 | 不改写上游内核：只扩展不补丁；FIN/Haxall/Ractive 版本以 build.fan 锁定 | 无存量 | 源码红线检查 |
-| R5 | 历史不可改：配置/映射版本化只新增；修正红冲；写操作幂等 | 无存量 | 单测 + 审计脚本 |
+| R1 | 永不绕过 FIN 授权模型：所有读写经 FIN 会话与权限服务，前端不自带认证 | 无存量 | scripts/check/r1-no-frontend-auth.cjs + 落点矩阵 docs/dev/01 §3 |
+| R2 | 只读优先：UPS 点位默认只读集成；任何写操作（配置下发/告警确认）必经守门引擎，fail-closed，全量留痕 | 无存量 | scripts/check/r2-no-write-path.cjs + 守门断言（04-guard-engine） |
+| R3 | 数据宁缺毋假：无实测值标"缺口"，估算值标"参考值"，禁止静默兜底 | 无存量 | scripts/check/r3-no-fake-data.cjs + 三态枚举 tags.xeto |
+| R4 | 不改写上游内核：只扩展不补丁；FIN/Haxall/Ractive 版本以 build.fan 锁定 | 无存量 | scripts/check/r4-no-kernel-patch.cjs + build.fan 钉版本 |
+| R5 | 历史不可改：配置/映射版本化只新增；修正红冲；写操作幂等 | 无存量 | scripts/check/r5-idempotent-seed.cjs + 红冲约定（08-api） |
 
 > 红线生命周期（v2.0 要求五件齐）：生效日期 ✓ / 存量清零 ✓（无存量）/ 审计脚本 → 阶段 6 上线 / 终审证据 → 阶段 7 / 运维手册 → 本文件三区。
 
