@@ -1,7 +1,7 @@
 // demoSeed.js — M1 演示数据种子：确定性 + 幂等（方法论 v2.0 第18条）
 // 用法：node scripts/seed/demoSeed.js  → 生成 extensions/upsPod/frontend/seed.json
 // 同一版本同一参数输出逐字节一致；重复执行覆盖写同一文件（幂等）。
-// version 0.4.0
+// version 0.4.1
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -113,6 +113,39 @@ for (let i = 0; i < 60; i++) {
   units.push(u);
 }
 
+// ---- myups 演示站点（2026-09-19 需求：模拟一个 myups 站点及其数据）----
+// 追加在原 60 台之后生成：既有 ABC 三站数据与全部走查证据基线不受影响；
+// 共用同一 PRND 流与 genDetail 契约，全文件保持确定性（R5 幂等）。
+const MYUPS = { id: "site-myups", name: "myups 站点 · 演示" };
+const myupsUnits = [];
+for (let i = 0; i < 12; i++) {
+  const topo = TOPOLOGIES[i % TOPOLOGIES.length];
+  let commLost = rnd() < 0.08;
+  let onBattery = !commLost && rnd() < 0.12;
+  if (i === 3) { commLost = true; onBattery = false; } // 演示锚点：断讯卡
+  if (i === 5) { commLost = false; onBattery = true; }  // 演示锚点：电池供电
+  const u = {
+    id: "UPS-M" + String(i + 1).padStart(2, "0"),
+    siteId: MYUPS.id,
+    siteName: MYUPS.name,
+    name: "UPS M-" + String(i + 1).padStart(2, "0"),
+    location: pick(["1F 配电室", "2F UPS 间", "B1 电池室", "3F 机房"]) + " 机位" + ri(1, 12),
+    make: pick(MAKES),
+    model: topo === "modularN1" ? "Modular " + ri(20, 60) + "kVA" : pick(["30kVA", "40kVA", "60kVA", "80kVA"]),
+    topology: topo,
+    ratedKva: ri(20, 80),
+    serial: "SNM" + String(i + 1).padStart(4, "0"),
+    commLost: commLost,
+    mode: commLost ? "unknown" : onBattery ? "battery" : "online",
+    loadPct: commLost ? null : ri(15, 85),
+    soc: commLost ? null : onBattery ? ri(18, 55) : ri(70, 100),
+    tsOffsetSec: commLost ? ri(600, 3600) : rnd() < 0.08 ? ri(60, 300) : ri(0, 9),
+  };
+  if (i === 7) u.tsOffsetSec = null; // 演示锚点：缺口样本（同主循环 i===57 模式）
+  u.detail = genDetail(u); // 与 ABC 三站同契约（TC-M2-逻辑-03/04 全量断言覆盖）
+  myupsUnits.push(u);
+}
+
 // M5 配置管理：配置域定义 + base 版本（确定性；运行期 versions 内存累积，D-M5 详设 §4）
 const CONFIG_DEFS = {
   socLowPct:         { label: "SOC 告警下限",     unit: "%",  min: 5,  max: 50, def: 20 },
@@ -123,11 +156,11 @@ const configBaseValues = {};
 Object.keys(CONFIG_DEFS).forEach(k => configBaseValues[k] = CONFIG_DEFS[k].def);
 
 const out = {
-  seedVersion: "0.8.0",
+  seedVersion: "0.8.1",
   note: "tsOffsetSec=null 表示缺口；绝对时间由前端加载时计算（确定性：本文件不含墙钟）",
   pollPeriodMs: 10000,
-  sites: SITES,
-  units: units, // 保留 tsOffsetSec 相对偏移 —— 文件逐字节确定，可重建
+  sites: SITES.concat([MYUPS]),
+  units: units.concat(myupsUnits), // 60 台 ABC + 12 台 myups；保留 tsOffsetSec 相对偏移 —— 文件逐字节确定，可重建
   configStore: { // M5：defs + base 版本（v1）；运行期 publish/rollback 在内存累积（不入 seed，防膨胀）
     defs: CONFIG_DEFS,
     versions: [{ seq: 1, at: null, by: "seed", kind: "publish", fromSeq: null,

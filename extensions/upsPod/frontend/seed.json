@@ -1,5 +1,5 @@
 {
-  "seedVersion": "0.8.0",
+  "seedVersion": "0.8.1",
   "note": "tsOffsetSec=null 表示缺口；绝对时间由前端加载时计算（确定性：本文件不含墙钟）",
   "pollPeriodMs": 10000,
   "sites": [
@@ -14,6 +14,10 @@
     {
       "id": "site-c",
       "name": "C站点 · 区域仓库"
+    },
+    {
+      "id": "site-myups",
+      "name": "myups 站点 · 演示"
     }
   ],
   "units": [
@@ -3999,6 +4003,738 @@
           }
         ]
       }
+    },
+    {
+      "id": "UPS-M01",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-01",
+      "location": "2F UPS 间 机位3",
+      "make": "Eaton",
+      "model": "40kVA",
+      "topology": "online",
+      "ratedKva": 71,
+      "serial": "SNM0001",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 28,
+      "soc": 100,
+      "tsOffsetSec": 7,
+      "detail": {
+        "battery": {
+          "stringVoltage": 374,
+          "impedance": 13,
+          "impedanceBaseline": 7,
+          "temperature": 34,
+          "chargeCurrent": 2,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 159,
+          "capacityKw": 56.800000000000004,
+          "requiredMinutes": 6
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 81
+        },
+        "environment": {
+          "ambientTempC": 29,
+          "humidityPct": 48,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 2,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "电池内阻呈上升趋势",
+            "value": "组 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 214,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "UPS-M02",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-02",
+      "location": "2F UPS 间 机位8",
+      "make": "Vertiv",
+      "model": "40kVA",
+      "topology": "lineInteractive",
+      "ratedKva": 21,
+      "serial": "SNM0002",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 81,
+      "soc": 72,
+      "tsOffsetSec": 4,
+      "detail": {
+        "battery": {
+          "stringVoltage": 390,
+          "impedance": 14,
+          "impedanceBaseline": 7,
+          "temperature": 32,
+          "chargeCurrent": 2,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 136.1,
+          "capacityKw": 16.8,
+          "requiredMinutes": 7
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "warning",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 58
+        },
+        "environment": {
+          "ambientTempC": 24,
+          "humidityPct": 32,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": false,
+          "lastTransferMs": 7,
+          "lastTransferAt": "3 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 53,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "UPS-M03",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-03",
+      "location": "3F 机房 机位7",
+      "make": "Huawei",
+      "model": "Modular 36kVA",
+      "topology": "modularN1",
+      "ratedKva": 45,
+      "serial": "SNM0003",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 65,
+      "soc": 100,
+      "tsOffsetSec": 6,
+      "detail": {
+        "battery": {
+          "stringVoltage": 405,
+          "impedance": 13,
+          "impedanceBaseline": 8,
+          "temperature": 34,
+          "chargeCurrent": 1,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 234,
+          "capacityKw": 36,
+          "requiredMinutes": 18
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 1,
+          "rectifierStatus": "critical",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 73
+        },
+        "environment": {
+          "ambientTempC": 29,
+          "humidityPct": 39,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 17,
+          "lastTransferAt": "本周"
+        },
+        "predictions": [
+          {
+            "risk": "warning",
+            "label": "电池内阻呈上升趋势",
+            "value": "组 2",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 92,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "UPS-M04",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-04",
+      "location": "2F UPS 间 机位4",
+      "make": "Huawei",
+      "model": "40kVA",
+      "topology": "online",
+      "ratedKva": 60,
+      "serial": "SNM0004",
+      "commLost": true,
+      "mode": "unknown",
+      "loadPct": null,
+      "soc": null,
+      "tsOffsetSec": 2629,
+      "detail": null
+    },
+    {
+      "id": "UPS-M05",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-05",
+      "location": "3F 机房 机位1",
+      "make": "Kehua",
+      "model": "60kVA",
+      "topology": "lineInteractive",
+      "ratedKva": 65,
+      "serial": "SNM0005",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 42,
+      "soc": 86,
+      "tsOffsetSec": 3,
+      "detail": {
+        "battery": {
+          "stringVoltage": 391,
+          "impedance": 5,
+          "impedanceBaseline": 8,
+          "temperature": 22,
+          "chargeCurrent": 3,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 218.4,
+          "capacityKw": 52,
+          "requiredMinutes": 19
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 65
+        },
+        "environment": {
+          "ambientTempC": 26,
+          "humidityPct": 65,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 8,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 123,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "UPS-M06",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-06",
+      "location": "3F 机房 机位8",
+      "make": "APC",
+      "model": "Modular 28kVA",
+      "topology": "modularN1",
+      "ratedKva": 40,
+      "serial": "SNM0006",
+      "commLost": false,
+      "mode": "battery",
+      "loadPct": 24,
+      "soc": 42,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 375,
+          "impedance": 10,
+          "impedanceBaseline": 6,
+          "temperature": 29,
+          "chargeCurrent": 0,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 76.8,
+          "capacityKw": 32,
+          "requiredMinutes": 6
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 93
+        },
+        "environment": {
+          "ambientTempC": 22,
+          "humidityPct": 64,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 5,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 105,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "市电中断，电池供电中",
+            "time": "10 分钟前",
+            "ack": false
+          },
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "UPS-M07",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-07",
+      "location": "3F 机房 机位6",
+      "make": "APC",
+      "model": "80kVA",
+      "topology": "online",
+      "ratedKva": 28,
+      "serial": "SNM0007",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 29,
+      "soc": 95,
+      "tsOffsetSec": 5,
+      "detail": {
+        "battery": {
+          "stringVoltage": 401,
+          "impedance": 11,
+          "impedanceBaseline": 4,
+          "temperature": 26,
+          "chargeCurrent": 3,
+          "predictedReplacement": "2028 Q4",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 65,
+          "capacityKw": 22.400000000000002,
+          "requiredMinutes": 17
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 60,
+          "inverterThd": 1,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 79
+        },
+        "environment": {
+          "ambientTempC": 25,
+          "humidityPct": 37,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 13,
+          "lastTransferAt": "1 个月前"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 197,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "UPS-M08",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-08",
+      "location": "2F UPS 间 机位3",
+      "make": "Vertiv",
+      "model": "60kVA",
+      "topology": "lineInteractive",
+      "ratedKva": 70,
+      "serial": "SNM0008",
+      "commLost": true,
+      "mode": "unknown",
+      "loadPct": null,
+      "soc": null,
+      "tsOffsetSec": null,
+      "detail": null
+    },
+    {
+      "id": "UPS-M09",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-09",
+      "location": "3F 机房 机位10",
+      "make": "Huawei",
+      "model": "Modular 42kVA",
+      "topology": "modularN1",
+      "ratedKva": 38,
+      "serial": "SNM0009",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 75,
+      "soc": 87,
+      "tsOffsetSec": 3,
+      "detail": {
+        "battery": {
+          "stringVoltage": 405,
+          "impedance": 10,
+          "impedanceBaseline": 8,
+          "temperature": 29,
+          "chargeCurrent": 1,
+          "predictedReplacement": "2028 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 228,
+          "capacityKw": 30.400000000000002,
+          "requiredMinutes": 5
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 4,
+          "rectifierStatus": "normal",
+          "fanStatus": "normal",
+          "capacitorHealthPct": 55
+        },
+        "environment": {
+          "ambientTempC": 23,
+          "humidityPct": 38,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "warning",
+          "bypassAvailable": true,
+          "lastTransferMs": 12,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 70,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "warning",
+            "message": "电池内阻超基线 15%",
+            "time": "1 小时前",
+            "ack": true
+          },
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "UPS-M10",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-10",
+      "location": "1F 配电室 机位1",
+      "make": "Vertiv",
+      "model": "80kVA",
+      "topology": "online",
+      "ratedKva": 30,
+      "serial": "SNM0010",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 82,
+      "soc": 76,
+      "tsOffsetSec": 8,
+      "detail": {
+        "battery": {
+          "stringVoltage": 399,
+          "impedance": 8,
+          "impedanceBaseline": 8,
+          "temperature": 32,
+          "chargeCurrent": 1,
+          "predictedReplacement": "2027 Q3",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 196.8,
+          "capacityKw": 24,
+          "requiredMinutes": 7
+        },
+        "electronics": {
+          "inverterVoltage": 230,
+          "inverterFrequency": 50,
+          "inverterThd": 5,
+          "rectifierStatus": "normal",
+          "fanStatus": "critical",
+          "capacitorHealthPct": 64
+        },
+        "environment": {
+          "ambientTempC": 26,
+          "humidityPct": 35,
+          "airQuality": "warning",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": false,
+          "lastTransferMs": 7,
+          "lastTransferAt": "2 周前"
+        },
+        "predictions": [],
+        "runtimeEstimate": {
+          "minutes": 56,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "UPS-M11",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-11",
+      "location": "2F UPS 间 机位4",
+      "make": "Vertiv",
+      "model": "60kVA",
+      "topology": "lineInteractive",
+      "ratedKva": 34,
+      "serial": "SNM0011",
+      "commLost": false,
+      "mode": "online",
+      "loadPct": 31,
+      "soc": 79,
+      "tsOffsetSec": 183,
+      "detail": {
+        "battery": {
+          "stringVoltage": 409,
+          "impedance": 4,
+          "impedanceBaseline": 7,
+          "temperature": 34,
+          "chargeCurrent": 6,
+          "predictedReplacement": "2027 Q1",
+          "reference": true,
+          "source": "内阻趋势外推"
+        },
+        "load": {
+          "kw": 84.3,
+          "capacityKw": 27.200000000000003,
+          "requiredMinutes": 10
+        },
+        "electronics": {
+          "inverterVoltage": 220,
+          "inverterFrequency": 60,
+          "inverterThd": 4,
+          "rectifierStatus": "warning",
+          "fanStatus": "warning",
+          "capacitorHealthPct": 66
+        },
+        "environment": {
+          "ambientTempC": 20,
+          "humidityPct": 52,
+          "airQuality": "normal",
+          "waterDetected": false
+        },
+        "transfer": {
+          "switchStatus": "normal",
+          "bypassAvailable": true,
+          "lastTransferMs": 13,
+          "lastTransferAt": "无记录"
+        },
+        "predictions": [
+          {
+            "risk": "critical",
+            "label": "电容组寿命临近",
+            "value": "功率模块 3",
+            "reference": true,
+            "source": "设备自诊断上报"
+          }
+        ],
+        "runtimeEstimate": {
+          "minutes": 153,
+          "reference": true,
+          "source": "SOC×负载模型"
+        },
+        "alarms": [
+          {
+            "severity": "critical",
+            "message": "电容组健康度低于 70%",
+            "time": "昨天",
+            "ack": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "UPS-M12",
+      "siteId": "site-myups",
+      "siteName": "myups 站点 · 演示",
+      "name": "UPS M-12",
+      "location": "2F UPS 间 机位8",
+      "make": "Kehua",
+      "model": "Modular 49kVA",
+      "topology": "modularN1",
+      "ratedKva": 25,
+      "serial": "SNM0012",
+      "commLost": true,
+      "mode": "unknown",
+      "loadPct": null,
+      "soc": null,
+      "tsOffsetSec": 1739,
+      "detail": null
     }
   ],
   "configStore": {
