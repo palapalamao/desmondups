@@ -32,7 +32,7 @@
   {{#if detail}}
   <div class="unit-grid">
     <section class="panel">
-      <h2>电池健康 <span class="fresh-tag fresh-{{groupFresh.battery}}">{{groupFresh.battery === 'ok' ? '实测' : groupFresh.battery === 'stale' ? '参考值' : '缺口'}}</span></h2>
+      <h2>电池健康 <a class="hist-link" on-click="@this.fire('goHistory', unit.id, 'soc')">全量历史 →</a> <span class="fresh-tag fresh-{{groupFresh.battery}}">{{groupFresh.battery === 'ok' ? '实测' : groupFresh.battery === 'stale' ? '参考值' : '缺口'}}</span></h2>
       <div class="stat-row"><span>组电压</span><b>{{detail.battery.stringVoltage}} V</b></div>
       <div class="stat-row"><span>内阻 / 基线</span><b>{{detail.battery.impedance}} / {{detail.battery.impedanceBaseline}}</b></div>
       <div class="stat-row"><span>温度</span><b>{{detail.battery.temperature}} °C</b></div>
@@ -47,7 +47,7 @@
       <div class="stat-row"><span>预测更换窗口</span><b>{{detail.battery.predictedReplacement}} <span class="ref-badge">参考值 · {{detail.battery.source}}</span></b></div>
     </section>
     <section class="panel">
-      <h2>负载与容量 <span class="fresh-tag fresh-{{groupFresh.load}}">{{groupFresh.load === 'ok' ? '实测' : groupFresh.load === 'stale' ? '参考值' : '缺口'}}</span></h2>
+      <h2>负载与容量 <a class="hist-link" on-click="@this.fire('goHistory', unit.id, 'load')">全量历史 →</a> <span class="fresh-tag fresh-{{groupFresh.load}}">{{groupFresh.load === 'ok' ? '实测' : groupFresh.load === 'stale' ? '参考值' : '缺口'}}</span></h2>
       <div class="load-figure"><b>{{unit.loadPct}}%</b><span class="muted">{{detail.load.kw}} / {{detail.load.capacityKw}} kW</span></div>
       <div class="mini-bar"><i style="width: {{unit.loadPct}}%"></i></div>
       <div class="stat-row"><span>需求备电时长</span><b>{{detail.load.requiredMinutes}} 分钟</b></div>
@@ -70,7 +70,7 @@
       <div class="mini-bar"><i style="width: {{detail.electronics.capacitorHealthPct}}%"></i></div>
     </section>
     <section class="panel">
-      <h2>环境 <span class="fresh-tag fresh-{{groupFresh.environment}}">{{groupFresh.environment === 'ok' ? '实测' : groupFresh.environment === 'stale' ? '参考值' : '缺口'}}</span></h2>
+      <h2>环境 <a class="hist-link" on-click="@this.fire('goHistory', unit.id, 'temp')">全量历史 →</a> <span class="fresh-tag fresh-{{groupFresh.environment}}">{{groupFresh.environment === 'ok' ? '实测' : groupFresh.environment === 'stale' ? '参考值' : '缺口'}}</span></h2>
       <div class="stat-row"><span>温度 / 湿度</span><b>{{detail.environment.ambientTempC}} °C / {{detail.environment.humidityPct}} %</b></div>
       <div class="stat-row"><span>空气质量</span><span class="tag tag-{{detail.environment.airQuality}}">{{detail.environment.airQuality === 'normal' ? '正常' : detail.environment.airQuality === 'warning' ? '警告' : '严重'}}</span></div>
       <div class="stat-row"><span>水浸</span><span class="tag {{detail.environment.waterDetected ? 'tag-critical' : 'tag-normal'}}">{{detail.environment.waterDetected ? '检测到' : '未检测到'}}</span></div>
@@ -118,6 +118,58 @@
   </div>
   {{else}}
   <div class="fatal">遥测详情不可用：该设备通讯中断或数据缺口（D-M2-02）——上方档案区保留；恢复后 10s 轮询自动回填。</div>
+  {{/if}}
+  {{else}}
+  <div class="fatal">未找到设备 {{unitId}}（返回不兜底，明示缺口）</div>
+  {{/if}}
+{{elseif view === "history"}}
+  {{#if unit}}
+  <header class="page-head">
+    <button class="btn" on-click="@this.fire('goBack')">← 返回详情</button>
+    <h1>{{unit.name}} · 历史趋势</h1>
+    <span class="muted">{{unit.siteName}} · {{unit.location}}</span>
+    {{#if unit.commLost}}<span class="sev-badge sev-commLost">当前通讯中断 · 历史为已入库数据可查（D-M3-03）</span>{{/if}}
+  </header>
+  <div class="archive-bar hist-bar muted">
+    <span>跨度</span>
+    {{#each spans}}<button class="btn mini {{selSpan === key ? 'primary' : ''}}" on-click="@this.fire('setSpan', key)">{{label}}</button>{{/each}}
+    <span>指标</span>
+    {{#each metricOpts}}<button class="btn mini {{selMetrics.indexOf(key) >= 0 ? 'primary' : ''}}" on-click="@this.fire('toggleMetric', key)">{{label}}</button>{{/each}}
+    <span class="spacer"></span>
+    <span>粒度 {{grainText}} · 生效参数已按 D-M3-07 收敛</span>
+  </div>
+  {{#if selMetrics.length}}
+  <div class="history-wrap">
+    <div class="legend">
+      {{#if hasPct}}<span class="lg lg-soc">SOC</span><span class="lg lg-load">负载</span>{{/if}}
+      {{#if hasTemp}}<span class="lg lg-temp">电池温度</span>{{/if}}
+      <span class="lg lg-fail">市电中断</span><span class="lg lg-ok">切换成功</span><span class="lg lg-gap">缺口留白（无数据，禁插值）</span>
+    </div>
+    <div class="chart-area">
+      {{#if hasPct}}<div class="ylab ylab-pct"><span>100</span><span>50</span><span>0</span></div>{{/if}}
+      {{#if hasTemp}}<div class="ylab ylab-temp"><span>45°C</span><span>30°C</span><span>15°C</span></div>{{/if}}
+      <svg viewBox="0 0 960 360" class="history-chart" preserveAspectRatio="none" aria-hidden="true">
+        {{#if hasPct}}{{#if hasTemp}}<line x1="0" y1="220" x2="960" y2="220" class="axis-sep"></line>{{/if}}{{/if}}
+        {{#each chart1Series}}<polyline points="{{seg}}" class="hs hs-{{key}}"></polyline>{{/each}}
+        {{#each chart2Series}}<polyline points="{{seg}}" class="hs hs-{{key}}"></polyline>{{/each}}
+        {{#each eventMarks}}<line x1="{{x}}" y1="0" x2="{{x}}" y2="220" class="ev ev-{{type}} {{ongoing ? 'ongoing' : ''}}"></line>{{/each}}
+      </svg>
+    </div>
+    <div class="xticks">{{#each ticks}}<span style="left:{{pct}}%">{{label}}</span>{{/each}}</div>
+    {{#if events.length}}
+    <div class="event-list">
+      {{#each events}}
+      <div class="event-item">
+        <span class="tag {{type === 'inputFail' ? 'tag-critical' : 'tag-normal'}}">{{type === 'inputFail' ? '市电中断' : '切换成功'}}</span>
+        <span class="muted">{{label}}</span>
+        {{#if ongoing}}<span class="tag tag-warning">进行中</span>{{/if}}
+      </div>
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+  {{else}}
+  <div class="fatal">未选任何指标——点上方指标按钮恢复（fail-closed 收敛，不静默兜底）</div>
   {{/if}}
   {{else}}
   <div class="fatal">未找到设备 {{unitId}}（返回不兜底，明示缺口）</div>

@@ -169,4 +169,73 @@ tc("TC-M2-逻辑-04", "告警：契约恰四字段，无写操作字段", () => 
   assert.ok(n > 0, "种子应含至少一条告警以约束契约");
 });
 
-console.log(`\n${pass}/15 通过${process.exitCode ? "（存在失败）" : ""}`);
+console.log(`\n${pass}/20 通过${process.exitCode ? "（存在失败）" : ""}`);
+
+// ===== M3 历史趋势逻辑（详设 §4/§6：派生确定性/跨度规格/空洞切分/事件规则/刻度） =====
+// TC-M3-逻辑-01 派生确定性（D-M3-05/06：同入参两次调用逐字节一致）
+tc("TC-M3-逻辑-01", "历史派生：确定性 + 域截断", () => {
+  const u = { id: "UPS-T01", mode: "online" };
+  const anchor = 1720000000000;
+  ["soc", "load", "temp"].forEach(m => {
+    const a = core.deriveHistory(u, m, "24h", anchor);
+    const b = core.deriveHistory(u, m, "24h", anchor);
+    assert.deepStrictEqual(a, b);
+    assert.strictEqual(a.length, 288);
+    const dom = { soc: [20, 100], load: [15, 90], temp: [18, 38] }[m];
+    a.forEach(p => { assert.ok(p.v >= dom[0] && p.v <= dom[1], m + " 域截断 " + p.v); });
+  });
+  assert.deepStrictEqual(core.deriveHistory(u, "bad", "24h", anchor), []); // 非法 metric → 空（fail-closed）
+  assert.deepStrictEqual(core.deriveHistory(null, "soc", "24h", anchor), []);
+});
+// TC-M3-逻辑-02 跨度规格（D-M3-01 规则表）
+tc("TC-M3-逻辑-02", "跨度：四档点数 360/288/336/360，粒度 10s/5min/30min/2h", () => {
+  const cases = [["1h", 10000, 360], ["24h", 300000, 288], ["7d", 1800000, 336], ["30d", 7200000, 360]];
+  cases.forEach(([k, g, n]) => { const s = core.spanSpec(k); assert.strictEqual(s.grainMs, g); assert.strictEqual(s.slots, n); });
+  assert.strictEqual(core.spanSpec("bad").grainMs, 300000); // 非法 → 默认 24h（D-M3-07）
+});
+// TC-M3-逻辑-03 空洞切分（禁插值渲染依据，A15）
+tc("TC-M3-逻辑-03", "splitGaps：超 2×粒度断点分段，段间无连线", () => {
+  const pts = [{ t: 0, v: 1 }, { t: 100, v: 2 }, { t: 1000, v: 3 }, { t: 1100, v: 4 }];
+  const segs = core.splitGaps(pts, 200);
+  assert.strictEqual(segs.length, 2);
+  assert.strictEqual(segs[0].length, 2); assert.strictEqual(segs[1].length, 2);
+  assert.deepStrictEqual(core.splitGaps([], 200), []);
+  assert.strictEqual(core.splitGaps([{ t: 5, v: 1 }], 200)[0].length, 1);
+});
+// TC-M3-逻辑-04 事件派生规则（D-M3-04）
+tc("TC-M3-逻辑-04", "事件：升序 + transferOk 晚于 inputFail 2~8min + battery 进行中", () => {
+  const anchor = 1720000000000;
+  const bat = { id: "UPS-T09", mode: "battery" };
+  const ev1 = core.deriveEvents(bat, "30d", anchor), ev2 = core.deriveEvents(bat, "30d", anchor);
+  assert.deepStrictEqual(ev1, ev2); // 确定性
+  for (let i = 1; i < ev1.length; i++) assert.ok(ev1[i].t >= ev1[i - 1].t, "升序");
+  const ongoing = ev1.filter(e => e.ongoing);
+  assert.strictEqual(ongoing.length, 1);
+  assert.strictEqual(ongoing[0].type, "inputFail");
+  assert.strictEqual(ongoing[0].t, anchor);
+  ev1.filter(e => e.type === "transferOk").forEach(tk => {
+    const pre = ev1.filter(e => e.type === "inputFail" && e.t <= tk.t);
+    assert.ok(pre.length > 0, "transferOk 前必有 inputFail");
+    const dt = tk.t - pre[pre.length - 1].t;
+    assert.ok(dt >= 2 * 60000 && dt <= 8 * 60000, "delta 2~8min 实际 " + dt);
+  });
+  const online = core.deriveEvents({ id: "UPS-T09", mode: "online" }, "30d", anchor);
+  assert.strictEqual(online.filter(e => e.ongoing).length, 0);
+});
+// TC-M3-逻辑-05 时间刻度 + 参数收敛
+tc("TC-M3-逻辑-05", "timeTicks 恰 5 档格式合法；normalize 收敛", () => {
+  const anchor = 1720000000000;
+  ["1h", "24h", "7d", "30d"].forEach(s => {
+    const ticks = core.timeTicks(anchor, s);
+    assert.strictEqual(ticks.length, 5);
+    assert.strictEqual(ticks[4].t, anchor); // 末档 = 锚点
+    const re = s === "1h" ? /^\d{2}:\d{2}$/ : /^\d{2}-\d{2} \d{2}:\d{2}$/;
+    ticks.forEach(t => assert.ok(re.test(t.label), s + " 格式 " + t.label));
+  });
+  assert.deepStrictEqual(core.normalizeHistoryQuery({ metrics: "soc,bad,temp,soc", span: "7x" }),
+    { metrics: ["soc", "temp"], span: "24h" });
+  assert.deepStrictEqual(core.normalizeHistoryQuery(null), { metrics: ["soc", "load"], span: "24h" });
+  assert.deepStrictEqual(core.normalizeHistoryQuery({ metrics: "", span: "7d" }), { metrics: [], span: "7d" }); // 显式空保持空（fail-closed 明示）
+});
+
+console.log(`\n${pass}/20 通过${process.exitCode ? "（存在失败）" : ""}`);

@@ -103,3 +103,29 @@ select, .btn { background: var(--panel); color: var(--text); border: 1px solid v
 .panel .sparkline--muted { height: 40px; margin: 4px 0 2px; }
 .panel .trend-placeholder { height: 92px; }
 @media (max-width: 640px) { .unit-grid { grid-template-columns: 1fr; } }
+
+/* v0.5 REQ-M3-xx：历史趋势全量视图（详设 §5，D-M3-02 双区图契约） */
+.hist-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hist-link { font-size: 11px; font-weight: normal; color: var(--info); cursor: pointer; white-space: nowrap; }
+.hist-link:hover { text-decoration: underline; }
+.history-wrap { padding: 16px 24px 24px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; font-size: 12px; }
+.lg::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 5px; vertical-align: middle; background: var(--muted); }
+.lg-soc::before { background: var(--ok); } .lg-load::before { background: var(--info); }
+.lg-temp::before { background: var(--warn); } .lg-fail::before { background: var(--crit); }
+.lg-ok::before { background: var(--info); height: 0; border-top: 2px dashed var(--info); background: none; }
+.lg-gap::before { background: repeating-linear-gradient(45deg, var(--lost), var(--lost) 2px, transparent 2px, transparent 4px); height: 8px; }
+.chart-area { position: relative; }
+.ylab { position: absolute; left: 4px; top: 0; bottom: 22px; display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; color: var(--muted); pointer-events: none; z-index: 1; }
+.ylab-temp { top: 240px; bottom: 22px; }
+.history-chart { width: 100%; height: auto; display: block; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+.hs { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.hs-soc { stroke: var(--ok); } .hs-load { stroke: var(--info); } .hs-temp { stroke: var(--warn); }
+.ev { stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.ev-inputFail { stroke: var(--crit); } .ev-transferOk { stroke: var(--info); } .ev.ongoing { stroke-width: 2; }
+.axis-sep { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.xticks { position: relative; height: 20px; margin-top: 4px; font-size: 11px; color: var(--muted); }
+.xticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.xticks span:first-child { transform: none; } .xticks span:last-child { transform: translateX(-100%); }
+.event-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.event-item { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; flex-wrap: wrap; }
