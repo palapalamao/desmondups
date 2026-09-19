@@ -56,3 +56,12 @@ select, .btn { background: var(--panel); color: var(--text); border: 1px solid v
 
 .pager { display: flex; gap: 10px; justify-content: center; padding-bottom: 24px; }
 @media (max-width: 640px) { .card-grid { grid-template-columns: 1fr; } }
+
+/* v0.3 REQ-M1-10：卡片内嵌历史趋势（视觉基线 docs/demo 原型，.trends 总高 120px） */
+.trends { display: flex; flex-direction: column; }
+.sparkline { width: 100%; height: 60px; display: block; }
+.sparkline polyline { fill: none; stroke: var(--ok); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.sparkline--muted { height: 50px; margin: 8px 0 2px; }
+.sparkline--muted polyline { stroke: var(--info); }
+.trend-placeholder { height: 116px; margin: 2px 0; border: 1px dashed var(--lost); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; }

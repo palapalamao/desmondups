@@ -1,7 +1,7 @@
 // demoSeed.js — M1 演示数据种子：确定性 + 幂等（方法论 v2.0 第18条）
 // 用法：node scripts/seed/demoSeed.js  → 生成 extensions/upsPod/frontend/seed.json
 // 同一版本同一参数输出逐字节一致；重复执行覆盖写同一文件（幂等）。
-// version 0.1.0
+// version 0.3.0
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -55,7 +55,7 @@ for (let i = 0; i < 60; i++) {
 }
 
 const out = {
-  seedVersion: "0.1.0",
+  seedVersion: "0.3.0",
   note: "tsOffsetSec=null 表示缺口；绝对时间由前端加载时计算（确定性：本文件不含墙钟）",
   pollPeriodMs: 10000,
   sites: SITES,

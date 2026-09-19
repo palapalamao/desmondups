@@ -90,6 +90,14 @@
         <span>SOC <b>{{.unit.soc === null ? '—' : Math.round(.unit.soc) + '%'}}</b></span>
         <span class="sev-label">{{sev === 'critical' ? '严重' : sev === 'warning' ? '警告' : sev === 'commLost' ? '通讯中断' : '正常'}}</span>
       </div>
+      {{#if .showTrend}}
+      <div class="trends">
+        <svg viewBox="0 0 240 60" class="sparkline" preserveAspectRatio="none" aria-hidden="true"><polyline points="{{.trendSoc}}"></polyline></svg>
+        <svg viewBox="0 0 240 50" class="sparkline sparkline--muted" preserveAspectRatio="none" aria-hidden="true"><polyline points="{{.trendLoad}}"></polyline></svg>
+      </div>
+      {{else}}
+      <div class="trend-placeholder">趋势不可用 · {{sev === 'commLost' ? '通讯中断' : '无数据'}}</div>
+      {{/if}}
       <div class="fresh-{{fresh}}">
         {{fresh === 'ok' ? '采集 ' + tsText : fresh === 'stale' ? '参考值 · 采集 ' + tsText : '缺口 · 无数据'}}
       </div>

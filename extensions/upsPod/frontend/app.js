@@ -3,7 +3,8 @@
  * 结构：upsCore 纯逻辑（Node 可测，verify.cjs 入口） + 浏览器侧 Ractive 应用
  * 数据适配器：MockAdapter（确定性种子 + 10s 抖动）/ FinAdapter（桩，待 U-API-01）
  * 红线落实：R1 权限=站点过滤参数留位（无环境，标注未验）；R3 时效标注 ok/stale/gap
- * 版本 0.1.0
+ * REQ-M1-10 v0.3：卡片双 sparkline（SOC 主 + 负载次）+ 断讯等高占位
+ * 版本 0.3.0
  * ==========================================================================*/
 (function (global) {
   "use strict";
@@ -71,6 +72,33 @@
     return out;
   }
 
+  function round1(v) { return Math.round(v * 10) / 10; }
+
+  function sparklinePoints(history, w, h, lo, hi) { // REQ-M1-10：移植原型 demo index.html L1024
+    if (!history || !history.length) return "";
+    var min = typeof lo === "number" ? lo : Math.min.apply(null, history);
+    var max = typeof hi === "number" ? hi : Math.max.apply(null, history);
+    var range = (max - min) || 1;
+    var step = history.length > 1 ? w / (history.length - 1) : 0;
+    var pts = [];
+    for (var i = 0; i < history.length; i++) {
+      var x = round1(i * step);
+      var y = round1(h - ((history[i] - min) / range) * h);
+      pts.push(x + "," + y);
+    }
+    return pts.join(" ");
+  }
+
+  function rollHistory(arr, value, maxLen) { // 滚动窗口：追加+超窗移位（原型 L1271-73 先例）
+    arr.push(value);
+    if (arr.length > maxLen) arr.shift();
+    return arr;
+  }
+
+  function hasTrend(unit) { // Q11：断讯/点数不足 → 不渲染趋势（R3）
+    return !unit.commLost && Array.isArray(unit.socHistory) && unit.socHistory.length >= 2;
+  }
+
   var upsCore = {
     SEV_RANK: SEV_RANK,
     topSeverity: topSeverity,
@@ -80,15 +108,32 @@
     statCounts: statCounts,
     paginate: paginate,
     detectNewRisks: detectNewRisks,
+    sparklinePoints: sparklinePoints,
+    rollHistory: rollHistory,
+    hasTrend: hasTrend,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;
 
   /* ---------------- 数据适配器 ---------------- */
+  function genHistory(anchor, n, phase, amp) { // D-M1-12：确定性反推，锚定当前值，无墙钟无随机源
+    var arr = [];
+    for (var i = 0; i < n; i++)
+      arr.push(round1(Math.min(100, Math.max(0, anchor + Math.sin(i * 1.7 + phase * 2.3) * amp))));
+    return arr;
+  }
+
   var MockAdapter = { // 确定性种子 + 10s 抖动；FinAdapter 待 U-API-01 后按同一接口实现
     seed: null,
     load: function () {
       return fetch("seed.json").then(function (r) { return r.json(); }).then(function (s) {
+        var base = Date.now(); // Mock 演示墙钟：仅算偏移，种子文件本身仍确定性（TC-08 不受影响）
+        s.units.forEach(function (u, idx) {
+          u.ts = u.tsOffsetSec === null || u.tsOffsetSec === undefined ? null : base - u.tsOffsetSec * 1000; // 种子契约：偏移→绝对时间
+          var dead = u.commLost || u.ts === null; // Q11/R3：断讯与缺口不生成趋势
+          u.socHistory = dead || u.soc === null ? [] : genHistory(u.soc, 24, idx, 5);
+          u.loadHistory = dead || u.loadPct === null ? [] : genHistory(u.loadPct, 24, idx + 7, 6);
+        });
         MockAdapter.seed = s; return s;
       });
     },
@@ -100,6 +145,8 @@
         u.loadPct = Math.round(Math.min(95, Math.max(5, u.loadPct + j)));
         u.soc = u.mode === "battery" ? Math.max(10, u.soc - 0.1) : Math.min(100, u.soc + 0.05);
         u.ts = now;
+        if (u.soc !== null) upsCore.rollHistory(u.socHistory, round1(u.soc), 24);       // REQ-M1-10 滚动
+        if (u.loadPct !== null) upsCore.rollHistory(u.loadHistory, round1(u.loadPct), 24);
       });
       return Promise.resolve(s);
     },
@@ -151,8 +198,12 @@
       view: "overview", sites: s.sites, filter: filter, pageSize: pageSize + "",
       stats: upsCore.statCounts(s.units), badges: pg.items.map(function (u) {
         var sev = upsCore.topSeverity(u);
+        var show = upsCore.hasTrend(u); // Q11：断讯/缺口卡不渲染趋势
         return { unit: u, sev: sev, fresh: upsCore.classifyFreshness(u.ts, now, period),
-                 tsText: u.ts === null ? "无数据" : new Date(u.ts).toLocaleTimeString() };
+                 tsText: u.ts === null ? "无数据" : new Date(u.ts).toLocaleTimeString(),
+                 showTrend: show,
+                 trendSoc: show ? upsCore.sparklinePoints(u.socHistory, 240, 60, 0, 100) : "",
+                 trendLoad: show ? upsCore.sparklinePoints(u.loadHistory, 240, 50, 0, 100) : "" };
       }),
       pagination: pg, newRisks: risks, badgeSel: badgeSel,
     });

@@ -83,7 +83,39 @@ tc("TC-M1-逻辑-08", "种子：确定性可重建", () => {
   assert.strictEqual(a, b); // 种子不含墙钟 → 两次生成须逐字节一致
 });
 
-console.log(`\n${pass}/8 通过${process.exitCode ? "（存在失败）" : ""}`);
+// TC-M1-逻辑-09 sparklinePoints（REQ-M1-10：定程映射/空态/坐标数）
+tc("TC-M1-逻辑-09", "趋势坐标：空→空串，定程 0→y=h 100→y=0", () => {
+  assert.strictEqual(core.sparklinePoints([], 240, 60, 0, 100), "");
+  assert.strictEqual(core.sparklinePoints(null, 240, 60, 0, 100), "");
+  assert.strictEqual(core.sparklinePoints([0, 50, 100], 240, 60, 0, 100), "0,60 120,30 240,0");
+  const pts = core.sparklinePoints(new Array(24).fill(50), 240, 60, 0, 100).split(" ");
+  assert.strictEqual(pts.length, 24);            // 24 点 → 24 坐标对
+  assert.strictEqual(pts[0], "0,30");            // 首点 x=0
+  assert.strictEqual(pts[23], "240,30");         // 末点 x=w，step=w/23
+  assert.strictEqual(core.sparklinePoints([80], 240, 60, 0, 100), "0,12"); // 单点不成线，step=0
+});
+// TC-M1-逻辑-10 rollHistory（REQ-M1-10：滚动窗口追加+超窗移位）
+tc("TC-M1-逻辑-10", "滚动窗口：24 点超窗 shift，返回同一引用", () => {
+  const arr = [];
+  for (let i = 1; i <= 24; i++) core.rollHistory(arr, i, 24);
+  assert.deepStrictEqual(arr, Array.from({ length: 24 }, (_, i) => i + 1)); // 恰好 24 不 shift
+  const ref = core.rollHistory(arr, 25, 24);
+  assert.strictEqual(ref, arr);                  // 返回同一引用（原型先例）
+  assert.strictEqual(arr.length, 24);            // 超窗仍 24
+  assert.strictEqual(arr[0], 2);                 // 最旧点(1)已出窗
+  assert.strictEqual(arr[23], 25);               // 最新点在尾
+});
+// TC-M1-逻辑-11 hasTrend（Q11：断讯不渲染趋势，R3）
+tc("TC-M1-逻辑-11", "趋势判定：断讯/点数不足→false，正常→true", () => {
+  const h24 = new Array(24).fill(50);
+  assert.strictEqual(core.hasTrend(mk({ socHistory: h24, loadHistory: h24 })), true);
+  assert.strictEqual(core.hasTrend(mk({ commLost: true, socHistory: h24, loadHistory: h24 })), false); // Q11 断讯优先
+  assert.strictEqual(core.hasTrend(mk({ socHistory: [], loadHistory: [] })), false);   // 缺口/空数组
+  assert.strictEqual(core.hasTrend(mk({ socHistory: [50], loadHistory: [50] })), false); // 1 点不成线
+  assert.strictEqual(core.hasTrend(mk({ socHistory: [50, 51], loadHistory: [50, 51] })), true); // 2 点成线
+});
+
+console.log(`\n${pass}/11 通过${process.exitCode ? "（存在失败）" : ""}`);
 
 
 
