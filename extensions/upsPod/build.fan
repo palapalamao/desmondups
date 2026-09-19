@@ -10,6 +10,6 @@ class Build : build::BuildPod {
     depends = ["sys 1.0", "concurrent 1.0", "haystack 4.0", "axon 2.1", "ui 0.1"]
     srcDirs = [`fan/`]
     resDirs = [`locale/`, `frontend/`]
-    version = Version("0.7.0")
+    version = Version("0.8.0")
   }
 }

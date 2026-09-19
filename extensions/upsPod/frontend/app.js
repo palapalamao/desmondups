@@ -8,7 +8,8 @@
  * REQ-M3-xx v0.5：历史趋势全量视图（跨度四档/事件锚点/缺口留白 R3，D-M3-01~08）
  * REQ-M4-xx v0.6：告警确认三段式（守门四路 gateAck/审计事件/行内确认，D-M4-01~05，首个写操作模块）
  * REQ-M5-xx v0.7：配置管理闭环（validateConfig 守门 V1~V4/append-only 版本/红冲回滚，D-M5-01~07，第二个写操作模块）
- * 版本 0.7.0
+ * REQ-M6-xx v0.8：审计只读查询（queryAudit 四维/类型元数据/append-only 视图，D-M6-01~05，消费方模块零发射源）
+ * 版本 0.8.0
  * ==========================================================================*/
 (function (global) {
   "use strict";
@@ -332,6 +333,45 @@
     return { ok: true, version: version };
   }
 
+  /* -- M6 审计（D-M6 详设 §1/§2；消费方模块：零发射源，只读查询 M4/M5 审计流） -- */
+  var AUDIT_SINCE = { "1h": 3600000, "24h": 86400000, "7d": 604800000 }; // 相对档（Q2）
+  var AUDIT_TYPES = { // 类型元数据三类钉死（Q5）
+    "alarm.ack":       { label: "告警确认", cls: "tag-critical" },
+    "config.publish":  { label: "配置发布", cls: "tag-normal" },
+    "config.rollback": { label: "配置回滚", cls: "tag-warning" },
+  };
+
+  function collectOperators(events) { // Q3：操作者动态收集（去重升序）
+    var set = {};
+    (events || []).forEach(function (e) { if (e.by) set[e.by] = true; });
+    return Object.keys(set).sort();
+  }
+
+  function queryAudit(events, f, now) { // 四维筛选 + seq 倒序；空结果=空数组（R3 不造假不兜底）
+    f = f || {};
+    var span = AUDIT_SINCE[f.since], kw = f.q ? String(f.q).toLowerCase() : "";
+    return (events || []).filter(function (e) {
+      if (f.type && e.type !== f.type) return false;
+      if (f.by && e.by !== f.by) return false;
+      if (span && !(typeof e.at === "number" && now - e.at <= span)) return false;
+      if (kw) {
+        var hay = [e.note, e.summary, e.message].filter(Boolean).join(" ").toLowerCase();
+        if (hay.indexOf(kw) < 0) return false;
+      }
+      return true;
+    }).sort(function (a, b) { return b.seq - a.seq; });
+  }
+
+  function auditDetailFields(e) { // 明细字段按类型（详设 §2；字段缺失 → 不渲染该行，不造假）
+    if (e.type === "alarm.ack")
+      return [{ k: "告警消息", v: e.message }, { k: "备注", v: e.note }, { k: "单元", v: e.unitId },
+              { k: "站点", v: e.siteId }, { k: "严重度", v: e.severity }].filter(function (x) { return x.v !== undefined && x.v !== null; });
+    if (e.type === "config.publish" || e.type === "config.rollback")
+      return [{ k: "变更摘要", v: e.summary }, { k: "版本", v: e.versionSeq === undefined ? null : "v" + e.versionSeq }]
+        .filter(function (x) { return x.v !== undefined && x.v !== null; });
+    return [];
+  }
+
   var upsCore = {
     SEV_RANK: SEV_RANK,
     topSeverity: topSeverity,
@@ -362,6 +402,11 @@
     effectiveConfig: effectiveConfig,
     publishConfig: publishConfig,
     rollbackConfig: rollbackConfig,
+    AUDIT_TYPES: AUDIT_TYPES,
+    AUDIT_SINCE: AUDIT_SINCE,
+    collectOperators: collectOperators,
+    queryAudit: queryAudit,
+    auditDetailFields: auditDetailFields,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;
@@ -456,6 +501,7 @@
     if (r.page === "history" && r.unitId) { renderHistory(r.unitId, r.q); return; } // M3：全量历史
     if (r.page === "alarms") { renderAlarms(r.q); return; } // M4：告警与确认（首个写操作模块）
     if (r.page === "config") { renderConfig(); return; } // M5：配置管理（第二个写操作模块）
+    if (r.page === "audit") { renderAudit(r.q); return; } // M6：审计只读查询（消费方模块）
     renderOverview(r.q);
   }
 
@@ -585,6 +631,31 @@
       publishError: keepErr || null, showVersions: keepHist, versions: versions,
       currentSeq: configStore.currentSeq, totalVersions: configStore.versions.length });
   }
+  function renderAudit(q) { // M6：审计查询渲染（详设 §3；重渲染保留展开行）
+    q = q || {};
+    var f = { type: q.type || "", by: q.by || "", since: q.since || "all", q: q.q || "" };
+    var keepDetail = ractive && ractive.get && ractive.get("view") === "audit" ? ractive.get("showDetail") : null;
+    var rows = upsCore.queryAudit(auditLog, f, Date.now()).map(function (e) {
+      var meta = upsCore.AUDIT_TYPES[e.type] || { label: e.type, cls: "tag-normal" }; // 未知类型明示原文（fail-closed）
+      return { seq: e.seq, type: e.type, label: meta.label, cls: meta.cls, by: e.by,
+        atText: typeof e.at === "number" ? new Date(e.at).toLocaleString() : "（无时戳）",
+        summary: e.summary || e.message || "",
+        detailFields: upsCore.auditDetailFields(e) };
+    });
+    var typeBadges = Object.keys(upsCore.AUDIT_TYPES).map(function (t) {
+      var m = upsCore.AUDIT_TYPES[t];
+      return { type: t, label: m.label, cls: m.cls === "tag-critical" ? "crit" : m.cls === "tag-warning" ? "warn" : "ok",
+        count: auditLog.filter(function (e) { return e.type === t; }).length, sel: f.type === t };
+    });
+    ractive.reset({ view: "audit", auditFilter: f, rows: rows, showDetail: keepDetail,
+      operators: upsCore.collectOperators(auditLog), typeBadges: typeBadges, totalAll: auditLog.length });
+  }
+
+  function navAudit(f) { // M6：深链 #/ups/audit?type=&by=&since=&q=
+    var qs = Object.keys(f).filter(function (k) { return f[k] && f[k] !== "all"; })
+      .map(function (k) { return encodeURIComponent(k) + "=" + encodeURIComponent(f[k]); }).join("&");
+    location.hash = "/ups/audit" + (qs ? "?" + qs : "");
+  }
   function goConfigNav() { location.hash = "/ups/config"; }
   function navAlarms(f) { // M4：深链 #/ups/alarms?site=&sev=&state=&unit=（REQ-M1-07 同构）
     var qs = Object.keys(f).filter(function (k) { return f[k]; })
@@ -630,6 +701,10 @@
           });
           this.on("goAlarms", function (e, unitId) { navAlarms(unitId ? { unit: unitId } : {}); }); // M2 衔接：带 unit 参数深链
           this.on("goConfig", function () { goConfigNav(); }); // M5：配置管理入口（纯导航）
+          this.on("goAudit", function () { navAudit({}); }); // M6：审计入口（纯导航）
+          this.on("auditNav", function (e) { navAudit({ type: e.type || "", by: e.by || "", since: e.since || "all", q: e.q || "" }); });
+          this.on("setAuditType", function (e, t) { var f = this.get("auditFilter") || {}; navAudit({ type: f.type === t ? "" : t, by: f.by, since: f.since, q: f.q }); }); // 徽标再点取消
+          this.on("toggleAuditDetail", function (e, seq) { this.set("showDetail", this.get("showDetail") === seq ? null : seq); }); // 行内展开（同时一行）；只读，无写入口（A27）
           this.on("submitPublish", function () { // M5 写入口①：守门 fail-closed（语义全在 upsCore.publishConfig）
             var draft = {}; this.get("defRows").forEach(function (r) { draft[r.key] = (r.draftValue === "" || r.draftValue === null || r.draftValue === undefined) ? null : Number(r.draftValue); }); // 空值=null → 守门序 V1
             var r = upsCore.publishConfig(configStore, auditLog, draft, "mock-operator", Date.now(), { allowedSites: null, allowedSiteId: null }); // R1 留位
@@ -664,7 +739,7 @@
             if (r.page === "history") { adapter.poll(); return; } // M3：历史视图不整页重渲染（poll 保快照新鲜）
             if (r.page !== "unit") { adapter.poll().then(function () { // M4：alarms 视图 poll 后重渲染列表（overview 分支语义）
               var pg = parseHash().page; // M5：config 视图同规——重渲染保留草稿态
-              if (pg === "alarms") renderAlarms(currentQ()); else if (pg === "config") renderConfig(); else renderOverview(currentQ()); }); return; }
+              if (pg === "alarms") renderAlarms(currentQ()); else if (pg === "config") renderConfig(); else if (pg === "audit") renderAudit(currentQ()); else renderOverview(currentQ()); }); return; }
             adapter.poll().then(function () { return adapter.detail(r.unitId); }).then(function () { renderUnit(r.unitId); })
               .catch(function (err) { if (ractive) ractive.set("detailError", String(err && err.message || err)); });
           }, s.pollPeriodMs);

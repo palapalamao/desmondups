@@ -286,11 +286,68 @@
       </div>
     </section>
   </div>
+{{elseif view === "audit"}}
+  <header class="page-head">
+    <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
+    <h1>审计</h1>
+    <span class="muted">深链：#/ups/audit?type=&by=&since=&q= · append-only（零修改/删除入口，铁律 4）· 演示环境：重载清空审计流</span>
+  </header>
+
+  <form class="filter-bar" on-submit="@event.preventDefault(), @this.fire('auditNav', @this.get('auditFilter'))">
+    <label>类型
+      <select value="{{auditFilter.type}}">
+        <option value="">全部</option>
+        <option value="alarm.ack">告警确认</option>
+        <option value="config.publish">配置发布</option>
+        <option value="config.rollback">配置回滚</option>
+      </select>
+    </label>
+    <label>操作者
+      <select value="{{auditFilter.by}}">
+        <option value="">全部</option>
+        {{#each operators}}<option value="{{.}}">{{.}}</option>{{/each}}
+      </select>
+    </label>
+    <label>时间
+      <select value="{{auditFilter.since}}">
+        <option value="all">全部</option><option value="1h">最近 1 小时</option><option value="24h">最近 24 小时</option><option value="7d">最近 7 天</option>
+      </select>
+    </label>
+    <label>关键字
+      <input value="{{auditFilter.q}}" placeholder="备注/摘要/消息">
+    </label>
+    <button class="btn primary" type="submit">筛选</button>
+    <span class="spacer"></span>
+    <span class="muted">共 {{totalAll}} 条 · 当前筛选 {{rows.length}} 条</span>
+  </form>
+
+  <div class="stat-badges">
+    {{#each typeBadges}}
+    <button class="badge {{cls}} {{sel ? 'sel' : ''}}" on-click="@this.fire('setAuditType', type)">{{label}} {{count}}</button>
+    {{/each}}
+  </div>
+
+  <div class="audit-list">
+    {{#each rows}}
+    <div class="audit-item" on-click="@this.fire('toggleAuditDetail', seq)">
+      <span class="tag {{cls}}">{{label}}</span>
+      <span class="muted">{{atText}} · {{by}}</span>
+      <span class="vsum">{{summary}}</span>
+    </div>
+    {{#if showDetail === seq}}
+    <div class="audit-detail">
+      {{#each detailFields}}<div class="stat-row"><span>{{k}}</span><b>{{v}}</b></div>{{/each}}
+    </div>
+    {{/if}}
+    {{/each}}
+    {{#if !rows.length}}<div class="muted">当前筛选无审计记录（演示环境：走 M4 确认 / M5 发布后才有记录；重载清空）</div>{{/if}}
+  </div>
 {{else}}
   <header class="page-head">
     <h1>UPS 车队总览</h1>
     <span class="muted">深链：#/ups/overview · 轮询 10s · Mock 数据（FinAdapter 待 U-API-01）</span>
     <a class="hist-link" on-click="@this.fire('goConfig')">配置管理 →</a>
+    <a class="hist-link" on-click="@this.fire('goAudit')">审计 →</a>
   </header>
 
   {{#if newRisks.length}}

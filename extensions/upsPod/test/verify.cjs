@@ -377,6 +377,68 @@ tc("TC-M5-逻辑-05", "重复 rollback 同版本=内容一致新版本；非法 
   assert.ok(!bad.ok && /不存在/.test(bad.reasons[0]));
   assert.strictEqual(store.versions.length, 3, "拒绝零副作用");
   assert.strictEqual(store.currentSeq, 3, "两次成功回滚后 currentSeq=3，拒绝不动");
+});// ---- M6 审计（详设 D-M6 §1/§2/§5；消费方模块，回放 M4/M5 契约）----
+const m6events = () => ([
+  { seq: 1, type: "alarm.ack", alarmKey: "U1#0", unitId: "U1", siteId: "s1", severity: "warning", message: "市电中断", note: "现场已复位", by: "op-a", at: 1000000 },
+  { seq: 2, type: "config.publish", versionSeq: 2, kind: "publish", summary: "变更 1 项：SOC 告警下限 20→15", by: "op-b", at: 2000000 },
+  { seq: 3, type: "config.rollback", versionSeq: 3, kind: "rollback", summary: "回滚到 v1（红冲，历史零修改）", by: "op-a", at: 3000000 },
+  { seq: 4, type: "alarm.ack", alarmKey: "U2#0", unitId: "U2", siteId: "s2", severity: "critical", message: "电容老化", note: "更换电容组", by: "op-c", at: 4000000 },
+  { seq: 5, type: "config.publish", versionSeq: 4, kind: "publish", summary: "无数值变更", by: "op-a", at: 5000000 },
+]);
+// TC-M6-逻辑-01 四维筛选组合 + seq 倒序
+tc("TC-M6-逻辑-01", "queryAudit：type/by/q 组合 + 倒序", () => {
+  const ev = m6events();
+  assert.deepStrictEqual(core.queryAudit(ev, {}, 9999999).map(e => e.seq), [5, 4, 3, 2, 1]);
+  assert.deepStrictEqual(core.queryAudit(ev, { type: "alarm.ack" }, 9999999).map(e => e.seq), [4, 1]);
+  assert.deepStrictEqual(core.queryAudit(ev, { by: "op-a" }, 9999999).map(e => e.seq), [5, 3, 1]);
+  assert.deepStrictEqual(core.queryAudit(ev, { q: "电容" }, 9999999).map(e => e.seq), [4], "关键字命中 message+note");
+  assert.deepStrictEqual(core.queryAudit(ev, { type: "alarm.ack", by: "op-a" }, 9999999).map(e => e.seq), [1]);
+  assert.deepStrictEqual(core.queryAudit(ev, { q: "已复位" }, 9999999).map(e => e.seq), [1], "关键字命中 note");
+  assert.deepStrictEqual(core.queryAudit([{ seq: 9, type: "alarm.ack", note: "Reset Done", by: "x", at: 1 }], { q: "reset done" }, 999).map(e => e.seq), [9], "双端 toLowerCase 大小写不敏感");
+});
+// TC-M6-逻辑-02 since 相对档收敛（锚点注入）
+tc("TC-M6-逻辑-02", "since：1h/24h/7d 边界 + 非法值收敛 all", () => {
+  const ev = m6events();
+  assert.deepStrictEqual(core.queryAudit(ev, { since: "1h" }, 5000000).map(e => e.seq), [5, 4, 3, 2], "1h=3600000：cutoff=1400000，seq2(at=2000000) 含");
+  assert.deepStrictEqual(core.queryAudit(ev, { since: "24h" }, 5000000).length, 5);
+  assert.deepStrictEqual(core.queryAudit(ev, { since: "7d" }, 5000000).length, 5);
+  assert.deepStrictEqual(core.queryAudit(ev, { since: "bad" }, 5000000).length, 5, "非法档收敛 all 不报错");
+  assert.deepStrictEqual(core.queryAudit(ev, { since: "1h" }, 4600000).map(e => e.seq), [5, 4, 3, 2, 1], "diff=span 含（闭区间）");
+  assert.deepStrictEqual(core.queryAudit(ev, { since: "1h" }, 4600001).map(e => e.seq), [5, 4, 3, 2], "diff>span 排除 seq1（严格外）");
+});
+// TC-M6-逻辑-03 collectOperators 去重升序 + 类型元数据完整
+tc("TC-M6-逻辑-03", "操作者去重升序；三类元数据", () => {
+  assert.deepStrictEqual(core.collectOperators(m6events()), ["op-a", "op-b", "op-c"]);
+  assert.deepStrictEqual(core.collectOperators([]), []);
+  assert.strictEqual(Object.keys(core.AUDIT_TYPES).length, 3);
+  Object.keys(core.AUDIT_TYPES).forEach(t => {
+    assert.ok(core.AUDIT_TYPES[t].label && core.AUDIT_TYPES[t].cls, t + " 元数据完整");
+  });
+});
+// TC-M6-逻辑-04 M4/M5 契约回放：发射事件 100% 可查（A26）
+tc("TC-M6-逻辑-04", "契约回放：applyAck/publish/rollback 事件全可查", () => {
+  const units = m4fixture(), log = [];
+  core.applyAck(units, log, "U1#0", "已复位", "mock-operator", 100, {});
+  const store = m5store();
+  core.publishConfig(store, log, { socLowPct: 15, impedanceDevPct: 15, battTempHighC: 40 }, "mock-operator", 200, {});
+  core.rollbackConfig(store, log, 1, "mock-operator", 300, {});
+  assert.strictEqual(log.length, 3);
+  const rows = core.queryAudit(log, {}, 99999);
+  assert.deepStrictEqual(rows.map(e => e.type), ["config.rollback", "config.publish", "alarm.ack"], "倒序");
+  const ack = rows.filter(e => e.type === "alarm.ack")[0];
+  assert.ok(ack.note === "已复位" && ack.by === "mock-operator" && ack.alarmKey === "U1#0", "M4 契约字段完整");
+  const pub = rows.filter(e => e.type === "config.publish")[0];
+  assert.ok(pub.versionSeq === 2 && /变更 1 项/.test(pub.summary), "M5 契约字段完整");
+});
+// TC-M6-逻辑-05 空结果=空数组（R3）；非法 type 收敛
+tc("TC-M6-逻辑-05", "空筛选空数组不造假；非法 type 零命中", () => {
+  assert.deepStrictEqual(core.queryAudit([], {}), []);
+  const ev = m6events();
+  assert.deepStrictEqual(core.queryAudit(ev, { type: "bad.type" }, 9), []);
+  assert.deepStrictEqual(core.queryAudit(ev, { q: "绝不存在的关键词" }, 9), []);
+  assert.deepStrictEqual(core.queryAudit(null, {}), []);
+  assert.deepStrictEqual(core.auditDetailFields({ type: "unknown" }), [], "未知类型明细不造假");
+  assert.strictEqual(core.auditDetailFields({ type: "alarm.ack", message: "m", note: "n", unitId: "U", siteId: "s", severity: "warning" }).length, 5);
 });
 
-console.log(`\n${pass}/30 通过${process.exitCode ? "（存在失败）" : ""}`);
+console.log(`\n${pass}/35 通过${process.exitCode ? "（存在失败）" : ""}`);
