@@ -29,5 +29,12 @@ seg.split(/\r?\n/).forEach((line, i) => {
   if (reAck.test(line)) hits.push("[R2-详情告警只读] unit模板段:" + (i + 1) + "  " + line.trim().slice(0, 90));
 });
 
+// M6 落点（详设 M6 §4）：审计视图 append-only——audit 模板段禁写/改/删 handler（A27 CI 可证）
+const segAudit = (html.split('{{elseif view === "audit"}}')[1] || "").split(/\r?\n\{\{else\}\}/)[0] || "";
+const reAudit = /\b(deleteAudit|editAudit|modifyAudit|updateAudit|removeAudit|clearAudit|purgeLog)\b/;
+segAudit.split(/\r?\n/).forEach((line, i) => {
+  if (reAudit.test(line)) hits.push("[R2-审计append-only] audit模板段:" + (i + 1) + "  " + line.trim().slice(0, 90));
+});
+
 if (hits.length) { console.error("FAIL R2 发现写路径:\n" + hits.join("\n")); process.exit(1); }
 console.log("PASS R2 无写点位/控制路径 + 详情告警区只读");
