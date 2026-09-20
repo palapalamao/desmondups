@@ -9,6 +9,25 @@
     return 'ver:"3.0"\nexpr\n' + JSON.stringify(String(expr)) + "\n";
   }
 
+  function axonString(value) {
+    var text = String(value);
+    var output = '"';
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      var code = text.charCodeAt(i);
+      if (ch === '"') output += '\\"';
+      else if (ch === "\\") output += "\\\\";
+      else if (ch === "\r") output += "\\r";
+      else if (ch === "\n") output += "\\n";
+      else if (ch === "\t") output += "\\t";
+      else if (ch === "$") output += "\\$";
+      else if (code < 0x20 || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029) {
+        output += "\\u" + ("0000" + code.toString(16)).slice(-4);
+      } else output += ch;
+    }
+    return output + '"';
+  }
+
   function responseDetail(text) {
     return String(text || "")
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -21,13 +40,38 @@
       .slice(0, 240);
   }
 
+  function parseZincString(value) {
+    var output = "";
+    for (var i = 1; i < value.length - 1; i++) {
+      var ch = value.charAt(i);
+      if (ch !== "\\") { output += ch; continue; }
+      i++;
+      if (i >= value.length - 1) throw new Error("Invalid Zinc string escape");
+      var escaped = value.charAt(i);
+      if (escaped === "n") output += "\n";
+      else if (escaped === "r") output += "\r";
+      else if (escaped === "t") output += "\t";
+      else if (escaped === '"' || escaped === "\\" || escaped === "$") output += escaped;
+      else if (escaped === "u") {
+        var hex = value.slice(i + 1, i + 5);
+        if (!/^[0-9A-Fa-f]{4}$/.test(hex)) throw new Error("Invalid Zinc Unicode escape");
+        output += String.fromCharCode(parseInt(hex, 16));
+        i += 4;
+      } else throw new Error("Invalid Zinc string escape");
+    }
+    return output;
+  }
+
   function parseZincScalar(value) {
     var v = value === undefined ? "" : String(value).trim();
     if (v === "" || v === "N") return null;
     if (v === "M" || v === "T" || v === "true") return true;
     if (v === "F" || v === "false") return false;
-    if (v.charAt(0) === "@") return v.slice(1);
-    if (v.charAt(0) === '"') return JSON.parse(v);
+    if (v.charAt(0) === "@") {
+      var ref = v.match(/^@([^\s]+)/);
+      return ref ? ref[1] : v.slice(1);
+    }
+    if (v.charAt(0) === '"' && v.charAt(v.length - 1) === '"') return parseZincString(v);
     var typedNumber = v.match(/^(?:Float|Int|Decimal|Number)\("(-?\d+(?:\.\d+)?)"\)$/);
     if (typedNumber) return Number(typedNumber[1]);
     if (/^-?\d+(\.\d+)?/.test(v)) return parseFloat(v);
@@ -85,6 +129,7 @@
   }
 
   return {
+    axonString: axonString,
     zincExprGrid: zincExprGrid,
     responseDetail: responseDetail,
     parseZincScalar: parseZincScalar,

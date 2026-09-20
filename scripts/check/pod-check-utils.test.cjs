@@ -43,6 +43,8 @@ assert.match(syntheticHits, /unexpected Date\.now/);
 assert.match(syntheticHits, /unexpected new Date/);
 assert.match(syntheticHits, /fail-closed fatal/);
 assert.match(syntheticHits, /bootstrap must terminate through showFatal/);
+assert.match(syntheticHits, /Folio-only adapter contract missing/,
+  "legacy dynamic adapter wiring must not satisfy the resolved project contract");
 
 const repo = path.resolve("C:\\repo");
 const sourceRules = {

@@ -236,6 +236,88 @@
       loadError: "实时刷新失败，继续显示最后一次成功数据：" + String(error && error.message || error || "未知错误") };
   }
 
+  function assertResolvedProjectContext(context) {
+    if (!context || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(String(context.project || ""))) {
+      throw new Error("调用需要已解析的 FIN 项目上下文");
+    }
+    var expectedUrl = "/api/" + encodeURIComponent(context.project) + "/eval";
+    if (context.evalUrl !== expectedUrl) throw new Error("FIN 项目上下文与 API 地址不一致");
+    return context;
+  }
+
+  function operationResult(grid) {
+    if (!grid || !Array.isArray(grid.rows) || grid.rows.length !== 1) {
+      throw new Error("Folio 树操作结果必须包含一行 operation result");
+    }
+    return grid.rows[0];
+  }
+
+  function createFinAdapter(options) {
+    options = options || {};
+    var context = assertResolvedProjectContext(options.projectContext);
+    var finApi = options.finApi;
+    var fetchImpl = options.fetchImpl;
+    if (!finApi || typeof finApi.evalZinc !== "function" || typeof finApi.axonString !== "function") {
+      throw new Error("FIN API 客户端不可用");
+    }
+    if (typeof fetchImpl !== "function") throw new Error("FIN 网络客户端不可用");
+
+    var adapter = {
+      snapshot: null,
+      projectContext: context,
+      projectName: function () { return context.project; },
+      evalUrl: function () { return context.evalUrl; },
+      evalGrid: function (expression) {
+        return finApi.evalZinc(fetchImpl, context.evalUrl, expression).then(function (text) {
+          return parseZincGrid(text, finApi.parseZincScalar);
+        });
+      },
+      load: function () {
+        return adapter.evalGrid("upsOverview()").then(function (grid) {
+          adapter.snapshot = normalizeFinSnapshot(gridToSnapshot(grid));
+          return adapter.snapshot;
+        });
+      },
+      poll: function () { return adapter.load(); },
+      detail: function (id) {
+        return Promise.resolve(unavailableDetail(adapter.snapshot ? adapter.snapshot.units : [], id));
+      },
+      history: function (id, query) {
+        return Promise.resolve(unavailableHistory(adapter.snapshot ? adapter.snapshot.units : [], id, query));
+      },
+      treeRead: function () {
+        return adapter.evalGrid("upsTreeRead()").then(function (grid) { return grid.rows; });
+      },
+      treeCreate: function (type, payload) {
+        var expression = "upsTreeCreate(" + finApi.axonString(type) + "," +
+          finApi.axonString(JSON.stringify(payload)) + ")";
+        return adapter.evalGrid(expression).then(operationResult);
+      },
+      treeUpdate: function (id, payload) {
+        var expression = "upsTreeUpdate(" + finApi.axonString(id) + "," +
+          finApi.axonString(JSON.stringify(payload)) + ")";
+        return adapter.evalGrid(expression).then(operationResult);
+      },
+      parseZincGrid: function (text) { return parseZincGrid(text, finApi.parseZincScalar); },
+      splitZincLine: splitZincLine,
+      gridToSnapshot: gridToSnapshot,
+    };
+    return adapter;
+  }
+
+  function createFinAdapterFromEnvironment(environment, options) {
+    options = options || {};
+    var projectContextApi = options.projectContextApi;
+    if (!projectContextApi || typeof projectContextApi.resolveProjectContext !== "function") {
+      throw new Error("FIN 项目上下文解析器不可用");
+    }
+    return createFinAdapter({
+      projectContext: projectContextApi.resolveProjectContext(environment),
+      finApi: options.finApi,
+      fetchImpl: options.fetchImpl,
+    });
+  }
+
   var upsCore = {
     SEV_RANK: SEV_RANK,
     topSeverity: topSeverity,
@@ -255,50 +337,13 @@
     parseZincGrid: parseZincGrid,
     gridToSnapshot: gridToSnapshot,
     pollTransition: pollTransition,
+    createFinAdapter: createFinAdapter,
+    createFinAdapterFromEnvironment: createFinAdapterFromEnvironment,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;
 
-  var FinAdapter = {
-    snapshot: null,
-    projectName: function () {
-      var candidates = [location.pathname, document.referrer || ""];
-      try { if (parent && parent.location) candidates.push(parent.location.pathname); } catch (e) {}
-      try { if (top && top.location) candidates.push(top.location.pathname); } catch (e) {}
-      for (var i = 0; i < candidates.length; i++) {
-        var match = String(candidates[i]).match(/\/finMobile\/([^\/?#]+)/) || String(candidates[i]).match(/\/api\/([^\/?#]+)/);
-        if (match) return decodeURIComponent(match[1]);
-      }
-      throw new Error("无法确定 FIN 项目名，不能读取 Folio");
-    },
-    evalUrl: function () { return "/api/" + encodeURIComponent(FinAdapter.projectName()) + "/eval"; },
-    load: function () {
-      return FinAdapter.evalAxon("upsOverview()").then(function (raw) {
-        FinAdapter.snapshot = normalizeFinSnapshot(raw);
-        return FinAdapter.snapshot;
-      });
-    },
-    poll: function () { return this.load(); },
-    detail: function (id) {
-      return Promise.resolve(unavailableDetail(FinAdapter.snapshot ? FinAdapter.snapshot.units : [], id));
-    },
-    history: function (id, query) {
-      return Promise.resolve(unavailableHistory(FinAdapter.snapshot ? FinAdapter.snapshot.units : [], id, query));
-    },
-    evalAxon: function (expression) {
-      return global.FinApi.evalZinc(fetch, FinAdapter.evalUrl(), expression).then(function (text) {
-        return FinAdapter.gridToSnapshot(FinAdapter.parseZincGrid(text));
-      });
-    },
-    parseZincGrid: function (text) {
-      return parseZincGrid(text, global.FinApi.parseZincScalar);
-    },
-    splitZincLine: splitZincLine,
-    gridToSnapshot: function (grid) {
-      return gridToSnapshot(grid);
-    },
-  };
-  var adapter = FinAdapter;
+  var adapter = null;
 
   var ractive = null, snapshot = null, previousSeverity = {}, loadError = null;
 
@@ -370,6 +415,11 @@
 
   function boot() {
     try {
+      adapter = createFinAdapterFromEnvironment(global, {
+        projectContextApi: global.ProjectContext,
+        finApi: global.FinApi,
+        fetchImpl: global.fetch.bind(global),
+      });
       document.getElementById("data-mode").textContent = "Folio 设备树数据 · 当前项目：" + adapter.projectName() +
         " · 实时读取 site/floor/equip/point；无静态兜底。";
     } catch (error) { showFatal(error); return; }

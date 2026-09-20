@@ -93,7 +93,10 @@ function findR3AppHits(source, label) {
     if (match.index !== allowedDateDisplay) hits.push(prefix + "unexpected new Date at offset " + match.index);
   }
 
-  if (!/var\s+adapter\s*=\s*FinAdapter\s*;/.test(source)) hits.push(prefix + "Folio-only adapter contract missing");
+  if (!/var\s+adapter\s*=\s*null\s*;/.test(source) ||
+      !/adapter\s*=\s*createFinAdapterFromEnvironment\(global,\s*\{/.test(source)) {
+    hits.push(prefix + "Folio-only adapter contract missing");
+  }
   if (!/function\s+showFatal\s*\(error\)\s*\{[\s\S]*?加载失败（fail-closed，不兜底）[\s\S]*?\}/.test(source)) {
     hits.push(prefix + "fail-closed fatal contract missing");
   }
