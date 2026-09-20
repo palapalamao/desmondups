@@ -31,13 +31,13 @@
 
 | 日期 | 环境/工具 | 现象 | 根因 | 正确写法 |
 |---|---|---|---|---|
-| 2026-09-18 | 浏览器 file:// 协议 | 双击 index.html 白屏/加载失败 | file:// 下 fetch() 本地 JSON 被 CORS 拦截 | 必须起本地静态服务（frontend/serve.js 或 npx serve）再访问 |
+| 2026-09-18 | 浏览器 file:// 协议 | 双击 index.html 白屏/加载失败 | file:// 下本地资源受浏览器限制 | 本地走查使用临时静态服务，不在生产 POD 中打包服务脚本 |
 | 2026-09-18 | Ractive 1.4 模板 | on-submit 写 event.preventDefault() 无效、表单原生提交整页刷新 | Ractive 模板作用域无 event 变量，须用 @event 特殊引用 | 写 @event.preventDefault(), @this.fire(...) |
 | 2026-09-18 | Ractive 1.4 fire() | fire('filter', obj) 后 handler 第二参数为 undefined，导航静默失败 | 单个对象参数会被 mixin 进事件上下文（第一参数） | 对象须逐字段从事件上下文取；标量参数不受影响 |
 | 2026-09-19 | kimi-webbridge evaluate | 走查时 evaluate 里 location.hash=... 或 history.back() 后页面视图不变，误判 SPA 路由失效 | 扩展 evaluate 在隔离世界执行，改 hash 不触发页面主世界 hashchange 监听 | 走查导航一律用页内 click（真实用户路径）；evaluate 只用于断言/读取；webbridge navigate 换 URL 才是可信的整页加载路径 |
 | 2026-09-19 | 浏览器隐藏页定时器 | 走查滚动特性时 12s 等待 DOM 不变，误判功能失效 | 标签页 visibilityState=hidden，Chrome 节流 setInterval（最低 1 次/分） | 走查前 Page.bringToFront 激活标签页；或单次等待 ≥60s 覆盖节流下限再断言 |
 | 2026-09-19 | kimi-webbridge 守护 | curl 返回空、list_tabs 丢标签 | 守护进程异常退出留 stale PID 文件 | `kimi-webbridge status` 见 running:false → `start` 重启 → 重新 navigate（重启后会话标签登记丢失） |
-| 2026-09-19 | serve.js 生命周期 | 走查中页面变 chrome-error:// | serve.js 随启动它的终端会话终止 | 走查前先探活 localhost:3000；死了在 tty 会话重拉（node serve.js） |
+| 2026-09-19 | 静态服务生命周期 | 走查中页面变 chrome-error:// | 临时静态服务随启动它的终端会话终止 | 走查前先探活 localhost:3000，并在需要时重新启动临时服务 |
 | 2026-09-19 | Node 锚点替换脚本 | 多行 replace 报"未命中"但单串探针又能找到该文本 | 目标文件混合行尾（CRLF/LF）；PowerShell here-string 写出的 .cjs 多行模板字面量带 CRLF | 多行模式一律用显式 \n 拼接的单引号串；动手前先探针验证目标行尾 |
 
 ## 三、运维手册区（重建恢复标准顺序，随实现滚动补充）

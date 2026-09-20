@@ -12,9 +12,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
 & .\scripts\deploy-upsPod.ps1
 ```
 
-部署脚本将旧 POD 备份到 `docs/evidence/upsPod-backup-时间/`，校验安装文件 SHA256 和扩展元数据、页面资源，然后重启 FIN5 并等待 HTTP 200。结果写入 `docs/evidence/upsPod-install-latest.log`。脚本会申请本机管理员权限，服务重启会使 FIN 登录会话失效。
+部署脚本在替换前临时备份已安装 POD，校验源文件与安装文件的 SHA256，然后重启 FIN5，并等待首页和目标项目 API 就绪。成功后删除临时备份；任一步失败时恢复原 POD 和原服务状态。结果写入 `docs/evidence/upsPod-tree-deploy-latest.log`。脚本会申请本机管理员权限，服务重启会使 FIN 登录会话失效。
 
-新产物为 `extensions/upsPod/output/upsPod.pod`。如需回退，将对应备份中的 upsPod.pod 恢复到 FIN 的 lib/fan/upsPod.pod，再重启 FIN5。不要修改其他 POD 或项目数据库文件。
+新产物为 `extensions/upsPod/output/upsPod.pod`。部署失败会自动回退；如需主动退回旧版本，从对应 Git 版本重新构建并运行同一部署入口。不要修改其他 POD 或项目数据库文件。
 
 ## 扩展与菜单
 

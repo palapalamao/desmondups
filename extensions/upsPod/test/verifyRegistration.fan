@@ -27,6 +27,8 @@ class VerifyRegistration {
       if (index["skyarc.lib"] != "upsPod::UpsPodLib") throw Err("Missing function index")
       if (files.keys.any |uri| { uri.toStr.contains("UpsPodTreeTest") })
         throw Err("Production pod must not contain behavior test classes")
+      if (files.containsKey(`/frontend/serve.js`))
+        throw Err("Production pod must not contain development static server")
 
       api := read(files, `/doc/UpsPodExt.apidoc`)
       if (!api.contains("base=skyarcd::Ext hx::HxLib sys::Obj")) throw Err("Invalid extension base class")

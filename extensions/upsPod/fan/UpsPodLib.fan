@@ -100,7 +100,9 @@ const class UpsPodLib {
       temp := pointVal(pts, "upsBatteryTemp")
       comm := pointVal(pts, "upsCommStatus")
       ts := pointTs(pts)
-      commLost := comm == null ? ts == null : (comm.toStr != "online" && comm.toStr != "ok" && comm.toStr != "1")
+      commText := comm?.toStr?.trim?.lower
+      commLost := commText == null || (commText != "online" && commText != "ok" &&
+                  commText != "1" && commText != "true")
       units.add([
         "id": u.id.id,
         "name": u.dis(null, u.id.id),
@@ -132,11 +134,21 @@ const class UpsPodLib {
 
   private static Int? pointTs(Dict[] pts) {
     ts := (DateTime?)null
+    hasVal := false
+    missingTs := false
     pts.each |p| {
+      if (!isOverviewPoint(p) || p.get("curVal", null) == null) return
+      hasVal = true
       t := p.get("curStatusTs", null) as DateTime
-      if (t != null && (ts == null || t > ts)) ts = t
+      if (t == null) missingTs = true
+      else if (ts == null || t < ts) ts = t
     }
-    return ts?.toJava
+    return !hasVal || missingTs ? null : ts?.toJava
+  }
+
+  private static Bool isOverviewPoint(Dict p) {
+    p.has("upsSocPct") || p.has("upsLoadPct") || p.has("upsBatteryTemp") ||
+      p.has("upsCommStatus")
   }
 
   private static Float? numVal(Obj? v) {

@@ -656,6 +656,29 @@ class UpsPodTreeTest : HxTest {
        "navName", "ratedKva", "serial", "siteId", "status", "type", "tz", "unit"]))
   }
 
+  Void testOverviewFailsClosedForMissingCommAndIncompleteTimestamps() {
+    tree := createTree
+    now := DateTime.now
+    soc := testRt.db.readById(tree["point"])
+    testRt.db.commit(Diff(soc, ["curVal":Number(88), "curStatusTs":now], Diff.transient))
+    load := testRt.db.commit(Diff.makeAdd([
+      "dis":"Load without timestamp", "navName":"loadWithoutTimestamp",
+      "point":Marker.val, "upsLoadPct":Marker.val,
+      "siteRef":tree["site"], "floorRef":tree["floor"], "equipRef":tree["equip"],
+    ])).newRec
+    testRt.db.commit(Diff(load, ["curVal":Number(41)], Diff.transient))
+
+    user := addUser("overview${Ref.gen.id}", "pass")
+    overview := (Grid)callWrapper(makeContext(user), "upsOverview", [null])
+    row := overview.find |r| { r["id"] == tree["equip"].id }
+    verifyNotNull(row)
+    verifyEq(row["soc"], Number(88).toFloat)
+    verifyEq(row["loadPct"], Number(41).toFloat)
+    verifyEq(row["commLost"], true)
+    verifyEq(row["mode"], "offline")
+    verifyNull(row["ts"])
+  }
+
   private Str:Ref createTree() {
     suffix := Ref.gen.id
     site := UpsPodTree.create(testRt.db, "site",

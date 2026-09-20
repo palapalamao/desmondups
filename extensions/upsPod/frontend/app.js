@@ -506,8 +506,12 @@
   }
 
   function showFatal(error) {
-    document.getElementById("app").innerHTML = '<div class="fatal">加载失败（fail-closed，不兜底）：' +
-      String(error && error.message || error) + "</div>";
+    var target = document.getElementById("app");
+    target.textContent = "";
+    var message = document.createElement("div");
+    message.className = "fatal";
+    message.textContent = "加载失败（fail-closed，不兜底）：" + String(error && error.message || error);
+    target.appendChild(message);
   }
 
   function boot() {
