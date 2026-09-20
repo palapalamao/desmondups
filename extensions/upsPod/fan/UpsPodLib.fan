@@ -10,9 +10,11 @@ using util
 **   未会签口径的派生字段一律带 quality 标注（R3：宁缺毋假）。
 ** 版本 0.1.0
 const class UpsPodLib {
-  @Axon { admin = false }
+  @Axon { admin = true }
   static Grid upsTreeRead() {
-    UpsPodTree.read(HxContext.curHx(true).db)
+    cx := HxContext.curHx(true)
+    cx.checkAdmin("upsTreeRead")
+    return UpsPodTree.read(cx.db)
   }
 
   @Axon { admin = true }

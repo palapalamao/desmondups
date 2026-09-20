@@ -23,12 +23,13 @@ class UpsPodTreeTest : HxTest {
       runtime = hxdSpi.start(Etc.emptyDict)
       runtimeRef.val = runtime
     }
+    rtRef = runtime
     return runtime
   }
 
   Void testCreateReadUpdate() {
     created := UpsPodTree.create(testRt.db, "site",
-      "{\"dis\":\"Alpha Site\",\"navName\":\"alphaSite\",\"site\":true,\"tz\":\"Shanghai\",\"upsSite\":true,\"upsTreeKey\":\"site-alpha\"}")
+      "{\"dis\":\"Alpha Site\",\"navName\":\"alphaSite\",\"tz\":\"Shanghai\",\"upsTreeKey\":\"site-alpha\"}")
 
     verifyEq(created["status"], "created")
     siteId := created["id"] as Ref
@@ -55,25 +56,32 @@ class UpsPodTreeTest : HxTest {
   Void testCreateAllTypesAndAllowlists() {
     initialTreeSize := UpsPodTree.read(testRt.db).size
     site := UpsPodTree.create(testRt.db, "site",
-      "{\"dis\":\"Site One\",\"navName\":\"siteOne\",\"site\":true,\"tz\":\"Asia/Shanghai\",\"upsSite\":true,\"upsTreeKey\":\"site-1\"}")
+      "{\"dis\":\"Site One\",\"navName\":\"siteOne\",\"tz\":\"Asia/Shanghai\",\"upsTreeKey\":\"site-1\"}")
     siteId := ((Ref)site["id"]).id
 
     floor := UpsPodTree.create(testRt.db, "floor",
-      "{\"dis\":\"Floor One\",\"navName\":\"floorOne\",\"floor\":true,\"siteRef\":\"$siteId\",\"upsTreeKey\":\"floor-1\"}")
+      "{\"dis\":\"Floor One\",\"navName\":\"floorOne\",\"siteRef\":\"$siteId\",\"upsTreeKey\":\"floor-1\"}")
     floorId := ((Ref)floor["id"]).id
+    verify(testRt.db.readById(Ref(floorId)).has("floor"))
 
     equip := UpsPodTree.create(testRt.db, "equip",
-      "{\"dis\":\"UPS One\",\"navName\":\"upsOne\",\"equip\":true,\"upsUnit\":true,\"siteRef\":\"$siteId\",\"floorRef\":\"$floorId\",\"make\":\"Acme\",\"model\":\"X1\",\"serial\":\"SN-1\",\"ratedKva\":40,\"upsTreeKey\":\"equip-1\"}")
+      "{\"dis\":\"UPS One\",\"navName\":\"upsOne\",\"siteRef\":\"$siteId\",\"floorRef\":\"$floorId\",\"make\":\"Acme\",\"model\":\"X1\",\"serial\":\"SN-1\",\"ratedKva\":40,\"upsTreeKey\":\"equip-1\"}")
     equipId := ((Ref)equip["id"]).id
+    equipStored := testRt.db.readById(Ref(equipId))
+    verify(equipStored.has("equip"))
+    verify(equipStored.has("upsUnit"))
 
     metrics := ["upsSocPct", "upsLoadPct", "upsBatteryTemp", "upsCommStatus"]
     metrics.each |metric, i| {
       point := UpsPodTree.create(testRt.db, "point",
-        "{\"dis\":\"Point $i\",\"navName\":\"point$i\",\"point\":true,\"siteRef\":\"$siteId\",\"floorRef\":\"$floorId\",\"equipRef\":\"$equipId\",\"kind\":\"Number\",\"unit\":\"%\",\"$metric\":true,\"upsTreeKey\":\"point-$i\"}")
+        "{\"dis\":\"Point $i\",\"navName\":\"point$i\",\"siteRef\":\"$siteId\",\"floorRef\":\"$floorId\",\"equipRef\":\"$equipId\",\"kind\":\"Number\",\"unit\":\"%\",\"$metric\":true,\"upsTreeKey\":\"point-$i\"}")
       verifyEq(point["status"], "created")
       verifyEq(point["siteId"], Ref(siteId))
       verifyEq(point["floorId"], Ref(floorId))
       verifyEq(point["equipId"], Ref(equipId))
+      pointStored := testRt.db.readById((Ref)point["id"])
+      verify(pointStored.has("point"))
+      verify(pointStored.has(metric))
     }
 
     equipRec := testRt.db.readById(Ref(equipId))
@@ -91,7 +99,7 @@ class UpsPodTreeTest : HxTest {
 
   Void testIdempotencyAndConflicts() {
     initial := testRt.db.readCount(Filter.has("upsTreeKey"))
-    payload := "{\"dis\":\"Stable Site\",\"navName\":\"stableSite\",\"site\":true,\"tz\":\"Asia/Shanghai\",\"upsSite\":true,\"upsTreeKey\":\"stable-key\"}"
+    payload := "{\"dis\":\"Stable Site\",\"navName\":\"stableSite\",\"tz\":\"Asia/Shanghai\",\"upsTreeKey\":\"stable-key\"}"
     first := UpsPodTree.create(testRt.db, "site", payload)
     firstId := first["id"]
     retry := UpsPodTree.create(testRt.db, "site", payload)
@@ -100,35 +108,35 @@ class UpsPodTreeTest : HxTest {
     verifyEq(testRt.db.readCount(Filter.has("upsTreeKey")), initial + 1)
 
     changed := UpsPodTree.create(testRt.db, "site",
-      "{\"dis\":\"Changed Site\",\"navName\":\"stableSite\",\"site\":true,\"tz\":\"Asia/Shanghai\",\"upsSite\":true,\"upsTreeKey\":\"stable-key\"}")
+      "{\"dis\":\"Changed Site\",\"navName\":\"stableSite\",\"tz\":\"Asia/Shanghai\",\"upsTreeKey\":\"stable-key\"}")
     verifyEq(changed["status"], "conflict")
     verifyEq(changed["conflictId"], firstId)
     verifyEq(testRt.db.readCount(Filter.has("upsTreeKey")), initial + 1)
 
     other := UpsPodTree.create(testRt.db, "site",
-      "{\"dis\":\"Other Site\",\"navName\":\"otherSite\",\"site\":true,\"upsSite\":true,\"upsTreeKey\":\"other-key\"}")
+      "{\"dis\":\"Other Site\",\"navName\":\"otherSite\",\"upsTreeKey\":\"other-key\"}")
     otherId := ((Ref)other["id"]).id
     typeConflict := UpsPodTree.create(testRt.db, "floor",
-      "{\"dis\":\"Floor X\",\"navName\":\"floorX\",\"floor\":true,\"siteRef\":\"$otherId\",\"upsTreeKey\":\"stable-key\"}")
+      "{\"dis\":\"Floor X\",\"navName\":\"floorX\",\"siteRef\":\"$otherId\",\"upsTreeKey\":\"stable-key\"}")
     verifyEq(typeConflict["status"], "conflict")
     verifyEq(typeConflict["conflictId"], firstId)
 
     parentConflict := UpsPodTree.create(testRt.db, "floor",
-      "{\"dis\":\"Floor One\",\"navName\":\"floorOne\",\"floor\":true,\"siteRef\":\"$otherId\",\"upsTreeKey\":\"floor-key\"}")
+      "{\"dis\":\"Floor One\",\"navName\":\"floorOne\",\"siteRef\":\"$otherId\",\"upsTreeKey\":\"floor-key\"}")
     verifyEq(parentConflict["status"], "created")
     firstSiteId := ((Ref)firstId).id
     movedRetry := UpsPodTree.create(testRt.db, "floor",
-      "{\"dis\":\"Floor One\",\"navName\":\"floorOne\",\"floor\":true,\"siteRef\":\"$firstSiteId\",\"upsTreeKey\":\"floor-key\"}")
+      "{\"dis\":\"Floor One\",\"navName\":\"floorOne\",\"siteRef\":\"$firstSiteId\",\"upsTreeKey\":\"floor-key\"}")
     verifyEq(movedRetry["status"], "conflict")
     verifyEq(movedRetry["conflictId"], parentConflict["id"])
 
     duplicateDis := UpsPodTree.create(testRt.db, "floor",
-      "{\"dis\":\"Floor One\",\"navName\":\"otherNav\",\"floor\":true,\"siteRef\":\"$otherId\",\"upsTreeKey\":\"floor-dup-dis\"}")
+      "{\"dis\":\"Floor One\",\"navName\":\"otherNav\",\"siteRef\":\"$otherId\",\"upsTreeKey\":\"floor-dup-dis\"}")
     verifyEq(duplicateDis["status"], "conflict")
     verifyEq(duplicateDis["conflictId"], parentConflict["id"])
 
     duplicateNav := UpsPodTree.create(testRt.db, "floor",
-      "{\"dis\":\"Other Floor\",\"navName\":\"floorOne\",\"floor\":true,\"siteRef\":\"$otherId\",\"upsTreeKey\":\"floor-dup-nav\"}")
+      "{\"dis\":\"Other Floor\",\"navName\":\"floorOne\",\"siteRef\":\"$otherId\",\"upsTreeKey\":\"floor-dup-nav\"}")
     verifyEq(duplicateNav["status"], "conflict")
     verifyEq(duplicateNav["conflictId"], parentConflict["id"])
   }
@@ -203,11 +211,7 @@ class UpsPodTreeTest : HxTest {
   }
 
   Void testAxonSecurityMetadataAndNoDeleteApi() {
-    readMethod := UpsPodLib#.method("upsTreeRead", false)
-    verifyNotNull(readMethod)
-    verifyEq(((Axon)readMethod.facet(Axon#)).admin, false)
-
-    ["upsTreeCreate", "upsTreeUpdate"].each |name| {
+    ["upsTreeRead", "upsTreeCreate", "upsTreeUpdate"].each |name| {
       method := UpsPodLib#.method(name, false)
       verifyNotNull(method)
       facet := method.facet(Axon#, false) as Axon
@@ -219,6 +223,44 @@ class UpsPodTreeTest : HxTest {
     verifyNull(UpsPodLib#.method("upsTreeDelete", false))
   }
 
+  Void testAxonWrappersEnforceAdminAndUseCurrentDb() {
+    suffix := Ref.gen.id
+    operator := addUser("operator$suffix", "pass", ["userRole":"op"])
+    admin := addUser("admin$suffix", "pass", ["userRole":"admin"])
+    operatorCx := makeContext(operator)
+    adminCx := makeContext(admin)
+    before := testRt.db.readCount(Filter.has("upsTreeKey"))
+    payload := "{\"dis\":\"Wrapper $suffix\",\"navName\":\"wrapper$suffix\",\"upsTreeKey\":\"wrapper-$suffix\"}"
+    deniedBefore := canonicalSnapshot(testRt.db)
+
+    verifyErr(PermissionErr#) { callWrapper(operatorCx, "upsTreeRead") }
+    verifyErr(PermissionErr#) { callWrapper(operatorCx, "upsTreeCreate", ["site", payload]) }
+    verifyEq(testRt.db.readCount(Filter.has("upsTreeKey")), before)
+    verifyEq(canonicalSnapshot(testRt.db), deniedBefore)
+
+    created := (Dict)callWrapper(adminCx, "upsTreeCreate", ["site", payload])
+    verifyEq(created["status"], "created")
+    verifyEq(testRt.db.readCount(Filter.has("upsTreeKey")), before + 1)
+    id := (Ref)created["id"]
+
+    updateBefore := canonicalSnapshot(testRt.db)
+    verifyErr(PermissionErr#) {
+      callWrapper(operatorCx, "upsTreeUpdate", [id, "{\"dis\":\"Denied\"}"])
+    }
+    verifyEq(testRt.db.readById(id)["dis"], "Wrapper $suffix")
+    verifyEq(canonicalSnapshot(testRt.db), updateBefore)
+
+    updated := (Dict)callWrapper(adminCx, "upsTreeUpdate",
+      [id, "{\"dis\":\"Wrapper Updated $suffix\"}"])
+    verifyEq(updated["status"], "updated")
+    grid := (Grid)callWrapper(adminCx, "upsTreeRead")
+    verifyNotNull(grid.find |row| { row["id"] == id })
+
+    verifyNotNull(ZincWriter.gridToStr(grid))
+    verifyNotNull(ZincWriter.gridToStr(Etc.makeDictsGrid(null, [created])))
+    verifyNotNull(ZincWriter.gridToStr(Etc.makeDictsGrid(null, [updated])))
+  }
+
   Void testCreateRejectsUnknownReservedMetricsAndCrossChain() {
     initial := testRt.db.readCount(Filter.has("upsTreeKey"))
     reserved := ["curVal", "curStatus", "curStatusTs", "his", "history", "alarms",
@@ -226,17 +268,19 @@ class UpsPodTreeTest : HxTest {
     reserved.each |name| {
       verifyErr(ArgErr#) {
         UpsPodTree.create(testRt.db, "site",
-          "{\"dis\":\"Bad\",\"navName\":\"bad\",\"site\":true,\"upsSite\":true,\"upsTreeKey\":\"bad-$name\",\"$name\":true}")
+          "{\"dis\":\"Bad\",\"navName\":\"bad\",\"upsTreeKey\":\"bad-$name\",\"$name\":true}")
       }
       verifyEq(testRt.db.readCount(Filter.has("upsTreeKey")), initial)
     }
     verifyErr(ArgErr#) {
       UpsPodTree.create(testRt.db, "site",
-        "{\"dis\":\"Bad\",\"navName\":\"bad\",\"site\":true,\"upsSite\":true,\"upsTreeKey\":\"bad-unknown\",\"bogus\":true}")
+        "{\"dis\":\"Bad\",\"navName\":\"bad\",\"upsTreeKey\":\"bad-unknown\",\"bogus\":true}")
     }
-    verifyErr(ArgErr#) {
-      UpsPodTree.create(testRt.db, "site",
-        "{\"dis\":\"Bad\",\"navName\":\"bad\",\"site\":false,\"upsSite\":true,\"upsTreeKey\":\"bad-marker\"}")
+    ["site", "upsSite", "floor", "equip", "upsUnit", "point"].each |marker| {
+      verifyErr(ArgErr#) {
+        UpsPodTree.create(testRt.db, "site",
+          "{\"dis\":\"Bad\",\"navName\":\"bad\",\"upsTreeKey\":\"bad-$marker\",\"$marker\":true}")
+      }
     }
 
     ids := createTree
@@ -245,22 +289,22 @@ class UpsPodTreeTest : HxTest {
     floorId := ids["floor"].id
     verifyErr(ArgErr#) {
       UpsPodTree.create(testRt.db, "point",
-        "{\"dis\":\"No Metric\",\"navName\":\"noMetric\",\"point\":true,\"siteRef\":\"$siteId\",\"floorRef\":\"$floorId\",\"equipRef\":\"$equipId\",\"kind\":\"Number\",\"unit\":\"%\",\"upsTreeKey\":\"no-metric\"}")
+        "{\"dis\":\"No Metric\",\"navName\":\"noMetric\",\"siteRef\":\"$siteId\",\"floorRef\":\"$floorId\",\"equipRef\":\"$equipId\",\"kind\":\"Number\",\"unit\":\"%\",\"upsTreeKey\":\"no-metric\"}")
     }
     verifyErr(ArgErr#) {
       UpsPodTree.create(testRt.db, "point",
-        "{\"dis\":\"Two Metrics\",\"navName\":\"twoMetrics\",\"point\":true,\"siteRef\":\"$siteId\",\"floorRef\":\"$floorId\",\"equipRef\":\"$equipId\",\"kind\":\"Number\",\"unit\":\"%\",\"upsSocPct\":true,\"upsLoadPct\":true,\"upsTreeKey\":\"two-metrics\"}")
+        "{\"dis\":\"Two Metrics\",\"navName\":\"twoMetrics\",\"siteRef\":\"$siteId\",\"floorRef\":\"$floorId\",\"equipRef\":\"$equipId\",\"kind\":\"Number\",\"unit\":\"%\",\"upsSocPct\":true,\"upsLoadPct\":true,\"upsTreeKey\":\"two-metrics\"}")
     }
 
     site2 := UpsPodTree.create(testRt.db, "site",
-      "{\"dis\":\"Site Two\",\"navName\":\"siteTwo\",\"site\":true,\"upsSite\":true,\"upsTreeKey\":\"site-two\"}")
+      "{\"dis\":\"Site Two\",\"navName\":\"siteTwo\",\"upsTreeKey\":\"site-two\"}")
     site2Id := ((Ref)site2["id"]).id
     floor2 := UpsPodTree.create(testRt.db, "floor",
-      "{\"dis\":\"Floor Two\",\"navName\":\"floorTwo\",\"floor\":true,\"siteRef\":\"$site2Id\",\"upsTreeKey\":\"floor-two\"}")
+      "{\"dis\":\"Floor Two\",\"navName\":\"floorTwo\",\"siteRef\":\"$site2Id\",\"upsTreeKey\":\"floor-two\"}")
     floor2Id := ((Ref)floor2["id"]).id
     verifyErr(ArgErr#) {
       UpsPodTree.create(testRt.db, "point",
-        "{\"dis\":\"Cross Chain\",\"navName\":\"crossChain\",\"point\":true,\"siteRef\":\"$site2Id\",\"floorRef\":\"$floor2Id\",\"equipRef\":\"$equipId\",\"kind\":\"Number\",\"unit\":\"%\",\"upsSocPct\":true,\"upsTreeKey\":\"cross-chain\"}")
+        "{\"dis\":\"Cross Chain\",\"navName\":\"crossChain\",\"siteRef\":\"$site2Id\",\"floorRef\":\"$floor2Id\",\"equipRef\":\"$equipId\",\"kind\":\"Number\",\"unit\":\"%\",\"upsSocPct\":true,\"upsTreeKey\":\"cross-chain\"}")
     }
     verifyEq(testRt.db.readCount(Filter.has("upsTreeKey")), initial + 6)
   }
@@ -283,37 +327,109 @@ class UpsPodTreeTest : HxTest {
     verifyEq(((Number)equip["ratedKva"]).toInt, 80)
   }
 
-  Void testSecondIsolatedFolioRemainsUnchanged() {
-    pool := ActorPool()
+  Void testCreateAndUpdateRejectRecordsOutsideCoherentUpsBoundary() {
     suffix := Ref.gen.id
-    dir1 := Env.cur.tempDir + "upsPod-one-$suffix/".toUri
-    dir2 := Env.cur.tempDir + "upsPod-two-$suffix/".toUri
-    db1 := FolioFlatFile.open(FolioConfig {
-      it.name = "upsPodOne"
-      it.dir = dir1
-      it.pool = pool
-    })
-    db2 := FolioFlatFile.open(FolioConfig {
-      it.name = "upsPodTwo"
-      it.dir = dir2
-      it.pool = pool
-    })
+    ordinarySite := testRt.db.commit(Diff.makeAdd([
+      "dis":"Ordinary Site $suffix", "navName":"ordinarySite$suffix",
+      "site":Marker.val, "upsTreeKey":"ordinary-key-$suffix"])).newRec
+    ordinaryFloor := testRt.db.commit(Diff.makeAdd([
+      "dis":"Ordinary Floor", "floor":Marker.val, "siteRef":ordinarySite.id])).newRec
+    ordinaryEquip := testRt.db.commit(Diff.makeAdd([
+      "dis":"Ordinary Equip", "equip":Marker.val,
+      "siteRef":ordinarySite.id, "floorRef":ordinaryFloor.id])).newRec
+    ordinaryPoint := testRt.db.commit(Diff.makeAdd([
+      "dis":"Ordinary Point", "point":Marker.val, "upsSocPct":Marker.val,
+      "siteRef":ordinarySite.id, "floorRef":ordinaryFloor.id,
+      "equipRef":ordinaryEquip.id])).newRec
+
+    keyCollision := UpsPodTree.create(testRt.db, "site",
+      "{\"dis\":\"Ordinary Site $suffix\",\"navName\":\"ordinarySite$suffix\",\"upsTreeKey\":\"ordinary-key-$suffix\"}")
+    verifyEq(keyCollision["status"], "conflict")
+    verifyEq(keyCollision["conflictId"], ordinarySite.id)
+
+    verifyErr(ArgErr#) {
+      UpsPodTree.create(testRt.db, "floor",
+        "{\"dis\":\"Rejected Floor\",\"navName\":\"rejectedFloor\",\"siteRef\":\"${ordinarySite.id.id}\",\"upsTreeKey\":\"rejected-floor-${ordinarySite.id.id}\"}")
+    }
+    verifyErr(ArgErr#) {
+      UpsPodTree.create(testRt.db, "equip",
+        "{\"dis\":\"Rejected UPS\",\"navName\":\"rejectedUps\",\"siteRef\":\"${ordinarySite.id.id}\",\"floorRef\":\"${ordinaryFloor.id.id}\",\"upsTreeKey\":\"rejected-equip-${ordinaryEquip.id.id}\"}")
+    }
+    verifyErr(ArgErr#) {
+      UpsPodTree.create(testRt.db, "point",
+        "{\"dis\":\"Rejected Point\",\"navName\":\"rejectedPoint\",\"siteRef\":\"${ordinarySite.id.id}\",\"floorRef\":\"${ordinaryFloor.id.id}\",\"equipRef\":\"${ordinaryEquip.id.id}\",\"kind\":\"Number\",\"unit\":\"%\",\"upsSocPct\":true,\"upsTreeKey\":\"rejected-point-${ordinaryPoint.id.id}\"}")
+    }
+
+    [ordinarySite.id, ordinaryFloor.id, ordinaryEquip.id, ordinaryPoint.id].each |id| {
+      before := testRt.db.readById(id)
+      verifyErr(ArgErr#) { UpsPodTree.update(testRt.db, id, "{\"dis\":\"Rejected\"}") }
+      verify(Etc.dictEq(before, testRt.db.readById(id)))
+    }
+
+    ids := createTree
+    brokenEquip := testRt.db.readById(ids["equip"])
+    testRt.db.commit(Diff(brokenEquip, ["upsUnit":Remove.val]))
+    point := testRt.db.readById(ids["point"])
+    verifyErr(ArgErr#) { UpsPodTree.update(testRt.db, point.id, "{\"dis\":\"Rejected Point\"}") }
+    verify(Etc.dictEq(point, testRt.db.readById(point.id)))
+  }
+
+  Void testConcurrentIdempotentCreateCommitsExactlyOneRecord() {
+    suffix := Ref.gen.id
+    payload := "{\"dis\":\"Concurrent $suffix\",\"navName\":\"concurrent$suffix\",\"upsTreeKey\":\"concurrent-$suffix\"}"
+    before := testRt.db.readCount(Filter.eq("upsTreeKey", "concurrent-$suffix"))
+    ready := AtomicInt()
+    start := AtomicBool()
+    pool := ActorPool { it.maxThreads = 12 }
+    receive := |Obj? msg->Obj?| {
+      args := (Obj?[])msg
+      ((AtomicInt)args[0]).increment
+      gate := (AtomicBool)args[1]
+      while (!gate.val) Actor.sleep(1ms)
+      return UpsPodTree.create((Folio)args[2], "site", (Str)args[3])
+    }
     try {
-      sentinel := db2.commit(Diff.makeAdd(["dis":"Secondary Sentinel", "sentinel":Marker.val])).newRec
-      before := db2.readById(sentinel.id)
-      beforeCount := db2.readCount(Filter.has("sentinel"))
-
-      UpsPodTree.create(db1, "site",
-        "{\"dis\":\"Primary Site\",\"navName\":\"primarySite\",\"site\":true,\"upsSite\":true,\"upsTreeKey\":\"primary-site\"}")
-
-      verifyEq(db1.readCount(Filter.has("upsTreeKey")), 1)
-      verifyEq(db2.readCount(Filter.has("sentinel")), beforeCount)
-      verify(Etc.dictEq(before, db2.readById(sentinel.id)))
-      verifyEq(db2.readCount(Filter.has("upsTreeKey")), 0)
+      futures := Future[,]
+      12.times {
+        actor := Actor(pool, receive)
+        futures.add(actor.send(Obj?[ready, start, testRt.db, payload].toImmutable))
+      }
+      while (ready.val < 12) Actor.sleep(1ms)
+      start.val = true
+      results := Dict[,]
+      futures.each |future| { results.add((Dict)future.get(10sec)) }
+      verifyEq(results.findAll |r| { r["status"] == "created" }.size, 1)
+      verifyEq(results.findAll |r| { r["status"] == "existing" }.size, 11)
+      ids := Ref[,]
+      results.each |r| { ids.add((Ref)r["id"]) }
+      verifyEq(ids.unique.size, 1)
+      verifyEq(testRt.db.readCount(Filter.eq("upsTreeKey", "concurrent-$suffix")), before + 1)
     } finally {
-      db1.close
-      db2.close
-      pool.stop
+      pool.stop.join(5sec)
+    }
+  }
+
+  Void testSecondIsolatedFolioRemainsUnchanged() {
+    suffix := Ref.gen.id
+    dir2 := Env.cur.tempDir + "upsPod-two-$suffix/".toUri
+    rt2 := (HxRuntime)Type.find("hxd::HxdTestSpi").method("boot").call(dir2, Etc.emptyDict)
+    db2 := rt2.db
+    try {
+      sentinel := db2.commit(Diff.makeAdd(["dis":"Secondary Sentinel", "sentinel":Marker.val,
+        "point":Marker.val, "kind":"Number", "tz":TimeZone.cur.name, "his":Marker.val])).newRec
+      secondHis := db2.readById(sentinel.id)
+      db2.his.write(secondHis.id, [HisItem(DateTime.now - 1min, Number(7))]).get
+      db2.commit(Diff.makeAdd(["dis":"Secondary Metadata", "meta":"unchanged"]))
+      before := canonicalSnapshot(db2)
+
+      admin := addUser("snapshotAdmin$suffix", "pass", ["userRole":"admin"])
+      created := (Dict)callWrapper(makeContext(admin), "upsTreeCreate", ["site",
+        "{\"dis\":\"Primary Site $suffix\",\"navName\":\"primarySite$suffix\",\"upsTreeKey\":\"primary-site-$suffix\"}"])
+
+      verifyEq(testRt.db.readById((Ref)created["id"])["upsTreeKey"], "primary-site-$suffix")
+      verifyEq(canonicalSnapshot(db2), before)
+    } finally {
+      rt2.typeof.method("stop").call(rt2)
     }
   }
 
@@ -342,16 +458,16 @@ class UpsPodTreeTest : HxTest {
   private Str:Ref createTree() {
     suffix := Ref.gen.id
     site := UpsPodTree.create(testRt.db, "site",
-      "{\"dis\":\"Site $suffix\",\"navName\":\"site$suffix\",\"site\":true,\"tz\":\"Asia/Shanghai\",\"upsSite\":true,\"upsTreeKey\":\"tree-site-$suffix\"}")
+      "{\"dis\":\"Site $suffix\",\"navName\":\"site$suffix\",\"tz\":\"Asia/Shanghai\",\"upsTreeKey\":\"tree-site-$suffix\"}")
     siteId := (Ref)site["id"]
     floor := UpsPodTree.create(testRt.db, "floor",
-      "{\"dis\":\"Floor $suffix\",\"navName\":\"floor$suffix\",\"floor\":true,\"siteRef\":\"${siteId.id}\",\"upsTreeKey\":\"tree-floor-$suffix\"}")
+      "{\"dis\":\"Floor $suffix\",\"navName\":\"floor$suffix\",\"siteRef\":\"${siteId.id}\",\"upsTreeKey\":\"tree-floor-$suffix\"}")
     floorId := (Ref)floor["id"]
     equip := UpsPodTree.create(testRt.db, "equip",
-      "{\"dis\":\"UPS $suffix\",\"navName\":\"ups$suffix\",\"equip\":true,\"upsUnit\":true,\"siteRef\":\"${siteId.id}\",\"floorRef\":\"${floorId.id}\",\"make\":\"Acme\",\"model\":\"X\",\"serial\":\"1\",\"ratedKva\":40,\"upsTreeKey\":\"tree-equip-$suffix\"}")
+      "{\"dis\":\"UPS $suffix\",\"navName\":\"ups$suffix\",\"siteRef\":\"${siteId.id}\",\"floorRef\":\"${floorId.id}\",\"make\":\"Acme\",\"model\":\"X\",\"serial\":\"1\",\"ratedKva\":40,\"upsTreeKey\":\"tree-equip-$suffix\"}")
     equipId := (Ref)equip["id"]
     point := UpsPodTree.create(testRt.db, "point",
-      "{\"dis\":\"SOC $suffix\",\"navName\":\"soc$suffix\",\"point\":true,\"siteRef\":\"${siteId.id}\",\"floorRef\":\"${floorId.id}\",\"equipRef\":\"${equipId.id}\",\"kind\":\"Number\",\"unit\":\"%\",\"upsSocPct\":true,\"upsTreeKey\":\"tree-point-$suffix\"}")
+      "{\"dis\":\"SOC $suffix\",\"navName\":\"soc$suffix\",\"siteRef\":\"${siteId.id}\",\"floorRef\":\"${floorId.id}\",\"equipRef\":\"${equipId.id}\",\"kind\":\"Number\",\"unit\":\"%\",\"upsSocPct\":true,\"upsTreeKey\":\"tree-point-$suffix\"}")
     return ["site":siteId, "floor":floorId, "equip":equipId, "point":(Ref)point["id"]]
   }
 
@@ -359,5 +475,32 @@ class UpsPodTreeTest : HxTest {
     items := HisItem[,]
     testRt.db.his.read(id, null, null) |item| { items.add(item) }
     return items
+  }
+
+  private Str canonicalSnapshot(Folio db) {
+    recs := db.readAllList(Filter.has("id"), null).dup.sort |a, b| { a.id.id <=> b.id.id }
+    buf := StrBuf()
+    recs.each |rec| {
+      buf.add(ZincWriter.gridToStr(Etc.makeDictsGrid(null, [rec])))
+      if (rec.has("his")) {
+        db.his.read(rec.id, null, null) |item| {
+          buf.add("his ").add(rec.id.id).add(" ").add(item.ts.toStr)
+            .add(" ").add(item.val.toStr).addChar('\n')
+        }
+      }
+    }
+    return buf.toStr
+  }
+
+  private Obj? callWrapper(HxContext cx, Str name, Obj?[] args := Obj?[,]) {
+    locals := Actor.locals
+    old := locals[Etc.cxActorLocalsKey]
+    locals[Etc.cxActorLocalsKey] = cx
+    try {
+      return UpsPodLib#.method(name).callList(args)
+    } finally {
+      if (old == null) locals.remove(Etc.cxActorLocalsKey)
+      else locals[Etc.cxActorLocalsKey] = old
+    }
   }
 }

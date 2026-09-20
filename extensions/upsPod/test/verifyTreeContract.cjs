@@ -25,15 +25,14 @@ const production = [ext, build, deploy].join("\n");
 assert.ok(!fs.existsSync(path.join(__dirname, "..", "..", "..", "scripts", "seed", "demoSeed.js")), "demo generator must be removed");
 assert.ok(!fs.existsSync(path.join(__dirname, "..", "..", "..", "scripts", "seed", "upsPodTreeSeed.fan")), "tree seed deployment must be removed");
 
-assert.match(lib, /@Axon\s*\{\s*admin\s*=\s*false\s*\}\s*static Grid upsTreeRead\(\)/,
-  "tree read Axon must be registered read-only");
-["upsTreeCreate", "upsTreeUpdate"].forEach(name => {
-  assert.match(lib, new RegExp("@Axon\\s*\\{\\s*admin\\s*=\\s*true\\s*\\}\\s*static Dict " + name + "\\("),
+["upsTreeRead", "upsTreeCreate", "upsTreeUpdate"].forEach(name => {
+  const returnType = name === "upsTreeRead" ? "Grid" : "Dict";
+  assert.match(lib, new RegExp("@Axon\\s*\\{\\s*admin\\s*=\\s*true\\s*\\}\\s*static " + returnType + " " + name + "\\("),
     name + " must be admin-only");
   assert.match(lib, new RegExp('checkAdmin\\("' + name + '"\\)'),
     name + " must perform a defense-in-depth admin check");
 });
-assert.match(lib, /UpsPodTree\.read\(HxContext\.curHx\(true\)\.db\)/,
+assert.match(lib, /UpsPodTree\.read\(cx\.db\)/,
   "tree read must use only the current HxContext database");
 assert.match(lib, /UpsPodTree\.create\(cx\.db, recType, payloadJson\)/,
   "tree create must use only the current HxContext database");
@@ -42,8 +41,8 @@ assert.match(lib, /UpsPodTree\.update\(cx\.db, id, payloadJson\)/,
 assert.doesNotMatch(lib, /upsTreeDelete/, "tree API must not expose delete");
 
 [
-  'case "site":  return ["dis", "navName", "site", "tz", "upsSite", "upsTreeKey"]',
-  'case "floor": return ["dis", "navName", "floor", "siteRef", "upsTreeKey"]',
+  'case "site":  return ["dis", "navName", "tz", "upsTreeKey"]',
+  'case "floor": return ["dis", "navName", "siteRef", "upsTreeKey"]',
   'case "site":  return ["dis", "navName", "tz"]',
   'case "floor": return ["dis", "navName"]',
   'case "point": return ["dis", "navName", "kind", "unit"]',
@@ -55,6 +54,14 @@ assert.match(tree, /"make", "model", "serial", "ratedKva"\]/,
 assert.match(tree, /"upsSocPct", "upsLoadPct", "upsBatteryTemp",\s*"upsCommStatus", "upsTreeKey"/,
   "point create allowlist must enumerate supported metric markers");
 assert.match(tree, /count != 1/, "point create must require exactly one metric marker");
+assert.match(tree, /changes\[type\] = Marker\.val/,
+  "server must inject the structural type marker");
+assert.match(tree, /changes\["upsSite"\] = Marker\.val/,
+  "server must inject upsSite for site records");
+assert.match(tree, /changes\["upsUnit"\] = Marker\.val/,
+  "server must inject upsUnit for equipment records");
+assert.match(tree, /AtomicBool createLock/,
+  "tree-key lookup and commit must be protected by a process lock");
 assert.match(tree, /"status": "conflict"[\s\S]*?"conflictId": existing\.id/,
   "conflicts must return the conflicting record id");
 assert.doesNotMatch(tree, /Diff\.remove|Remove\.val|commitRemoveTrash/,
@@ -67,6 +74,12 @@ assert.match(behavior, /class UpsPodTreeTest : HxTest/,
   "tree behavior tests must run on the HxTest/Folio harness");
 assert.match(behavior, /Type\.find\("hxd::HxdTestSpi"\)/,
   "tree behavior tests must select the isolated Hxd Folio runtime");
+assert.match(behavior, /addUser\([\s\S]*?makeContext\(/,
+  "tree behavior tests must construct real user contexts");
+assert.match(behavior, /testConcurrentIdempotentCreateCommitsExactlyOneRecord/,
+  "tree behavior tests must cover overlapping idempotent creates");
+assert.match(behavior, /canonicalSnapshot\(db2\)/,
+  "second isolated runtime must use a complete records and history snapshot");
 
 console.log("PASS TC-FIN-TREE-01 curVal-only read contract");
 console.log("PASS TC-FIN-TREE-02 production telemetry path contains no simulator or seed mutation");

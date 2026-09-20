@@ -1,9 +1,12 @@
+using concurrent
 using folio
 using haystack
 using util
 
 ** Folio-backed UPS tree metadata boundary.
 const class UpsPodTree {
+  private static const AtomicBool createLock := AtomicBool()
+
   static Grid read(Folio db) {
     rows := Dict[,]
     filter := Filter.has("site").or(Filter.has("floor")).or(Filter.has("equip")).or(Filter.has("point"))
@@ -18,18 +21,23 @@ const class UpsPodTree {
     allowed := createAllowed(type)
     payload := normalize(parsePayload(payloadJson), allowed)
     validateCreate(type, payload)
-    keyed := findByTreeKey(db, (Str)payload["upsTreeKey"])
-    if (keyed != null) {
-      if (recType(keyed) == type && samePayload(keyed, payload, allowed))
-        return result("existing", keyed, type)
-      return conflict(type, payload, keyed)
+    while (!createLock.compareAndSet(false, true)) Actor.sleep(1ms)
+    try {
+      keyed := findByTreeKey(db, (Str)payload["upsTreeKey"])
+      if (keyed != null) {
+        if (recType(keyed) == type && isReadable(db, keyed, type) &&
+            samePayload(keyed, payload, allowed))
+          return result("existing", keyed, type)
+        return conflict(type, payload, keyed)
+      }
+      validateChain(db, type, payload)
+      duplicate := findDuplicateName(db, type, payload)
+      if (duplicate != null) return conflict(type, payload, duplicate)
+      rec := db.commit(Diff.makeAdd(injectStructure(type, payload))).newRec
+      return result("created", rec, type)
+    } finally {
+      createLock.val = false
     }
-    validateChain(db, type, payload)
-    duplicate := findDuplicateName(db, type, payload)
-    if (duplicate != null) return conflict(type, payload, duplicate)
-    changes := payload
-    rec := db.commit(Diff.makeAdd(changes)).newRec
-    return result("created", rec, type)
   }
 
   static Dict update(Folio db, Obj id, Str payloadJson) {
@@ -38,7 +46,8 @@ const class UpsPodTree {
     if (ref == null) throw ArgErr("Record id must be a Ref or string")
     old := db.readById(ref)
     type := recType(old)
-    if (type == null) throw ArgErr("Record is not a UPS tree record: $ref")
+    if (type == null || !isReadable(db, old, type))
+      throw ArgErr("Record is outside the coherent UPS tree: $ref")
     changes := normalize(parsePayload(payloadJson), updateAllowed(type))
     if (changes.isEmpty) throw ArgErr("Update payload must not be empty")
     duplicate := findDuplicateUpdate(db, type, old, changes)
@@ -65,11 +74,11 @@ const class UpsPodTree {
 
   private static Str[] createAllowed(Str type) {
     switch (type) {
-      case "site":  return ["dis", "navName", "site", "tz", "upsSite", "upsTreeKey"]
-      case "floor": return ["dis", "navName", "floor", "siteRef", "upsTreeKey"]
-      case "equip": return ["dis", "navName", "equip", "upsUnit", "siteRef", "floorRef",
+      case "site":  return ["dis", "navName", "tz", "upsTreeKey"]
+      case "floor": return ["dis", "navName", "siteRef", "upsTreeKey"]
+      case "equip": return ["dis", "navName", "siteRef", "floorRef",
                             "make", "model", "serial", "ratedKva", "upsTreeKey"]
-      case "point": return ["dis", "navName", "point", "siteRef", "floorRef", "equipRef",
+      case "point": return ["dis", "navName", "siteRef", "floorRef", "equipRef",
                             "kind", "unit", "upsSocPct", "upsLoadPct", "upsBatteryTemp",
                             "upsCommStatus", "upsTreeKey"]
       default: throw ArgErr("Unsupported UPS tree type: $type")
@@ -109,21 +118,18 @@ const class UpsPodTree {
   }
 
   private static Str[] markerNames() {
-    ["site", "upsSite", "floor", "equip", "upsUnit", "point",
-     "upsSocPct", "upsLoadPct", "upsBatteryTemp", "upsCommStatus"]
+    ["upsSocPct", "upsLoadPct", "upsBatteryTemp", "upsCommStatus"]
   }
 
   private static Str[] refNames() { ["siteRef", "floorRef", "equipRef"] }
 
   private static Void validateCreate(Str type, Str:Obj? payload) {
-    required := Str["dis", "navName", "upsTreeKey", type]
+    required := Str["dis", "navName", "upsTreeKey"]
     switch (type) {
-      case "site":
-        required.add("upsSite")
       case "floor":
         required.add("siteRef")
       case "equip":
-        required.addAll(["upsUnit", "siteRef", "floorRef"])
+        required.addAll(["siteRef", "floorRef"])
       case "point":
         required.addAll(["siteRef", "floorRef", "equipRef", "kind", "unit"])
         count := 0
@@ -137,6 +143,15 @@ const class UpsPodTree {
 
   private static Str[] pointMetrics() {
     ["upsSocPct", "upsLoadPct", "upsBatteryTemp", "upsCommStatus"]
+  }
+
+  private static Str:Obj? injectStructure(Str type, Str:Obj? payload) {
+    changes := Str:Obj?[:]
+    payload.each |val, name| { changes[name] = val }
+    changes[type] = Marker.val
+    if (type == "site") changes["upsSite"] = Marker.val
+    if (type == "equip") changes["upsUnit"] = Marker.val
+    return changes
   }
 
   private static Dict? findByTreeKey(Folio db, Str key) {
@@ -198,36 +213,41 @@ const class UpsPodTree {
   private static Void validateChain(Folio db, Str type, Str:Obj? payload) {
     if (type == "site") return
     site := db.readById((Ref)payload["siteRef"])
-    if (recType(site) != "site") throw ArgErr("siteRef must reference a site")
+    if (!isUpsSite(site)) throw ArgErr("siteRef must reference an UPS site")
     if (type == "floor") return
     floor := db.readById((Ref)payload["floorRef"])
-    if (recType(floor) != "floor") throw ArgErr("floorRef must reference a floor")
+    if (!floor.has("floor")) throw ArgErr("floorRef must reference a floor")
     if (floor["siteRef"] != payload["siteRef"])
       throw ArgErr("floorRef does not belong to siteRef")
     if (type == "equip") return
     equip := db.readById((Ref)payload["equipRef"])
-    if (recType(equip) != "equip") throw ArgErr("equipRef must reference an equip")
+    if (!equip.has("equip") || !equip.has("upsUnit"))
+      throw ArgErr("equipRef must reference an UPS unit")
     if (equip["siteRef"] != payload["siteRef"] || equip["floorRef"] != payload["floorRef"])
       throw ArgErr("Point parent references are not a coherent chain")
   }
 
   private static Bool isReadable(Folio db, Dict rec, Str type) {
-    if (type == "site") return rec.has("upsSite")
+    if (type == "site") return isUpsSite(rec)
     siteRef := rec["siteRef"] as Ref
     if (siteRef == null) return false
     site := db.readById(siteRef, false)
-    if (site == null || recType(site) != "site" || !site.has("upsSite")) return false
+    if (site == null || !isUpsSite(site)) return false
     if (type == "floor") return true
     floorRef := rec["floorRef"] as Ref
     if (floorRef == null) return false
     floor := db.readById(floorRef, false)
-    if (floor == null || recType(floor) != "floor" || floor["siteRef"] != siteRef) return false
-    if (type == "equip") return rec.has("upsUnit")
+    if (floor == null || !floor.has("floor") || floor["siteRef"] != siteRef) return false
+    if (type == "equip") return rec.has("equip") && rec.has("upsUnit")
     equipRef := rec["equipRef"] as Ref
     if (equipRef == null || metricCount(rec) != 1) return false
     equip := db.readById(equipRef, false)
-    return equip != null && recType(equip) == "equip" && equip.has("upsUnit") &&
+    return equip != null && equip.has("equip") && equip.has("upsUnit") &&
       equip["siteRef"] == siteRef && equip["floorRef"] == floorRef
+  }
+
+  private static Bool isUpsSite(Dict rec) {
+    rec.has("site") && rec.has("upsSite")
   }
 
   private static Int metricCount(Dict rec) {
