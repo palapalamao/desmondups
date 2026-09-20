@@ -385,7 +385,9 @@
     floorRef: "所属楼层", equipRef: "所属 UPS", make: "厂商", model: "型号",
     serial: "序列号", ratedKva: "额定容量（kVA）", kind: "数据类别", unit: "单位",
     upsSocPct: "数据类型", upsLoadPct: "数据类型", upsBatteryTemp: "数据类型",
-    upsCommStatus: "数据类型", upsTreeKey: "创建标识",
+    upsCommStatus: "数据类型", upsTreeKey: "创建标识", site: "站点标记",
+    upsSite: "UPS 站点标记", floor: "楼层标记", equip: "设备标记",
+    upsUnit: "UPS 标记", point: "点位标记",
   };
 
   function treeMetricLabel(metric) {
@@ -394,13 +396,13 @@
 
   function treePreviewRows(type, state) {
     try {
-      var payload = global.TreeUi.buildCreatePayload(type, state.drafts[type], state.selections, state.keys[type]);
+      var payload = global.TreeUi.buildCreatePreview(type, state.drafts[type], state.selections, state.keys[type]);
       return {
         error: null,
         rows: Object.keys(payload).map(function (name) {
           var value = payload[name];
           if (global.TreeUi.METRICS.indexOf(name) >= 0) value = treeMetricLabel(name);
-          return { label: TREE_FIELD_LABELS[name] || name, value: String(value) };
+          return { label: TREE_FIELD_LABELS[name] || name, value: value === true ? "是" : String(value) };
         }),
       };
     } catch (error) {

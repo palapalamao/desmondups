@@ -139,6 +139,15 @@
     return payload;
   }
 
+  function buildCreatePreview(type, draft, selections, key) {
+    var metadata = buildCreatePayload(type, draft, selections, key);
+    if (type === "site") { metadata.site = true; metadata.upsSite = true; }
+    else if (type === "floor") metadata.floor = true;
+    else if (type === "equip") { metadata.equip = true; metadata.upsUnit = true; }
+    else if (type === "point") metadata.point = true;
+    return metadata;
+  }
+
   function editDraft(type, record) {
     var draft = {};
     UPDATE_FIELDS[type].forEach(function (name) {
@@ -173,6 +182,7 @@
       drafts: { site: emptyDraft("site"), floor: emptyDraft("floor"), equip: emptyDraft("equip"), point: emptyDraft("point") },
       keys: { site: null, floor: null, equip: null, point: null },
       edit: null,
+      pendingMutation: null,
       operation: { status: "idle", message: "", conflictId: null },
     };
 
@@ -181,13 +191,64 @@
       return record && record.type === type ? record : null;
     }
 
+    function createConfirmed(pending) {
+      var record = find(pending.type, text(pending.result.id));
+      if (!record) return false;
+      if (pending.type !== "site" && text(record.siteId) !== text(pending.payload.siteRef)) return false;
+      if ((pending.type === "equip" || pending.type === "point") && text(record.floorId) !== text(pending.payload.floorRef)) return false;
+      if (pending.type === "point" && text(record.equipId) !== text(pending.payload.equipRef)) return false;
+      return true;
+    }
+
+    function updateConfirmed(pending) {
+      var record = find(pending.type, pending.id);
+      if (!record) return false;
+      return Object.keys(pending.payload).every(function (name) {
+        var actual = record[name] === undefined || record[name] === null ? "" : record[name];
+        return String(actual) === String(pending.payload[name]);
+      });
+    }
+
+    function finalizePending() {
+      var pending = state.pendingMutation;
+      if (!pending) return false;
+      if (pending.kind === "create") {
+        if (!createConfirmed(pending)) return false;
+        state.keys[pending.type] = null;
+        state.drafts[pending.type] = emptyDraft(pending.type);
+        select(pending.type, text(pending.result.id));
+        var index = TYPES.indexOf(pending.type);
+        state.activeType = TYPES[Math.min(index + 1, TYPES.length - 1)];
+        state.mode = "create";
+        state.operation = { status: "success", message: pending.result.status === "existing" ? "已确认现有记录" : "创建成功", conflictId: null };
+      } else {
+        if (!updateConfirmed(pending)) return false;
+        var fresh = find(pending.type, pending.id);
+        state.edit = { type: fresh.type, id: fresh.id, original: fresh, draft: editDraft(fresh.type, fresh) };
+        state.operation = { status: "success", message: pending.result.status === "unchanged" ? "内容未变化" : "保存成功", conflictId: null };
+      }
+      state.pendingMutation = null;
+      return true;
+    }
+
+    function markUnconfirmed(detail) {
+      var message = "写入结果未确认，可刷新或用同一请求重试";
+      if (detail) message += "：" + detail;
+      state.operation = { status: "error", message: message, conflictId: null };
+      var error = new Error(message);
+      error.unconfirmed = true;
+      return error;
+    }
+
     function refresh(clearOperationError) {
       state.busy = true;
       return Promise.resolve().then(function () { return adapter.treeRead(); }).then(function (rows) {
         state.tree = buildTreeModel(rows);
         state.treeLoaded = true;
         state.treeError = null;
-        if (clearOperationError && state.operation.status === "error") {
+        if (state.pendingMutation) {
+          if (!finalizePending()) markUnconfirmed("刷新后未找到相符记录");
+        } else if (clearOperationError && state.operation.status === "error") {
           state.operation = { status: "idle", message: "", conflictId: null };
         }
         return state.tree;
@@ -259,19 +320,19 @@
         if (!result || ["created", "existing"].indexOf(result.status) < 0) {
           throw new Error("创建结果无法确认");
         }
-        state.keys[type] = null;
-        state.drafts[type] = emptyDraft(type);
-        if (result.id) {
-          var selectionName = type + "Id";
-          state.selections[selectionName] = text(result.id);
-        }
-        var index = TYPES.indexOf(type);
-        state.activeType = TYPES[Math.min(index + 1, TYPES.length - 1)];
-        state.mode = "create";
-        state.operation = { status: "success", message: result.status === "existing" ? "已确认现有记录" : "创建成功", conflictId: null };
-        return refresh(false).catch(function () { return state.tree; }).then(function () { return result; });
+        state.pendingMutation = { kind: "create", type: type, payload: payload, result: result };
+        return refresh(false).then(function () {
+          if (state.pendingMutation) throw markUnconfirmed("刷新后未找到相符记录");
+          return result;
+        }).catch(function (error) {
+          if (error && error.unconfirmed) throw error;
+          if (state.pendingMutation) throw markUnconfirmed("刷新失败：" + errorText(error));
+          throw error;
+        });
       }).catch(function (error) {
-        state.operation = { status: "error", message: errorText(error), conflictId: error && error.conflictId || null };
+        if (!error || !error.unconfirmed) {
+          state.operation = { status: "error", message: errorText(error), conflictId: error && error.conflictId || null };
+        }
         throw error;
       }).finally(function () { state.busy = false; });
     }
@@ -295,14 +356,19 @@
           throw conflict;
         }
         if (!result || ["updated", "unchanged"].indexOf(result.status) < 0) throw new Error("保存结果无法确认");
-        state.operation = { status: "success", message: result.status === "unchanged" ? "内容未变化" : "保存成功", conflictId: null };
-        return refresh(false).catch(function () { return state.tree; }).then(function () {
-          var fresh = find(state.edit.type, state.edit.id);
-          if (fresh) state.edit = { type: fresh.type, id: fresh.id, original: fresh, draft: editDraft(fresh.type, fresh) };
+        state.pendingMutation = { kind: "update", type: state.edit.type, id: state.edit.id, payload: payload, result: result };
+        return refresh(false).then(function () {
+          if (state.pendingMutation) throw markUnconfirmed("刷新后记录内容与本次保存不一致");
           return result;
+        }).catch(function (error) {
+          if (error && error.unconfirmed) throw error;
+          if (state.pendingMutation) throw markUnconfirmed("刷新失败：" + errorText(error));
+          throw error;
         });
       }).catch(function (error) {
-        state.operation = { status: "error", message: errorText(error), conflictId: error && error.conflictId || null };
+        if (!error || !error.unconfirmed) {
+          state.operation = { status: "error", message: errorText(error), conflictId: error && error.conflictId || null };
+        }
         throw error;
       }).finally(function () { state.busy = false; });
     }
@@ -319,6 +385,7 @@
     childrenFor: childrenFor,
     createKeyGenerator: createKeyGenerator,
     buildCreatePayload: buildCreatePayload,
+    buildCreatePreview: buildCreatePreview,
     buildUpdatePayload: buildUpdatePayload,
     createTreeController: createTreeController,
   };

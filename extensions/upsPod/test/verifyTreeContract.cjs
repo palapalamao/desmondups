@@ -40,6 +40,12 @@ assert.match(lib, /UpsPodTree\.create\(cx\.db, recType, payloadJson\)/,
   "tree create must use only the current HxContext database");
 assert.match(lib, /UpsPodTree\.update\(cx\.db, id, payloadJson\)/,
   "tree update must use only the current HxContext database");
+assert.match(lib, /(?:^|\n)const class UpsPodLib\s*\{/,
+  "Axon library type must remain internal to the production pod");
+assert.match(tree, /(?:^|\n)const class UpsPodTree\s*\{/,
+  "tree implementation type must remain internal to the production pod");
+assert.doesNotMatch(lib + tree, /public const class UpsPod(?:Lib|Tree)/,
+  "behavior tests must not expand the production pod API");
 assert.doesNotMatch(lib, /upsTreeDelete/, "tree API must not expose delete");
 
 [
@@ -84,6 +90,8 @@ assert.doesNotMatch(tree, /Diff\.remove|Remove\.val|commitRemoveTrash/,
 ].forEach(name => assert.ok(!tree.includes(`"${name}"`), `tree mutation source must not name reserved field ${name}`));
 assert.match(behavior, /class UpsPodTreeTest : HxTest/,
   "tree behavior tests must run on the HxTest/Folio harness");
+assert.match(behavior, /Pod\.find\("upsPod"\)\.type\("UpsPod(?:Tree|Lib)"\)/,
+  "separate test pod must reach internal production types reflectively");
 assert.match(prodBuild, /srcDirs\s*=\s*\[`fan\/`\]/,
   "production pod must compile only fan sources");
 assert.doesNotMatch(prodBuild, /`test\/`/,

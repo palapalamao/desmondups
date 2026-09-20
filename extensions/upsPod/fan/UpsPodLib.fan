@@ -9,7 +9,7 @@ using util
 **   upsOverview(site?) -> Grid：每行 = upsUnit + 最近负载/SOC + 采集时间戳 + 最高严重度
 **   未会签口径的派生字段一律带 quality 标注（R3：宁缺毋假）。
 ** 版本 0.1.0
-public const class UpsPodLib {
+const class UpsPodLib {
   @Axon { admin = true }
   static Grid upsTreeRead() {
     cx := HxContext.curHx(true)

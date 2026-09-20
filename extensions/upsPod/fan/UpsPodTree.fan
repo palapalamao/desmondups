@@ -4,7 +4,7 @@ using haystack
 using util
 
 ** Folio-backed UPS tree metadata boundary.
-public const class UpsPodTree {
+const class UpsPodTree {
   private static const ConcurrentMap mutationLocks := ConcurrentMap(16)
   private static const Duration mutationLockTimeout := 250ms
 

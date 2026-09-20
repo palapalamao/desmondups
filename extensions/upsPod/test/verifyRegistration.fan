@@ -11,7 +11,7 @@ class VerifyRegistration {
       if (files == null) throw Err("Cannot read built pod archive")
 
       [`/frontend/index.html`, `/frontend/project-context.js`, `/frontend/fin-api.js`,
-       `/frontend/app.js`, `/frontend/styles.css`,
+       `/frontend/app.js`, `/frontend/tree-ui.js`, `/frontend/styles.css`,
        `/frontend/vendor/ractive.min.js`].each |uri| {
         file := files[uri]
         if (file == null || file.in.readAllBuf.isEmpty)

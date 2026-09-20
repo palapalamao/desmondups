@@ -3,8 +3,6 @@ using concurrent
 using haystack
 using hx
 using folio
-using upsPod::UpsPodLib
-using upsPod::UpsPodTree
 
 class UpsPodTreeTest : HxTest {
   private static const AtomicRef runtimeRef := AtomicRef()
@@ -233,15 +231,15 @@ class UpsPodTreeTest : HxTest {
 
   Void testAxonSecurityMetadataAndNoDeleteApi() {
     ["upsTreeRead", "upsTreeCreate", "upsTreeUpdate"].each |name| {
-      method := Type.find("upsPod::UpsPodLib").method(name, false)
+      method := Pod.find("upsPod").type("UpsPodLib").method(name, false)
       verifyNotNull(method)
       facet := method.facet(Axon#, false) as Axon
       verifyNotNull(facet)
       verify(facet.admin)
     }
 
-    verifyNull(Type.find("upsPod::UpsPodTree").method("delete", false))
-    verifyNull(Type.find("upsPod::UpsPodLib").method("upsTreeDelete", false))
+    verifyNull(Pod.find("upsPod").type("UpsPodTree").method("delete", false))
+    verifyNull(Pod.find("upsPod").type("UpsPodLib").method("upsTreeDelete", false))
   }
 
   Void testAxonWrappersEnforceAdminAndUseCurrentDb() {
@@ -523,7 +521,7 @@ class UpsPodTreeTest : HxTest {
     release := AtomicBool()
     holder := Actor(pool) |Obj? msg->Obj?| {
       args := (Obj?[])msg
-      acquire := Type.find("upsPod::UpsPodTree").method("acquireMutationLock", false)
+      acquire := Pod.find("upsPod").type("UpsPodTree").method("acquireMutationLock", false)
       if (acquire == null) throw Err("Missing per-Folio lock acquisition")
       gate := (AtomicBool)acquire.call((Folio)args[0])
       ((AtomicBool)args[1]).val = true
@@ -673,10 +671,27 @@ class UpsPodTreeTest : HxTest {
     old := locals[Etc.cxActorLocalsKey]
     locals[Etc.cxActorLocalsKey] = cx
     try {
-      return Type.find("upsPod::UpsPodLib").method(name).callList(args)
+      return Pod.find("upsPod").type("UpsPodLib").method(name).callList(args)
     } finally {
       if (old == null) locals.remove(Etc.cxActorLocalsKey)
       else locals[Etc.cxActorLocalsKey] = old
     }
+  }
+}
+
+** Test-only reflective boundary for exercising the internal production type.
+internal class UpsPodTree {
+  private static Type target() { Pod.find("upsPod").type("UpsPodTree") }
+
+  static Grid read(Folio db) {
+    return (Grid)target.method("read").call(db)
+  }
+
+  static Dict create(Folio db, Str type, Str payloadJson) {
+    return (Dict)target.method("create").call(db, type, payloadJson)
+  }
+
+  static Dict update(Folio db, Obj id, Str payloadJson) {
+    return (Dict)target.method("update").call(db, id, payloadJson)
   }
 }
