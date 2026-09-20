@@ -18,7 +18,10 @@ const production = [ext, build, deploy].join("\n");
 [
   ["Diff.transient", /Diff\.transient/],
   ["lifecycle telemetry publisher", /publishSimCurVals|onHouseKeeping|houseKeepingFreq/],
+  ["seed deployment", /upsPodTreeSeed|demoSeed|seed project tree|\bseed\b/i],
 ].forEach(([label, pattern]) => assert.doesNotMatch(production, pattern, "production source must not contain " + label));
+assert.ok(!fs.existsSync(path.join(__dirname, "..", "..", "..", "scripts", "seed", "demoSeed.js")), "demo generator must be removed");
+assert.ok(!fs.existsSync(path.join(__dirname, "..", "..", "..", "scripts", "seed", "upsPodTreeSeed.fan")), "tree seed deployment must be removed");
 
 console.log("PASS TC-FIN-TREE-01 curVal-only read contract");
-console.log("PASS TC-FIN-TREE-02 production telemetry path contains no transient simulator mutation");
+console.log("PASS TC-FIN-TREE-02 production telemetry path contains no simulator or seed mutation");
