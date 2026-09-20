@@ -6,7 +6,9 @@ const path = require("path");
 
 const lib = fs.readFileSync(path.join(__dirname, "..", "fan", "UpsPodLib.fan"), "utf8");
 const tree = fs.readFileSync(path.join(__dirname, "..", "fan", "UpsPodTree.fan"), "utf8");
-const behavior = fs.readFileSync(path.join(__dirname, "UpsPodTreeTest.fan"), "utf8");
+const behavior = fs.readFileSync(path.join(__dirname, "fan", "UpsPodTreeTest.fan"), "utf8");
+const prodBuild = fs.readFileSync(path.join(__dirname, "..", "build.fan"), "utf8");
+const testBuild = fs.readFileSync(path.join(__dirname, "build.fan"), "utf8");
 const ext = fs.readFileSync(path.join(__dirname, "..", "fan", "UpsPodExt.fan"), "utf8");
 const build = fs.readFileSync(path.join(__dirname, "..", "build.fan"), "utf8");
 const deploy = fs.readFileSync(path.join(__dirname, "..", "..", "..", "scripts", "deploy-upsPod-tree.ps1"), "utf8");
@@ -60,12 +62,18 @@ assert.match(tree, /changes\["upsSite"\] = Marker\.val/,
   "server must inject upsSite for site records");
 assert.match(tree, /changes\["upsUnit"\] = Marker\.val/,
   "server must inject upsUnit for equipment records");
-assert.match(tree, /AtomicBool mutationLock/,
-  "create and update checks and commits must share one process lock");
-assert.strictEqual((tree.match(/mutationLock\.compareAndSet/g) || []).length, 2,
-  "both create and update must acquire the shared mutation lock");
-assert.strictEqual((tree.match(/mutationLock\.val = false/g) || []).length, 2,
-  "both create and update must release the shared mutation lock in finally");
+assert.match(tree, /ConcurrentMap mutationLocks/,
+  "mutation locks must be isolated by Folio in a concurrent map");
+assert.match(tree, /db\.dir\.normalize\.uri\.toStr[\s\S]*mutationLocks\.getOrAdd/,
+  "each Folio directory must resolve its own mutation gate");
+assert.match(tree, /Duration\.now >= deadline[\s\S]*throw UpsPodTreeBusyErr\(\)/,
+  "lock acquisition must have a bounded timeout and stable busy error");
+assert.strictEqual((tree.match(/acquireMutationLock\(db\)/g) || []).length, 2,
+  "both create and update must acquire the per-Folio mutation lock");
+assert.strictEqual((tree.match(/gate\.val = false/g) || []).length, 2,
+  "both create and update must release their gate in finally");
+assert.match(tree, /effective\.isEmpty\) return result\("unchanged", old, type\)/,
+  "identical updates must return unchanged without committing");
 assert.match(tree, /"status": "conflict"[\s\S]*?"conflictId": existing\.id/,
   "conflicts must return the conflicting record id");
 assert.doesNotMatch(tree, /Diff\.remove|Remove\.val|commitRemoveTrash/,
@@ -76,6 +84,12 @@ assert.doesNotMatch(tree, /Diff\.remove|Remove\.val|commitRemoveTrash/,
 ].forEach(name => assert.ok(!tree.includes(`"${name}"`), `tree mutation source must not name reserved field ${name}`));
 assert.match(behavior, /class UpsPodTreeTest : HxTest/,
   "tree behavior tests must run on the HxTest/Folio harness");
+assert.match(prodBuild, /srcDirs\s*=\s*\[`fan\/`\]/,
+  "production pod must compile only fan sources");
+assert.doesNotMatch(prodBuild, /`test\/`/,
+  "production pod must not compile behavior tests");
+assert.match(testBuild, /podName\s*=\s*"upsPodTest"[\s\S]*"upsPod 0\.8\.1"[\s\S]*srcDirs\s*=\s*\[`fan\/`\]/,
+  "separate test pod must compile only test/fan and depend on the built upsPod pod");
 assert.match(behavior, /Type\.find\("hxd::HxdTestSpi"\)/,
   "tree behavior tests must select the isolated Hxd Folio runtime");
 assert.match(behavior, /addUser\([\s\S]*?makeContext\(/,
@@ -84,6 +98,10 @@ assert.match(behavior, /testConcurrentIdempotentCreateCommitsExactlyOneRecord/,
   "tree behavior tests must cover overlapping idempotent creates");
 assert.match(behavior, /testConcurrentMutationsPreserveSiblingNameUniqueness/,
   "tree behavior tests must cover update/update and create/update races");
+assert.match(behavior, /testMutationLockIsPerFolioAndTimesOut/,
+  "tree behavior tests must cover per-Folio isolation and bounded timeout");
+assert.match(behavior, /testRepeatedUpdateDoesNotCommitOrNotifyObservers/,
+  "tree behavior tests must cover commit-free repeated updates");
 assert.match(behavior, /verifySame\(Actor\.locals\[actorKey\], sentinelCx\)/,
   "wrapper behavior tests must verify actor-local context restoration");
 assert.match(behavior, /canonicalSnapshot\(db2\)/,

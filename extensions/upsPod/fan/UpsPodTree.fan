@@ -5,7 +5,8 @@ using util
 
 ** Folio-backed UPS tree metadata boundary.
 const class UpsPodTree {
-  private static const AtomicBool mutationLock := AtomicBool()
+  private static const ConcurrentMap mutationLocks := ConcurrentMap(16)
+  private static const Duration mutationLockTimeout := 250ms
 
   static Grid read(Folio db) {
     rows := Dict[,]
@@ -21,12 +22,12 @@ const class UpsPodTree {
     allowed := createAllowed(type)
     payload := normalize(parsePayload(payloadJson), allowed)
     validateCreate(type, payload)
-    while (!mutationLock.compareAndSet(false, true)) Actor.sleep(1ms)
+    gate := acquireMutationLock(db)
     try {
       keyed := findByTreeKey(db, (Str)payload["upsTreeKey"])
       if (keyed != null) {
         if (recType(keyed) == type && isReadable(db, keyed, type) &&
-            samePayload(keyed, payload, allowed))
+            sameParent(type, keyed, payload))
           return result("existing", keyed, type)
         return conflict(type, payload, keyed)
       }
@@ -36,7 +37,7 @@ const class UpsPodTree {
       rec := db.commit(Diff.makeAdd(injectStructure(type, payload))).newRec
       return result("created", rec, type)
     } finally {
-      mutationLock.val = false
+      gate.val = false
     }
   }
 
@@ -44,7 +45,7 @@ const class UpsPodTree {
     ref := id as Ref
     if (ref == null && id is Str) ref = Ref((Str)id)
     if (ref == null) throw ArgErr("Record id must be a Ref or string")
-    while (!mutationLock.compareAndSet(false, true)) Actor.sleep(1ms)
+    gate := acquireMutationLock(db)
     try {
       old := db.readById(ref)
       type := recType(old)
@@ -52,13 +53,29 @@ const class UpsPodTree {
         throw ArgErr("Record is outside the coherent UPS tree: $ref")
       changes := normalize(parsePayload(payloadJson), updateAllowed(type))
       if (changes.isEmpty) throw ArgErr("Update payload must not be empty")
-      duplicate := findDuplicateUpdate(db, type, old, changes)
+      effective := Str:Obj?[:]
+      changes.each |val, name| {
+        if (old[name] != val) effective[name] = val
+      }
+      if (effective.isEmpty) return result("unchanged", old, type)
+      duplicate := findDuplicateUpdate(db, type, old, effective)
       if (duplicate != null) return conflict(type, mergedForConflict(old, changes), duplicate)
-      rec := db.commit(Diff(old, changes)).newRec
+      rec := db.commit(Diff(old, effective)).newRec
       return result("updated", rec, type)
     } finally {
-      mutationLock.val = false
+      gate.val = false
     }
+  }
+
+  private static AtomicBool acquireMutationLock(Folio db) {
+    key := db.dir.normalize.uri.toStr
+    gate := (AtomicBool)mutationLocks.getOrAdd(key, AtomicBool())
+    deadline := Duration.now + mutationLockTimeout
+    while (!gate.compareAndSet(false, true)) {
+      if (Duration.now >= deadline) throw UpsPodTreeBusyErr()
+      Actor.sleep(1ms)
+    }
+    return gate
   }
 
   private static Str:Obj? parsePayload(Str json) {
@@ -165,13 +182,6 @@ const class UpsPodTree {
     }
   }
 
-  private static Bool samePayload(Dict rec, Str:Obj? payload, Str[] allowed) {
-    return allowed.all |name| {
-      rec.has(name) == payload.containsKey(name) &&
-        (!rec.has(name) || rec[name] == payload[name])
-    }
-  }
-
   private static Dict? findDuplicateName(Folio db, Str type, Str:Obj? payload) {
     return db.readAllList(Filter.has(type), null).find |rec| {
       recType(rec) == type && sameParent(type, rec, payload) &&
@@ -209,8 +219,11 @@ const class UpsPodTree {
     switch (type) {
       case "site": return true
       case "floor": return rec["siteRef"] == payload["siteRef"]
-      case "equip": return rec["floorRef"] == payload["floorRef"]
-      case "point": return rec["equipRef"] == payload["equipRef"]
+      case "equip": return rec["siteRef"] == payload["siteRef"] &&
+                           rec["floorRef"] == payload["floorRef"]
+      case "point": return rec["siteRef"] == payload["siteRef"] &&
+                           rec["floorRef"] == payload["floorRef"] &&
+                           rec["equipRef"] == payload["equipRef"]
       default: return false
     }
   }
@@ -296,4 +309,8 @@ const class UpsPodTree {
     }
     return Etc.makeDict(map)
   }
+}
+
+const class UpsPodTreeBusyErr : Err {
+  new make() : super("UPS tree metadata mutation busy") {}
 }

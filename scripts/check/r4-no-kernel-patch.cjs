@@ -21,7 +21,7 @@ function walk(d, exts) {
 const vendor = fs.readdirSync(path.join(POD, "frontend", "vendor"));
 if (vendor.join(",") !== "ractive.min.js") hits.push("[R4] vendor/ 清单越界: " + vendor.join(","));
 const fanFiles = fs.readdirSync(path.join(POD, "fan")).sort().join(",");
-if (fanFiles !== "UpsPodExt.fan,UpsPodLib.fan,UpsPodWeb.fan") hits.push("[R4] fan/ 文件越界: " + fanFiles);
+if (fanFiles !== "UpsPodExt.fan,UpsPodLib.fan,UpsPodTree.fan,UpsPodWeb.fan") hits.push("[R4] fan/ 文件越界: " + fanFiles);
 const buildFan = fs.readFileSync(path.join(POD, "build.fan"), "utf8");
 if (!/version = Version\("\d+\.\d+\.\d+"\)/.test(buildFan)) hits.push("[R4] build.fan 缺少钉死的版本号");
 if (hits.length) { console.error("FAIL R4 内核边界违规:\n" + hits.join("\n")); process.exit(1); }

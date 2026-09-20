@@ -3,6 +3,7 @@ using concurrent
 using haystack
 using hx
 using folio
+using upsPod
 
 class UpsPodTreeTest : HxTest {
   private static const AtomicRef runtimeRef := AtomicRef()
@@ -109,9 +110,17 @@ class UpsPodTreeTest : HxTest {
 
     changed := UpsPodTree.create(testRt.db, "site",
       "{\"dis\":\"Changed Site\",\"navName\":\"stableSite\",\"tz\":\"Asia/Shanghai\",\"upsTreeKey\":\"stable-key\"}")
-    verifyEq(changed["status"], "conflict")
-    verifyEq(changed["conflictId"], firstId)
+    verifyEq(changed["status"], "existing")
+    verifyEq(changed["id"], firstId)
+    verifyEq(testRt.db.readById((Ref)firstId)["dis"], "Stable Site")
     verifyEq(testRt.db.readCount(Filter.has("upsTreeKey")), initial + 1)
+
+    UpsPodTree.update(testRt.db, firstId,
+      "{\"dis\":\"Renamed Stable Site\",\"navName\":\"renamedStableSite\"}")
+    replay := UpsPodTree.create(testRt.db, "site", payload)
+    verifyEq(replay["status"], "existing")
+    verifyEq(replay["id"], firstId)
+    verifyEq(testRt.db.readById((Ref)firstId)["dis"], "Renamed Stable Site")
 
     other := UpsPodTree.create(testRt.db, "site",
       "{\"dis\":\"Other Site\",\"navName\":\"otherSite\",\"upsTreeKey\":\"other-key\"}")
@@ -341,6 +350,25 @@ class UpsPodTreeTest : HxTest {
     verifyEq(((Number)equip["ratedKva"]).toInt, 80)
   }
 
+  Void testRepeatedUpdateDoesNotCommitOrNotifyObservers() {
+    ids := createTree
+    point := testRt.db.readById(ids["point"])
+    beforeVer := testRt.db.curVer
+    before := canonicalSnapshot(testRt.db)
+    pointDis := point.dis
+    pointNav := (Str)point["navName"]
+    pointKind := (Str)point["kind"]
+    pointUnit := (Str)point["unit"]
+
+    result := UpsPodTree.update(testRt.db, point.id,
+      "{\"dis\":\"$pointDis\",\"navName\":\"$pointNav\",\"kind\":\"$pointKind\",\"unit\":\"$pointUnit\"}")
+
+    verifyEq(result["status"], "unchanged")
+    verifyEq(result["id"], point.id)
+    verifyEq(testRt.db.curVer, beforeVer)
+    verifyEq(canonicalSnapshot(testRt.db), before)
+  }
+
   Void testCreateAndUpdateRejectRecordsOutsideCoherentUpsBoundary() {
     suffix := Ref.gen.id
     ordinarySite := testRt.db.commit(Diff.makeAdd([
@@ -471,6 +499,54 @@ class UpsPodTreeTest : HxTest {
       }
     } finally {
       pool.stop.join(5sec)
+    }
+  }
+
+  Void testMutationLockIsPerFolioAndTimesOut() {
+    suffix := Ref.gen.id
+    dir2 := Env.cur.tempDir + "upsPod-lock-two-$suffix/".toUri
+    rt2 := (HxRuntime)Type.find("hxd::HxdTestSpi").method("boot").call(dir2, Etc.emptyDict)
+    pool := ActorPool()
+    held := AtomicBool()
+    release := AtomicBool()
+    holder := Actor(pool) |Obj? msg->Obj?| {
+      args := (Obj?[])msg
+      acquire := UpsPodTree#.method("acquireMutationLock", false)
+      if (acquire == null) throw Err("Missing per-Folio lock acquisition")
+      gate := (AtomicBool)acquire.call((Folio)args[0])
+      ((AtomicBool)args[1]).val = true
+      until := (AtomicBool)args[2]
+      while (!until.val) Actor.sleep(1ms)
+      gate.val = false
+      return null
+    }
+    future := holder.send(Obj?[testRt.db, held, release].toImmutable)
+    try {
+      deadline := Duration.now + 2sec
+      while (!held.val && Duration.now < deadline) Actor.sleep(1ms)
+      verify(held.val, "Timed out waiting for the test to hold db1 mutation lock")
+
+      other := UpsPodTree.create(rt2.db, "site",
+        "{\"dis\":\"Other DB $suffix\",\"navName\":\"otherDb$suffix\",\"upsTreeKey\":\"other-db-$suffix\"}")
+      verifyEq(other["status"], "created")
+      verify(held.val, "db2 mutation must complete while db1 remains locked")
+
+      started := Duration.now
+      Err? busy := null
+      try {
+        UpsPodTree.create(testRt.db, "site",
+          "{\"dis\":\"Busy $suffix\",\"navName\":\"busy$suffix\",\"upsTreeKey\":\"busy-$suffix\"}")
+      } catch (Err err) {
+        busy = err
+      }
+      verifyNotNull(busy)
+      verifyEq(((Err)busy).typeof.name, "UpsPodTreeBusyErr")
+      verify(Duration.now - started < 2sec, "Same-db lock timeout must be bounded")
+    } finally {
+      release.val = true
+      future.get(5sec)
+      pool.stop.join(5sec)
+      rt2.typeof.method("stop").call(rt2)
     }
   }
 

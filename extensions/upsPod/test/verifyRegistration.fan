@@ -24,6 +24,8 @@ class VerifyRegistration {
       index := read(files, `/index.props`).in.readProps
       if (index["skyarc.ext"] != "upsPod::UpsPodExt") throw Err("Missing extension index")
       if (index["skyarc.lib"] != "upsPod::UpsPodLib") throw Err("Missing function index")
+      if (files.keys.any |uri| { uri.toStr.contains("UpsPodTreeTest") })
+        throw Err("Production pod must not contain behavior test classes")
 
       api := read(files, `/doc/UpsPodExt.apidoc`)
       if (!api.contains("base=skyarcd::Ext hx::HxLib sys::Obj")) throw Err("Invalid extension base class")
@@ -32,7 +34,7 @@ class VerifyRegistration {
         throw Err("Missing FIN menu namespace and launcher dependencies")
       if (!api.contains("-- make(\n) sys::Void")) throw Err("Extension constructor requires arguments")
 
-      echo("PASS built upsPod metadata, extension index, function index, constructor signature")
+      echo("PASS built upsPod metadata, indexes, constructor, and production-only classes")
     } finally {
       zip.close
     }
