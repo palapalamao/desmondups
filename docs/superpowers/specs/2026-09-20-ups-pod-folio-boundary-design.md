@@ -53,14 +53,14 @@ POD 页面仅接受外层 FIN 页面路径 `/finMobile/<project>` 中的项目�
 
 服务端按记录类型过滤并校验写入字段。请求只要包含保留字段即整体拒绝，不采用静默丢弃。
 
-| 类型 | 创建允许字段 | 更新允许字段 |
-|---|---|---|
-| site | `dis`、`navName`、`site`、`tz`、`upsSite`、`upsTreeKey` | `dis`、`navName`、`tz` |
-| floor | `dis`、`navName`、`floor`、`siteRef`、`upsTreeKey` | `dis`、`navName` |
-| equip | `dis`、`navName`、`equip`、`upsUnit`、`siteRef`、`floorRef`、`make`、`model`、`serial`、`ratedKva`、`upsTreeKey` | `dis`、`navName`、`make`、`model`、`serial`、`ratedKva` |
-| point | `dis`、`navName`、`point`、`siteRef`、`floorRef`、`equipRef`、`kind`、`unit`、一个受支持的 UPS 指标标记、`upsTreeKey` | `dis`、`navName`、`kind`、`unit` |
+| 类型 | 创建请求字段 | 服务端注入字段 | 更新请求字段 |
+|---|---|---|---|
+| site | `dis`、`navName`、`tz`、`upsTreeKey` | `site`、`upsSite` | `dis`、`navName`、`tz` |
+| floor | `dis`、`navName`、`siteRef`、`upsTreeKey` | `floor` | `dis`、`navName` |
+| equip | `dis`、`navName`、`siteRef`、`floorRef`、`make`、`model`、`serial`、`ratedKva`、`upsTreeKey` | `equip`、`upsUnit` | `dis`、`navName`、`make`、`model`、`serial`、`ratedKva` |
+| point | `dis`、`navName`、`siteRef`、`floorRef`、`equipRef`、`kind`、`unit`、恰一个受支持的 UPS 指标选择键、`upsTreeKey` | `point`、请求所选的 UPS 指标 Marker | `dis`、`navName`、`kind`、`unit` |
 
-本期支持的 point 指标标记为 `upsSocPct`、`upsLoadPct`、`upsBatteryTemp`、`upsCommStatus`，每个 point 必须且只能选择一个。
+客户端创建请求不得传入 `site`、`floor`、`equip`、`point`、`upsSite` 或 `upsUnit`；服务端根据 `recType` 注入对应结构标记。本期支持的 point 指标选择键为 `upsSocPct`、`upsLoadPct`、`upsBatteryTemp`、`upsCommStatus`。point 创建请求必须且只能携带其中一个键，值为 `true`，服务端将其写为 Marker。
 
 所有未列入对应操作白名单的字段均禁止写入，尤其包括 `curVal`、`curStatus`、`curStatusTs`、`his`、历史样本、告警状态、`val`、`dmValue`、`upsSimVal` 和 `upsSimTs`。`upsTreeKey`、类型标记、父级引用和 point 指标标记均为创建后不可变字段；修改请求包含这些字段时整体拒绝。更新已有 point 时，服务端只构造更新白名单字段 diff，不重写整条记录。
 

@@ -253,10 +253,24 @@ class UpsPodTreeTest : HxTest {
     updated := (Dict)callWrapper(adminCx, "upsTreeUpdate",
       [id, "{\"dis\":\"Wrapper Updated $suffix\"}"])
     verifyEq(updated["status"], "updated")
-    grid := (Grid)callWrapper(adminCx, "upsTreeRead")
-    verifyNotNull(grid.find |row| { row["id"] == id })
+    actorKey := Etc.cxActorLocalsKey
+    priorCx := Actor.locals[actorKey]
+    sentinelCx := makeContext(admin)
+    Grid? grid := null
+    try {
+      Actor.locals[actorKey] = sentinelCx
+      grid = (Grid)callWrapper(adminCx, "upsTreeRead")
+      verifySame(Actor.locals[actorKey], sentinelCx)
+    } finally {
+      if (priorCx == null) Actor.locals.remove(actorKey)
+      else Actor.locals[actorKey] = priorCx
+    }
+    verifySame(Actor.locals[actorKey], priorCx)
+    verifyNotNull(grid)
+    actualGrid := (Grid)grid
+    verifyNotNull(actualGrid.find |row| { row["id"] == id })
 
-    verifyNotNull(ZincWriter.gridToStr(grid))
+    verifyNotNull(ZincWriter.gridToStr(actualGrid))
     verifyNotNull(ZincWriter.gridToStr(Etc.makeDictsGrid(null, [created])))
     verifyNotNull(ZincWriter.gridToStr(Etc.makeDictsGrid(null, [updated])))
   }
@@ -409,6 +423,57 @@ class UpsPodTreeTest : HxTest {
     }
   }
 
+  Void testConcurrentMutationsPreserveSiblingNameUniqueness() {
+    suffix := Ref.gen.id
+    site := UpsPodTree.create(testRt.db, "site",
+      "{\"dis\":\"Race Site $suffix\",\"navName\":\"raceSite$suffix\",\"upsTreeKey\":\"race-site-$suffix\"}")
+    siteId := (Ref)site["id"]
+    pool := ActorPool { it.maxThreads = 4 }
+    receive := |Obj? msg->Obj?| {
+      args := (Obj?[])msg
+      ((AtomicInt)args[0]).increment
+      gate := (AtomicBool)args[1]
+      while (!gate.val) Actor.sleep(1ms)
+      db := (Folio)args[2]
+      if (args[3] == "create") return UpsPodTree.create(db, "floor", (Str)args[5])
+      return UpsPodTree.update(db, (Ref)args[4], (Str)args[5])
+    }
+    try {
+      20.times |round| {
+        left := UpsPodTree.create(testRt.db, "floor",
+          "{\"dis\":\"Left $suffix $round\",\"navName\":\"left${suffix}$round\",\"siteRef\":\"${siteId.id}\",\"upsTreeKey\":\"left-$suffix-$round\"}")
+        right := UpsPodTree.create(testRt.db, "floor",
+          "{\"dis\":\"Right $suffix $round\",\"navName\":\"right${suffix}$round\",\"siteRef\":\"${siteId.id}\",\"upsTreeKey\":\"right-$suffix-$round\"}")
+        targetDis := "Updated Race $suffix $round"
+        targetNav := "updatedRace${suffix}$round"
+        payload := "{\"dis\":\"$targetDis\",\"navName\":\"$targetNav\"}"
+        results := runOverlap(pool, receive, [
+          Obj?[testRt.db, "update", (Ref)left["id"], payload],
+          Obj?[testRt.db, "update", (Ref)right["id"], payload],
+        ])
+        verifyEq(results.findAll |r| { r["status"] == "updated" }.size, 1)
+        verifyEq(results.findAll |r| { r["status"] == "conflict" }.size, 1)
+        verifyEq(siblingNameMatches(siteId, targetDis, targetNav), 1)
+
+        existing := UpsPodTree.create(testRt.db, "floor",
+          "{\"dis\":\"Existing $suffix $round\",\"navName\":\"existing${suffix}$round\",\"siteRef\":\"${siteId.id}\",\"upsTreeKey\":\"existing-$suffix-$round\"}")
+        createDis := "Create Update Race $suffix $round"
+        createNav := "createUpdateRace${suffix}$round"
+        updatePayload := "{\"dis\":\"$createDis\",\"navName\":\"$createNav\"}"
+        createPayload := "{\"dis\":\"$createDis\",\"navName\":\"$createNav\",\"siteRef\":\"${siteId.id}\",\"upsTreeKey\":\"created-$suffix-$round\"}"
+        results = runOverlap(pool, receive, [
+          Obj?[testRt.db, "create", null, createPayload],
+          Obj?[testRt.db, "update", (Ref)existing["id"], updatePayload],
+        ])
+        verifyEq(results.findAll |r| { r["status"] != "conflict" }.size, 1)
+        verifyEq(results.findAll |r| { r["status"] == "conflict" }.size, 1)
+        verifyEq(siblingNameMatches(siteId, createDis, createNav), 1)
+      }
+    } finally {
+      pool.stop.join(5sec)
+    }
+  }
+
   Void testSecondIsolatedFolioRemainsUnchanged() {
     suffix := Ref.gen.id
     dir2 := Env.cur.tempDir + "upsPod-two-$suffix/".toUri
@@ -490,6 +555,28 @@ class UpsPodTreeTest : HxTest {
       }
     }
     return buf.toStr
+  }
+
+  private Dict[] runOverlap(ActorPool pool, Func receive, Obj?[][] requests) {
+    ready := AtomicInt()
+    start := AtomicBool()
+    futures := Future[,]
+    requests.each |request| {
+      msg := Obj?[ready, start]
+      msg.addAll(request)
+      futures.add(Actor(pool, receive).send(msg.toImmutable))
+    }
+    while (ready.val < requests.size) Actor.sleep(1ms)
+    start.val = true
+    results := Dict[,]
+    futures.each |future| { results.add((Dict)future.get(10sec)) }
+    return results
+  }
+
+  private Int siblingNameMatches(Ref siteId, Str dis, Str navName) {
+    testRt.db.readAllList(Filter.has("floor"), null).findAll |rec| {
+      rec["siteRef"] == siteId && (rec["dis"] == dis || rec["navName"] == navName)
+    }.size
   }
 
   private Obj? callWrapper(HxContext cx, Str name, Obj?[] args := Obj?[,]) {

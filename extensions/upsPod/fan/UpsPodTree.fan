@@ -5,7 +5,7 @@ using util
 
 ** Folio-backed UPS tree metadata boundary.
 const class UpsPodTree {
-  private static const AtomicBool createLock := AtomicBool()
+  private static const AtomicBool mutationLock := AtomicBool()
 
   static Grid read(Folio db) {
     rows := Dict[,]
@@ -21,7 +21,7 @@ const class UpsPodTree {
     allowed := createAllowed(type)
     payload := normalize(parsePayload(payloadJson), allowed)
     validateCreate(type, payload)
-    while (!createLock.compareAndSet(false, true)) Actor.sleep(1ms)
+    while (!mutationLock.compareAndSet(false, true)) Actor.sleep(1ms)
     try {
       keyed := findByTreeKey(db, (Str)payload["upsTreeKey"])
       if (keyed != null) {
@@ -36,7 +36,7 @@ const class UpsPodTree {
       rec := db.commit(Diff.makeAdd(injectStructure(type, payload))).newRec
       return result("created", rec, type)
     } finally {
-      createLock.val = false
+      mutationLock.val = false
     }
   }
 
@@ -44,16 +44,21 @@ const class UpsPodTree {
     ref := id as Ref
     if (ref == null && id is Str) ref = Ref((Str)id)
     if (ref == null) throw ArgErr("Record id must be a Ref or string")
-    old := db.readById(ref)
-    type := recType(old)
-    if (type == null || !isReadable(db, old, type))
-      throw ArgErr("Record is outside the coherent UPS tree: $ref")
-    changes := normalize(parsePayload(payloadJson), updateAllowed(type))
-    if (changes.isEmpty) throw ArgErr("Update payload must not be empty")
-    duplicate := findDuplicateUpdate(db, type, old, changes)
-    if (duplicate != null) return conflict(type, mergedForConflict(old, changes), duplicate)
-    rec := db.commit(Diff(old, changes)).newRec
-    return result("updated", rec, type)
+    while (!mutationLock.compareAndSet(false, true)) Actor.sleep(1ms)
+    try {
+      old := db.readById(ref)
+      type := recType(old)
+      if (type == null || !isReadable(db, old, type))
+        throw ArgErr("Record is outside the coherent UPS tree: $ref")
+      changes := normalize(parsePayload(payloadJson), updateAllowed(type))
+      if (changes.isEmpty) throw ArgErr("Update payload must not be empty")
+      duplicate := findDuplicateUpdate(db, type, old, changes)
+      if (duplicate != null) return conflict(type, mergedForConflict(old, changes), duplicate)
+      rec := db.commit(Diff(old, changes)).newRec
+      return result("updated", rec, type)
+    } finally {
+      mutationLock.val = false
+    }
   }
 
   private static Str:Obj? parsePayload(Str json) {

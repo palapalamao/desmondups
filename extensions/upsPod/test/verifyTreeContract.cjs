@@ -60,8 +60,12 @@ assert.match(tree, /changes\["upsSite"\] = Marker\.val/,
   "server must inject upsSite for site records");
 assert.match(tree, /changes\["upsUnit"\] = Marker\.val/,
   "server must inject upsUnit for equipment records");
-assert.match(tree, /AtomicBool createLock/,
-  "tree-key lookup and commit must be protected by a process lock");
+assert.match(tree, /AtomicBool mutationLock/,
+  "create and update checks and commits must share one process lock");
+assert.strictEqual((tree.match(/mutationLock\.compareAndSet/g) || []).length, 2,
+  "both create and update must acquire the shared mutation lock");
+assert.strictEqual((tree.match(/mutationLock\.val = false/g) || []).length, 2,
+  "both create and update must release the shared mutation lock in finally");
 assert.match(tree, /"status": "conflict"[\s\S]*?"conflictId": existing\.id/,
   "conflicts must return the conflicting record id");
 assert.doesNotMatch(tree, /Diff\.remove|Remove\.val|commitRemoveTrash/,
@@ -78,6 +82,10 @@ assert.match(behavior, /addUser\([\s\S]*?makeContext\(/,
   "tree behavior tests must construct real user contexts");
 assert.match(behavior, /testConcurrentIdempotentCreateCommitsExactlyOneRecord/,
   "tree behavior tests must cover overlapping idempotent creates");
+assert.match(behavior, /testConcurrentMutationsPreserveSiblingNameUniqueness/,
+  "tree behavior tests must cover update/update and create/update races");
+assert.match(behavior, /verifySame\(Actor\.locals\[actorKey\], sentinelCx\)/,
+  "wrapper behavior tests must verify actor-local context restoration");
 assert.match(behavior, /canonicalSnapshot\(db2\)/,
   "second isolated runtime must use a complete records and history snapshot");
 
