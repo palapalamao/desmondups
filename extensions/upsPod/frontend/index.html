@@ -54,6 +54,90 @@
   {{else}}
   <div class="fatal">未找到设备 {{unitId}}；未返回替代历史。</div>
   {{/if}}
+{{elseif view === "tree"}}
+  <header class="page-head tree-page-head">
+    <a class="btn" href="#/ups/overview">← 返回总览</a>
+    <div>
+      <h1>设备树管理</h1>
+      <p class="muted">按站点、楼层、UPS、点位逐级创建或维护基础信息。</p>
+    </div>
+    <button class="btn tree-refresh" disabled="{{tree.busy}}" on-click="@this.fire('treeRefresh')">刷新设备树</button>
+  </header>
+  <div class="tree-rule" role="note">层级与数据类型创建后不可更改</div>
+  {{#if tree.treeError}}<div class="tree-notice error" role="alert">读取失败：{{tree.treeError}}。继续显示上次成功读取的设备树。</div>{{/if}}
+  {{#if tree.operation.status !== "idle"}}
+    <div class="tree-notice {{tree.operation.status}}" role="status">
+      {{tree.operation.message}}
+      {{#if tree.operation.conflictId}}<span>冲突记录 ID：{{tree.operation.conflictId}}</span>{{/if}}
+    </div>
+  {{/if}}
+
+  <main class="tree-layout">
+    <nav class="tree-rail" aria-label="设备层级">
+      <section class="rail-level {{tree.activeType === 'site' ? 'active' : ''}}">
+        <div class="rail-title"><span class="rail-index">1</span><b>站点</b><button class="rail-add" on-click="@this.fire('treePrepare', 'site')">创建</button></div>
+        {{#each tree.tree.sites}}<button class="rail-record {{tree.selections.siteId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'site', .id)"><span>{{.dis}}</span><small>{{.id}}</small></button>{{else}}<p class="rail-empty">先创建第一个站点。</p>{{/each}}
+      </section>
+      <section class="rail-level {{tree.activeType === 'floor' ? 'active' : ''}}">
+        <div class="rail-title"><span class="rail-index">2</span><b>楼层</b><button class="rail-add" disabled="{{!tree.selections.siteId}}" on-click="@this.fire('treePrepare', 'floor')">创建</button></div>
+        {{#if !tree.selections.siteId}}<p class="rail-empty">请先选择或创建站点。</p>{{else}}{{#each treeVm.floors}}<button class="rail-record {{tree.selections.floorId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'floor', .id)"><span>{{.dis}}</span><small>{{.id}}</small></button>{{else}}<p class="rail-empty">该站点暂无楼层，请先创建楼层。</p>{{/each}}{{/if}}
+      </section>
+      <section class="rail-level {{tree.activeType === 'equip' ? 'active' : ''}}">
+        <div class="rail-title"><span class="rail-index">3</span><b>UPS</b><button class="rail-add" disabled="{{!tree.selections.floorId}}" on-click="@this.fire('treePrepare', 'equip')">创建</button></div>
+        {{#if !tree.selections.floorId}}<p class="rail-empty">请先选择或创建楼层。</p>{{else}}{{#each treeVm.equips}}<button class="rail-record {{tree.selections.equipId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'equip', .id)"><span>{{.dis}}</span><small>{{.id}}</small></button>{{else}}<p class="rail-empty">该楼层暂无 UPS，请先创建 UPS。</p>{{/each}}{{/if}}
+      </section>
+      <section class="rail-level {{tree.activeType === 'point' ? 'active' : ''}}">
+        <div class="rail-title"><span class="rail-index">4</span><b>点位</b><button class="rail-add" disabled="{{!tree.selections.equipId}}" on-click="@this.fire('treePrepare', 'point')">创建</button></div>
+        {{#if !tree.selections.equipId}}<p class="rail-empty">请先选择或创建 UPS。</p>{{else}}{{#each treeVm.points}}<button class="rail-record {{tree.selections.pointId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'point', .id)"><span>{{.dis}}</span><small>{{treeMetricLabel(.metric)}} · {{.id}}</small></button>{{else}}<p class="rail-empty">该 UPS 暂无点位，请创建一个标准点位。</p>{{/each}}{{/if}}
+      </section>
+    </nav>
+
+    <section class="tree-workspace">
+      {{#if tree.mode === "create"}}
+        <div class="workspace-title"><div><span class="step-kicker">第 {{treeVm.step}} 步，共 4 步</span><h2>创建{{treeVm.typeLabel}}</h2></div><span class="source-chip">来自当前 FIN 项目</span></div>
+        <form class="tree-form" on-input="@this.fire('treeChanged')" on-submit="@event.preventDefault(), @this.fire('treeCreate', tree.activeType)">
+          {{#if tree.activeType !== "site"}}
+            <label>所属站点<select required value="{{tree.selections.siteId}}" on-change="@this.fire('treeParentChanged', 'site')"><option value="">请选择站点</option>{{#each tree.tree.sites}}<option value="{{.id}}">{{.dis}}</option>{{/each}}</select></label>
+          {{/if}}
+          {{#if tree.activeType === "equip" || tree.activeType === "point"}}
+            <label>所属楼层<select required value="{{tree.selections.floorId}}" on-change="@this.fire('treeParentChanged', 'floor')"><option value="">请选择楼层</option>{{#each treeVm.floorChoices}}<option value="{{.id}}">{{.dis}}</option>{{/each}}</select></label>
+          {{/if}}
+          {{#if tree.activeType === "point"}}
+            <label>所属 UPS<select required value="{{tree.selections.equipId}}" on-change="@this.fire('treeParentChanged', 'equip')"><option value="">请选择 UPS</option>{{#each treeVm.equipChoices}}<option value="{{.id}}">{{.dis}}</option>{{/each}}</select></label>
+          {{/if}}
+          <label>显示名称<input required maxlength="120" value="{{treeVm.draft.dis}}" placeholder="用户看到的名称"></label>
+          <label>导航名称<input required maxlength="120" value="{{treeVm.draft.navName}}" placeholder="例如 upsRoomA"></label>
+          {{#if tree.activeType === "site"}}<label>时区<input value="{{tree.drafts.site.tz}}" placeholder="例如 Asia/Shanghai"></label>{{/if}}
+          {{#if tree.activeType === "equip"}}
+            <label>厂商<input value="{{tree.drafts.equip.make}}"></label><label>型号<input value="{{tree.drafts.equip.model}}"></label>
+            <label>序列号<input value="{{tree.drafts.equip.serial}}"></label><label>额定容量（kVA）<input type="number" min="0" step="any" value="{{tree.drafts.equip.ratedKva}}"></label>
+          {{/if}}
+          {{#if tree.activeType === "point"}}
+            <label>数据类型<select value="{{tree.drafts.point.metric}}" on-change="@this.fire('treeChanged')"><option value="upsSocPct">SOC</option><option value="upsLoadPct">负载</option><option value="upsBatteryTemp">电池温度</option><option value="upsCommStatus">通讯状态</option></select></label>
+            <label>数据类别<input required value="{{tree.drafts.point.kind}}" placeholder="例如 Number 或 Bool"></label><label>单位<input required value="{{tree.drafts.point.unit}}" placeholder="例如 % 或 °C"></label>
+          {{/if}}
+          <div class="create-preview" aria-live="polite">
+            <h3>即将创建</h3>
+            {{#if treeVm.previewError}}<p class="preview-hint">{{treeVm.previewError}}，填写完整后将显示本次创建的全部信息。</p>{{/if}}
+            <dl>{{#each treeVm.preview}}<div><dt>{{.label}}</dt><dd>{{.value}}</dd></div>{{/each}}</dl>
+          </div>
+          <button class="btn primary tree-submit" type="submit" disabled="{{tree.busy}}">创建{{treeVm.typeLabel}}</button>
+        </form>
+      {{else}}
+        <div class="workspace-title"><div><span class="step-kicker">维护现有记录</span><h2>{{tree.edit.original.dis}}</h2></div><span class="source-chip">{{treeVm.typeLabel}}</span></div>
+        <p class="immutable-copy">记录 ID、所属层级和数据类型只读。层级与数据类型创建后不可更改。</p>
+        <dl class="readonly-grid"><div><dt>记录 ID</dt><dd>{{tree.edit.id}}</dd></div><div><dt>所属层级</dt><dd>{{treeVm.parentText}}</dd></div>{{#if tree.edit.type === "point"}}<div><dt>数据类型</dt><dd>{{treeMetricLabel(tree.edit.original.metric)}}</dd></div>{{/if}}</dl>
+        <form class="tree-form" on-input="@this.fire('treeChanged')" on-submit="@event.preventDefault(), @this.fire('treeUpdate')">
+          <label>显示名称<input required maxlength="120" value="{{tree.edit.draft.dis}}"></label>
+          <label>导航名称<input required maxlength="120" value="{{tree.edit.draft.navName}}"></label>
+          {{#if tree.edit.type === "site"}}<label>时区<input value="{{tree.edit.draft.tz}}"></label>{{/if}}
+          {{#if tree.edit.type === "equip"}}<label>厂商<input value="{{tree.edit.draft.make}}"></label><label>型号<input value="{{tree.edit.draft.model}}"></label><label>序列号<input value="{{tree.edit.draft.serial}}"></label><label>额定容量（kVA）<input type="number" min="0" step="any" value="{{tree.edit.draft.ratedKva}}"></label>{{/if}}
+          {{#if tree.edit.type === "point"}}<label>数据类别<input required value="{{tree.edit.draft.kind}}"></label><label>单位<input required value="{{tree.edit.draft.unit}}"></label>{{/if}}
+          <button class="btn primary tree-submit" type="submit" disabled="{{tree.busy}}">保存更改</button>
+        </form>
+      {{/if}}
+    </section>
+  </main>
 {{elseif view === "unavailable"}}
   <header class="page-head">
     <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
@@ -64,6 +148,7 @@
   <header class="page-head">
     <h1>UPS 车队总览</h1>
     <span class="muted">轮询 10s · Folio 实时数据</span>
+    <a class="btn overview-tree-link" href="#/ups/tree">设备树管理</a>
   </header>
 
   {{#if newRisks.length}}
@@ -126,6 +211,7 @@
 </script>
 <script src="project-context.js"></script>
 <script src="fin-api.js"></script>
+<script src="tree-ui.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -3,7 +3,8 @@ using concurrent
 using haystack
 using hx
 using folio
-using upsPod
+using upsPod::UpsPodLib
+using upsPod::UpsPodTree
 
 class UpsPodTreeTest : HxTest {
   private static const AtomicRef runtimeRef := AtomicRef()
@@ -46,6 +47,8 @@ class UpsPodTreeTest : HxTest {
     verifyNotNull(row)
     verifyEq(row["type"], "site")
     verifyEq(row["dis"], "Alpha Site")
+    verifyEq(row["navName"], "alphaSite")
+    verifyEq(row["tz"], "Shanghai")
 
     updated := UpsPodTree.update(testRt.db, siteId,
       "{\"dis\":\"Alpha Campus\",\"navName\":\"alphaCampus\",\"tz\":\"Asia/Shanghai\"}")
@@ -96,6 +99,15 @@ class UpsPodTreeTest : HxTest {
     metrics.each |metric, i| {
       verifyNotNull(tree.find |r| { r["dis"] == "Point $i" })
     }
+    equipRow := tree.find |r| { r["id"] == Ref(equipId) }
+    verifyEq(equipRow["make"], "Acme")
+    verifyEq(equipRow["model"], "X1")
+    verifyEq(equipRow["serial"], "SN-1")
+    verifyEq(((Number)equipRow["ratedKva"]).toInt, 40)
+    pointRow := tree.find |r| { r["dis"] == "Point 0" }
+    verifyEq(pointRow["kind"], "Number")
+    verifyEq(pointRow["unit"], "%")
+    verifyEq(pointRow["metric"], "upsSocPct")
   }
 
   Void testIdempotencyAndConflicts() {
@@ -221,15 +233,15 @@ class UpsPodTreeTest : HxTest {
 
   Void testAxonSecurityMetadataAndNoDeleteApi() {
     ["upsTreeRead", "upsTreeCreate", "upsTreeUpdate"].each |name| {
-      method := UpsPodLib#.method(name, false)
+      method := Type.find("upsPod::UpsPodLib").method(name, false)
       verifyNotNull(method)
       facet := method.facet(Axon#, false) as Axon
       verifyNotNull(facet)
       verify(facet.admin)
     }
 
-    verifyNull(UpsPodTree#.method("delete", false))
-    verifyNull(UpsPodLib#.method("upsTreeDelete", false))
+    verifyNull(Type.find("upsPod::UpsPodTree").method("delete", false))
+    verifyNull(Type.find("upsPod::UpsPodLib").method("upsTreeDelete", false))
   }
 
   Void testAxonWrappersEnforceAdminAndUseCurrentDb() {
@@ -511,7 +523,7 @@ class UpsPodTreeTest : HxTest {
     release := AtomicBool()
     holder := Actor(pool) |Obj? msg->Obj?| {
       args := (Obj?[])msg
-      acquire := UpsPodTree#.method("acquireMutationLock", false)
+      acquire := Type.find("upsPod::UpsPodTree").method("acquireMutationLock", false)
       if (acquire == null) throw Err("Missing per-Folio lock acquisition")
       gate := (AtomicBool)acquire.call((Folio)args[0])
       ((AtomicBool)args[1]).val = true
@@ -592,8 +604,9 @@ class UpsPodTreeTest : HxTest {
       verifyNotNull(tree.find |row| { row["id"] == id })
     }
     verifyNull(tree.find |row| { row["id"] == unrelated.id })
-    verifyEq(tree.colNames.sort,
-      ["dis", "equipId", "floorId", "id", "siteId", "status", "type"])
+    verify(tree.colNames.containsAll(
+      ["dis", "equipId", "floorId", "id", "kind", "make", "metric", "model",
+       "navName", "ratedKva", "serial", "siteId", "status", "type", "tz", "unit"]))
   }
 
   private Str:Ref createTree() {
@@ -660,7 +673,7 @@ class UpsPodTreeTest : HxTest {
     old := locals[Etc.cxActorLocalsKey]
     locals[Etc.cxActorLocalsKey] = cx
     try {
-      return UpsPodLib#.method(name).callList(args)
+      return Type.find("upsPod::UpsPodLib").method(name).callList(args)
     } finally {
       if (old == null) locals.remove(Etc.cxActorLocalsKey)
       else locals[Etc.cxActorLocalsKey] = old

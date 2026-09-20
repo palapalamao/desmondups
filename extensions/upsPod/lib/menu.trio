@@ -4,7 +4,7 @@
 // `finStackMobileMenu` 标记让 FIN 外壳在构建 app launcher 时调用本函数，
 // 函数返回的菜单条目 Grid 被合并进顶栏。深链与前端 hash 路由一一对应
 // （frontend/app.js）：#/ups/overview、#/ups/unit/:id、#/ups/history/:id、
-// #/ups/alarms、#/ups/config、#/ups/audit。
+// #/ups/alarms、#/ups/config、#/ups/audit、#/ups/tree。
 //
 // 扩展发现依赖 UpsPodExt 类上的 @ExtMeta；本文件负责菜单函数注册。
 // 数据仅从 FIN 设备树读取；缺失值由前端按数据缺口契约呈现。
@@ -58,6 +58,7 @@ src:
 
       // ── 管理 ────────────────────────────────────────────────
       entry("运行配置", "/ups/config",                     -315, "icon-settings"),
-      entry("审计追踪", "/ups/audit",                       -314, "icon-file")
+      entry("审计追踪", "/ups/audit",                       -314, "icon-file"),
+      entry("设备树管理", "/ups/tree",                      -313, "icon-sitemap")
     ].toGrid
   end

@@ -12,7 +12,7 @@ class VerifyMenu {
     // Keep the menu expression intact except for the final list-to-grid conversion.
     src := ((Str)menu["src"]).replace("].toGrid", "]")
     items := (List)MenuContext().eval("do f: " + src + "\nf(null)\nend")
-    if (items.size != 7) throw Err("Expected divider plus six menu entries")
+    if (items.size != 8) throw Err("Expected divider plus seven menu entries")
     items.each |Obj? item| {
       row := (Dict)item
       if (row.has("isDivider")) return
@@ -21,7 +21,7 @@ class VerifyMenu {
         throw Err("Invalid UPS route: " + action)
     }
     echo("PASS installed upsApp has FIN menu hook and valid Axon syntax")
-    echo("PASS launcher target argument and six page actions")
+    echo("PASS launcher target argument and seven page actions")
   }
 }
 

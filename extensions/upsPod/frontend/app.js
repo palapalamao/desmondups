@@ -346,6 +346,7 @@
   var adapter = null;
 
   var ractive = null, snapshot = null, previousSeverity = {}, loadError = null;
+  var treeController = null, treeLoading = false;
 
   function parseHash() {
     return parseHashValue(location.hash);
@@ -378,6 +379,80 @@
     previousSeverity = currentSeverity(snapshot.units);
   }
 
+  var TREE_TYPE_LABELS = { site: "站点", floor: "楼层", equip: "UPS", point: "点位" };
+  var TREE_FIELD_LABELS = {
+    dis: "显示名称", navName: "导航名称", tz: "时区", siteRef: "所属站点",
+    floorRef: "所属楼层", equipRef: "所属 UPS", make: "厂商", model: "型号",
+    serial: "序列号", ratedKva: "额定容量（kVA）", kind: "数据类别", unit: "单位",
+    upsSocPct: "数据类型", upsLoadPct: "数据类型", upsBatteryTemp: "数据类型",
+    upsCommStatus: "数据类型", upsTreeKey: "创建标识",
+  };
+
+  function treeMetricLabel(metric) {
+    return { upsSocPct: "SOC", upsLoadPct: "负载", upsBatteryTemp: "电池温度", upsCommStatus: "通讯状态" }[metric] || "未识别";
+  }
+
+  function treePreviewRows(type, state) {
+    try {
+      var payload = global.TreeUi.buildCreatePayload(type, state.drafts[type], state.selections, state.keys[type]);
+      return {
+        error: null,
+        rows: Object.keys(payload).map(function (name) {
+          var value = payload[name];
+          if (global.TreeUi.METRICS.indexOf(name) >= 0) value = treeMetricLabel(name);
+          return { label: TREE_FIELD_LABELS[name] || name, value: String(value) };
+        }),
+      };
+    } catch (error) {
+      return { error: String(error.message || error), rows: [
+        { label: "创建标识", value: state.keys[type] || "" },
+      ] };
+    }
+  }
+
+  function treeViewModel() {
+    var state = treeController.state;
+    var selections = state.selections;
+    var preview = state.mode === "create" ? treePreviewRows(state.activeType, state) : { rows: [], error: null };
+    return {
+      step: global.TreeUi.TYPES.indexOf(state.activeType) + 1,
+      typeLabel: TREE_TYPE_LABELS[state.mode === "edit" && state.edit ? state.edit.type : state.activeType],
+      draft: state.drafts[state.activeType],
+      floors: global.TreeUi.childrenFor(state.tree, "floor", selections),
+      equips: global.TreeUi.childrenFor(state.tree, "equip", selections),
+      points: global.TreeUi.childrenFor(state.tree, "point", selections),
+      floorChoices: global.TreeUi.childrenFor(state.tree, "floor", { siteId: selections.siteId }),
+      equipChoices: global.TreeUi.childrenFor(state.tree, "equip", { siteId: selections.siteId, floorId: selections.floorId }),
+      preview: preview.rows,
+      previewError: preview.error,
+      parentText: state.edit && state.edit.original.parentChain && state.edit.original.parentChain.length
+        ? state.edit.original.parentChain.join(" / ") : "顶层",
+    };
+  }
+
+  function renderTreeState() {
+    if (treeController.state.mode === "create") treeController.prepare(treeController.state.activeType);
+    resetView({ view: "tree", tree: treeController.state, treeVm: treeViewModel(), treeMetricLabel: treeMetricLabel });
+  }
+
+  function renderTree() {
+    if (!global.TreeUi) {
+      resetView({ view: "unavailable", title: "设备树管理", reason: "设备树界面资源未加载。" });
+      return;
+    }
+    if (!treeController) {
+      var sessionStore = null;
+      try { sessionStore = global.sessionStorage; } catch (ignore) {}
+      treeController = global.TreeUi.createTreeController(adapter, {
+        project: adapter.projectName(), cryptoApi: global.crypto, storage: sessionStore,
+      });
+    }
+    renderTreeState();
+    if (treeController.state.treeLoaded || treeLoading) return;
+    treeLoading = true;
+    treeController.refresh().then(renderTreeState).catch(renderTreeState).finally(function () { treeLoading = false; });
+  }
+
   function render() {
     var route = parseHash();
     if (route.invalid) {
@@ -392,6 +467,10 @@
     if (route.page === "history" && route.unitId) {
       var historyGap = unavailableHistory(snapshot.units, route.unitId, route.q);
       resetView({ view: "history", unitId: route.unitId, unit: historyGap && historyGap.unit, gap: historyGap });
+      return;
+    }
+    if (route.page === "tree") {
+      renderTree();
       return;
     }
     if (["alarms", "config", "audit"].indexOf(route.page) >= 0) {
@@ -434,6 +513,34 @@
           this.on("goUnit", function (event, id) { location.hash = "/ups/unit/" + encodeURIComponent(id); });
           this.on("goHistory", function (event, id) { location.hash = "/ups/history/" + encodeURIComponent(id); });
           this.on("goBack", function () { history.back(); });
+          this.on("treeChanged", function () {
+            if (treeController) this.set("treeVm", treeViewModel());
+          });
+          this.on("treePrepare", function (event, type) {
+            treeController.prepare(type);
+            renderTreeState();
+          });
+          this.on("treeEdit", function (event, type, id) {
+            treeController.edit(type, id);
+            renderTreeState();
+          });
+          this.on("treeParentChanged", function (event, type) {
+            var field = type + "Id";
+            treeController.select(type, treeController.state.selections[field]);
+            renderTreeState();
+          });
+          this.on("treeCreate", function (event, type) {
+            treeController.create(type).then(renderTreeState).catch(renderTreeState);
+            renderTreeState();
+          });
+          this.on("treeUpdate", function () {
+            treeController.update().then(renderTreeState).catch(renderTreeState);
+            renderTreeState();
+          });
+          this.on("treeRefresh", function () {
+            treeController.refresh(true).then(renderTreeState).catch(renderTreeState);
+            renderTreeState();
+          });
         },
       });
       global.__upsPod = ractive;

@@ -4,7 +4,7 @@ using haystack
 using util
 
 ** Folio-backed UPS tree metadata boundary.
-const class UpsPodTree {
+public const class UpsPodTree {
   private static const ConcurrentMap mutationLocks := ConcurrentMap(16)
   private static const Duration mutationLockTimeout := 250ms
 
@@ -292,6 +292,14 @@ const class UpsPodTree {
     [["siteRef", "siteId"], ["floorRef", "floorId"], ["equipRef", "equipId"]].each |names| {
       ref := rec.get(names[0], null) as Ref
       if (ref != null) map[names[1]] = ref
+    }
+    updateAllowed(type).each |name| {
+      val := rec.get(name, null)
+      if (val != null) map[name] = val
+    }
+    if (type == "point") {
+      metric := pointMetrics.find |name| { rec.has(name) }
+      if (metric != null) map["metric"] = metric
     }
     return Etc.makeDict(map)
   }
