@@ -159,6 +159,83 @@
     };
   }
 
+  function parseHashValue(hash) {
+    try {
+      var parts = String(hash || "").replace(/^#\/?/, "").split("?");
+      var segments = parts[0].split("/").filter(Boolean).map(function (segment) {
+        return decodeURIComponent(segment);
+      });
+      var query = {};
+      (parts[1] || "").split("&").forEach(function (entry) {
+        if (!entry) return;
+        var equals = entry.indexOf("=");
+        var key = equals < 0 ? entry : entry.slice(0, equals);
+        var value = equals < 0 ? "" : entry.slice(equals + 1);
+        query[decodeURIComponent(key)] = decodeURIComponent(value);
+      });
+      return { page: segments[1] || "overview", unitId: segments[2] || null,
+        q: query, invalid: false, error: null };
+    } catch (error) {
+      return { page: "invalid", unitId: null, q: {}, invalid: true,
+        error: "路由编码无效，已拒绝解析。" };
+    }
+  }
+
+  function splitZincLine(line) {
+    var output = [], current = "", quote = false, escaped = false;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line.charAt(i);
+      if (escaped) { current += ch; escaped = false; continue; }
+      if (ch === "\\") { current += ch; escaped = true; continue; }
+      if (ch === "\"") { current += ch; quote = !quote; continue; }
+      if (ch === "," && !quote) { output.push(current); current = ""; continue; }
+      current += ch;
+    }
+    output.push(current);
+    return output;
+  }
+
+  function parseZincGrid(text, parseScalar) {
+    var lines = String(text || "").replace(/\r/g, "").split("\n").filter(function (line) { return line.trim() !== ""; });
+    if (!lines.length || lines[0].indexOf("ver:") !== 0) throw new Error("Folio 数据接口返回格式不是 Zinc Grid");
+    if (lines.length < 2) return { meta: {}, cols: [], rows: [] };
+    var cols = splitZincLine(lines[1]).map(function (col) { return col.split(" ")[0].trim(); }).filter(Boolean);
+    var rows = lines.slice(2).map(function (line) {
+      var values = splitZincLine(line), row = {};
+      cols.forEach(function (col, index) { row[col] = parseScalar(values[index]); });
+      return row;
+    });
+    return { meta: {}, cols: cols, rows: rows };
+  }
+
+  function gridToSnapshot(grid) {
+    var sites = {};
+    var units = grid.rows.map(function (row) {
+      var siteId = row.siteId ? String(row.siteId) : "";
+      if (siteId) sites[siteId] = { id: siteId, name: String(row.siteName || siteId) };
+      return {
+        id: String(row.id || ""), name: String(row.dis || row.name || row.id || ""),
+        siteId: siteId, siteName: String(row.siteName || siteId),
+        floorId: row.floorId ? String(row.floorId) : "", floorName: String(row.floorName || ""),
+        location: String(row.location || ""), make: row.make || "", model: row.model || "",
+        serial: row.serial || "", ratedKva: row.ratedKva === undefined ? null : row.ratedKva,
+        soc: typeof row.soc === "number" ? row.soc : null,
+        loadPct: typeof row.loadPct === "number" ? row.loadPct : null,
+        batteryTemp: typeof row.batteryTemp === "number" ? row.batteryTemp : null,
+        commLost: !!row.commLost, mode: row.mode || "", ts: typeof row.ts === "number" ? row.ts : null,
+      };
+    });
+    return { source: "fin-folio", sourceText: "Folio 设备树数据", pollPeriodMs: 10000,
+      generatedAt: Date.now(), sites: Object.keys(sites).sort().map(function (id) { return sites[id]; }), units: units };
+  }
+
+  function pollTransition(state, outcome) {
+    if (outcome && outcome.ok) return { snapshot: outcome.snapshot, loadError: null };
+    var error = outcome && outcome.error;
+    return { snapshot: state.snapshot,
+      loadError: "实时刷新失败，继续显示最后一次成功数据：" + String(error && error.message || error || "未知错误") };
+  }
+
   var upsCore = {
     SEV_RANK: SEV_RANK,
     topSeverity: topSeverity,
@@ -174,6 +251,10 @@
     normalizeFinSnapshot: normalizeFinSnapshot,
     unavailableDetail: unavailableDetail,
     unavailableHistory: unavailableHistory,
+    parseHashValue: parseHashValue,
+    parseZincGrid: parseZincGrid,
+    gridToSnapshot: gridToSnapshot,
+    pollTransition: pollTransition,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;
@@ -210,64 +291,19 @@
       });
     },
     parseZincGrid: function (text) {
-      var lines = String(text || "").replace(/\r/g, "").split("\n").filter(function (line) { return line.trim() !== ""; });
-      if (!lines.length || lines[0].indexOf("ver:") !== 0) throw new Error("Folio 数据接口返回格式不是 Zinc Grid");
-      if (lines.length < 2) return { meta: {}, cols: [], rows: [] };
-      var cols = FinAdapter.splitZincLine(lines[1]).map(function (col) { return col.split(" ")[0].trim(); }).filter(Boolean);
-      var rows = lines.slice(2).map(function (line) {
-        var values = FinAdapter.splitZincLine(line), row = {};
-        cols.forEach(function (col, index) { row[col] = global.FinApi.parseZincScalar(values[index]); });
-        return row;
-      });
-      return { meta: {}, cols: cols, rows: rows };
+      return parseZincGrid(text, global.FinApi.parseZincScalar);
     },
-    splitZincLine: function (line) {
-      var output = [], current = "", quote = false, escaped = false;
-      for (var i = 0; i < line.length; i++) {
-        var ch = line.charAt(i);
-        if (escaped) { current += ch; escaped = false; continue; }
-        if (ch === "\\") { current += ch; escaped = true; continue; }
-        if (ch === "\"") { current += ch; quote = !quote; continue; }
-        if (ch === "," && !quote) { output.push(current); current = ""; continue; }
-        current += ch;
-      }
-      output.push(current);
-      return output;
-    },
+    splitZincLine: splitZincLine,
     gridToSnapshot: function (grid) {
-      var sites = {};
-      var units = grid.rows.map(function (row) {
-        var siteId = row.siteId ? String(row.siteId) : "";
-        if (siteId) sites[siteId] = { id: siteId, name: String(row.siteName || siteId) };
-        return {
-          id: String(row.id || ""), name: String(row.dis || row.name || row.id || ""),
-          siteId: siteId, siteName: String(row.siteName || siteId),
-          floorId: row.floorId ? String(row.floorId) : "", floorName: String(row.floorName || ""),
-          location: String(row.floorName || ""), make: row.make || "", model: row.model || "",
-          serial: row.serial || "", ratedKva: row.ratedKva === undefined ? null : row.ratedKva,
-          soc: typeof row.soc === "number" ? row.soc : null,
-          loadPct: typeof row.loadPct === "number" ? row.loadPct : null,
-          batteryTemp: typeof row.batteryTemp === "number" ? row.batteryTemp : null,
-          commLost: !!row.commLost, mode: row.mode || "", ts: typeof row.ts === "number" ? row.ts : null,
-        };
-      });
-      return { source: "fin-folio", sourceText: "Folio 设备树数据", pollPeriodMs: 10000,
-        generatedAt: Date.now(), sites: Object.keys(sites).sort().map(function (id) { return sites[id]; }), units: units };
+      return gridToSnapshot(grid);
     },
   };
   var adapter = FinAdapter;
 
-  var ractive = null, snapshot = null, previousSeverity = {};
+  var ractive = null, snapshot = null, previousSeverity = {}, loadError = null;
 
   function parseHash() {
-    var parts = location.hash.replace(/^#\/?/, "").split("?");
-    var segments = parts[0].split("/").filter(Boolean), query = {};
-    (parts[1] || "").split("&").forEach(function (entry) {
-      if (!entry) return;
-      var pair = entry.split("=");
-      query[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1] || "");
-    });
-    return { page: segments[1] || "overview", unitId: segments[2] || null, q: query };
+    return parseHashValue(location.hash);
   }
 
   function currentSeverity(units) {
@@ -276,12 +312,17 @@
     return result;
   }
 
+  function resetView(data) {
+    data.loadError = loadError;
+    ractive.reset(data);
+  }
+
   function renderOverview(query) {
     var filter = { site: query.site || "", comm: query.comm || "", mode: query.mode || "", sev: query.sev || "" };
     var page = parseInt(query.page || "1", 10), pageSize = parseInt(query.ps || "50", 10);
     var sorted = sortUnits(filterUnits(snapshot.units, filter));
     var pagination = paginate(sorted, page, pageSize), now = Date.now();
-    ractive.reset({ view: "overview", sites: snapshot.sites, filter: filter, pageSize: String(pageSize),
+    resetView({ view: "overview", sites: snapshot.sites, filter: filter, pageSize: String(pageSize),
       stats: statCounts(snapshot.units), pagination: pagination,
       newRisks: detectNewRisks(previousSeverity, snapshot.units, now, snapshot.pollPeriodMs),
       badges: pagination.items.map(function (unit) {
@@ -294,18 +335,22 @@
 
   function render() {
     var route = parseHash();
+    if (route.invalid) {
+      resetView({ view: "unavailable", title: "路由不可用", reason: route.error });
+      return;
+    }
     if (route.page === "unit" && route.unitId) {
       var detail = unavailableDetail(snapshot.units, route.unitId);
-      ractive.reset({ view: "unit", unitId: route.unitId, unit: detail && detail.unit, gap: detail });
+      resetView({ view: "unit", unitId: route.unitId, unit: detail && detail.unit, gap: detail });
       return;
     }
     if (route.page === "history" && route.unitId) {
       var historyGap = unavailableHistory(snapshot.units, route.unitId, route.q);
-      ractive.reset({ view: "history", unitId: route.unitId, unit: historyGap && historyGap.unit, gap: historyGap });
+      resetView({ view: "history", unitId: route.unitId, unit: historyGap && historyGap.unit, gap: historyGap });
       return;
     }
     if (["alarms", "config", "audit"].indexOf(route.page) >= 0) {
-      ractive.reset({ view: "unavailable", title: route.page === "alarms" ? "告警中心" : route.page === "config" ? "运行配置" : "审计追踪",
+      resetView({ view: "unavailable", title: route.page === "alarms" ? "告警中心" : route.page === "config" ? "运行配置" : "审计追踪",
         reason: "该功能尚无 Folio 后端数据源，当前为只读数据缺口，未生成或修改任何演示状态。" });
       return;
     }
@@ -331,7 +376,7 @@
     adapter.load().then(function (loaded) {
       snapshot = loaded;
       ractive = new Ractive({
-        el: "#app", template: "#overview-template", data: { view: "loading" },
+        el: "#app", template: "#overview-template", data: { view: "loading", loadError: null },
         oninit: function () {
           this.on("filter", function (event) { nav({ site: event.site || "", comm: event.comm || "", mode: event.mode || "", sev: event.sev || "" }); });
           this.on("setPage", function (event, page) { var query = parseHash().q; query.page = page; nav(query); });
@@ -346,7 +391,17 @@
       global.addEventListener("hashchange", render);
       render();
       setInterval(function () {
-        adapter.poll().then(function (loadedAgain) { snapshot = loadedAgain; render(); }).catch(showFatal);
+        adapter.poll().then(function (loadedAgain) {
+          var state = pollTransition({ snapshot: snapshot, loadError: loadError }, { ok: true, snapshot: loadedAgain });
+          snapshot = state.snapshot;
+          loadError = state.loadError;
+          render();
+        }).catch(function (error) {
+          var state = pollTransition({ snapshot: snapshot, loadError: loadError }, { ok: false, error: error });
+          snapshot = state.snapshot;
+          loadError = state.loadError;
+          render();
+        });
       }, loaded.pollPeriodMs);
     }).catch(showFatal);
   }

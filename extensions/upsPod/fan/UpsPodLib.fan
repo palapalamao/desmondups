@@ -16,10 +16,12 @@ const class UpsPodLib {
     rows := buildUnits(cx, site)
     gb := GridBuilder()
     gb.addColNames(["id", "dis", "siteId", "siteName", "floorId", "floorName",
+      "location", "make", "model", "serial", "ratedKva",
       "soc", "loadPct", "batteryTemp", "commLost", "mode", "ts"])
     rows.each |row| {
       gb.addRow([row["id"], row["name"], row["siteId"], row["siteName"],
-        row["floorId"], row["floorName"], row["soc"], row["loadPct"],
+        row["floorId"], row["floorName"], row["location"], row["make"],
+        row["model"], row["serial"], row["ratedKva"], row["soc"], row["loadPct"],
         row["batteryTemp"], row["commLost"], row["mode"], row["ts"]])
     }
     return gb.toGrid

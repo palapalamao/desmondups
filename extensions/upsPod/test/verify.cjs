@@ -4,6 +4,7 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const core = require("../frontend/app.js");
+const FinApi = require("../frontend/fin-api.js");
 
 let pass = 0, total = 0;
 function tc(id, name, fn) {
@@ -101,6 +102,53 @@ tc("TC-FIN-05", "production frontend has only the Folio adapter and no pseudo wr
     assert.doesNotMatch(html, re, "index.html contains " + label);
   });
   assert.match(html, /不可用|缺口/);
+});
+
+tc("TC-FIN-06", "encoded unit ids round-trip and malformed routes fail closed", () => {
+  const route = core.parseHashValue("#/ups/unit/p%3Aunit?site=site%3Aone");
+  assert.deepStrictEqual(route, { page: "unit", unitId: "p:unit", q: { site: "site:one" }, invalid: false, error: null });
+  const badSegment = core.parseHashValue("#/ups/unit/%E0%A4%A");
+  assert.strictEqual(badSegment.invalid, true);
+  assert.strictEqual(badSegment.page, "invalid");
+  assert.strictEqual(badSegment.unitId, null);
+  assert.ok(badSegment.error);
+  const badQuery = core.parseHashValue("#/ups/overview?site=%ZZ");
+  assert.strictEqual(badQuery.invalid, true);
+  assert.strictEqual(badQuery.page, "invalid");
+});
+
+tc("TC-FIN-07", "real upsOverview Zinc columns carry equipment metadata to the UI snapshot", () => {
+  const lib = fs.readFileSync(path.join(__dirname, "..", "fan", "UpsPodLib.fan"), "utf8");
+  assert.match(lib, /"floorName",\s*"location",\s*"make",\s*"model",\s*"serial",\s*"ratedKva",/);
+  assert.match(lib, /row\["floorName"\],\s*row\["location"\],\s*row\["make"\],\s*row\["model"\],\s*row\["serial"\],\s*row\["ratedKva"\],/);
+  const zinc = [
+    'ver:"3.0"',
+    "id,dis,siteId,siteName,floorId,floorName,location,make,model,serial,ratedKva,soc,loadPct,batteryTemp,commLost,mode,ts",
+    '"p:unit","UPS 01","site:one","Site One","floor:one","Floor One","Room A","Acme","X1","SN-7",80,92.5,41.25,26.5,F,"online",Int("1800000000000")',
+    "",
+  ].join("\n");
+  const grid = core.parseZincGrid(zinc, FinApi.parseZincScalar);
+  const snap = core.normalizeFinSnapshot(core.gridToSnapshot(grid));
+  assert.strictEqual(snap.units.length, 1);
+  assert.deepStrictEqual(
+    Object.fromEntries(["id", "location", "make", "model", "serial", "ratedKva"].map((key) => [key, snap.units[0][key]])),
+    { id: "p:unit", location: "Room A", make: "Acme", model: "X1", serial: "SN-7", ratedKva: 80 }
+  );
+});
+
+tc("TC-FIN-08", "poll failure preserves snapshot and later success clears the error", () => {
+  const first = { units: [{ id: "first" }] }, second = { units: [{ id: "second" }] };
+  const failed = core.pollTransition({ snapshot: first, loadError: null }, { ok: false, error: new Error("offline") });
+  assert.strictEqual(failed.snapshot, first);
+  assert.match(failed.loadError, /offline/);
+  const recovered = core.pollTransition(failed, { ok: true, snapshot: second });
+  assert.strictEqual(recovered.snapshot, second);
+  assert.strictEqual(recovered.loadError, null);
+  const app = fs.readFileSync(path.join(__dirname, "..", "frontend", "app.js"), "utf8");
+  const pollBlock = app.match(/setInterval\(function \(\) \{[\s\S]*?\}, loaded\.pollPeriodMs\);/);
+  assert.ok(pollBlock, "polling block must exist");
+  assert.doesNotMatch(pollBlock[0], /showFatal|innerHTML/);
+  assert.match(pollBlock[0], /pollTransition/);
 });
 
 console.log(`\n${pass}/${total} passed${process.exitCode ? " (failures present)" : ""}`);

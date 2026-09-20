@@ -12,6 +12,7 @@
 <div id="app"></div>
 
 <script id="overview-template" type="text/ractive">
+{{#if loadError}}<div class="fatal">{{loadError}}</div>{{/if}}
 {{#if view === "loading"}}
   <div class="fatal">加载中…</div>
 {{elseif view === "unit"}}
