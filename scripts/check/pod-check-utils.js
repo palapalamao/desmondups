@@ -43,6 +43,66 @@ function normalizedRelative(baseDir, file) {
   return normalizeEntry(baseDir == null ? file : path.relative(baseDir, file));
 }
 
+function samePath(left, right, platform) {
+  const currentPlatform = platform || process.platform;
+  const pathApi = currentPlatform === "win32" ? path.win32 : path.posix;
+  const normalizedLeft = pathApi.normalize(pathApi.resolve(left));
+  const normalizedRight = pathApi.normalize(pathApi.resolve(right));
+  return currentPlatform === "win32"
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
+}
+
+function uniqueMatchIndex(source, pattern, token, hits, description) {
+  pattern.lastIndex = 0;
+  const matches = Array.from(source.matchAll(pattern));
+  if (matches.length !== 1) {
+    hits.push(description + " must occur exactly once");
+    return null;
+  }
+  return matches[0].index + matches[0][0].indexOf(token);
+}
+
+function findR3AppHits(source, label) {
+  const hits = [];
+  const prefix = label + " frontend/app.js: ";
+  if (/Math\.random\s*\(/.test(source)) hits.push(prefix + "Math.random");
+  if (/performance\.now\s*\(/.test(source)) hits.push(prefix + "unexpected performance.now wall clock");
+  if (/(^|[^\w$.])Date\s*\(\s*\)/m.test(source)) hits.push(prefix + "unexpected Date() wall clock");
+
+  const allowedDateNow = new Set([
+    uniqueMatchIndex(source,
+      /generatedAt:\s*raw\.generatedAt\s*\|\|\s*Date\.now\(\)/g,
+      "Date.now()", hits, prefix + "snapshot metadata clock"),
+    uniqueMatchIndex(source,
+      /return\s*\{\s*source:\s*"fin-folio"[\s\S]{0,180}?generatedAt:\s*Date\.now\(\),\s*sites:[\s\S]{0,180}?units:\s*units\s*\}/g,
+      "Date.now()", hits, prefix + "grid snapshot metadata clock"),
+    uniqueMatchIndex(source,
+      /var\s+pagination\s*=\s*paginate\([^;]+\),\s*now\s*=\s*Date\.now\(\);[\s\S]{0,500}?classifyFreshness\(unit\.ts,\s*now,/g,
+      "Date.now()", hits, prefix + "freshness clock"),
+  ].filter((index) => index !== null));
+
+  for (const match of source.matchAll(/Date\.now\(\)/g)) {
+    if (!allowedDateNow.has(match.index)) hits.push(prefix + "unexpected Date.now at offset " + match.index);
+  }
+
+  const allowedDateDisplay = uniqueMatchIndex(source,
+    /tsText:\s*unit\.ts\s*===\s*null\s*\?\s*"无数据"\s*:\s*new Date\(unit\.ts\)\.toLocaleTimeString\(\)/g,
+    "new Date", hits, prefix + "telemetry timestamp display");
+  for (const match of source.matchAll(/new\s+Date\s*\([^)]*\)/g)) {
+    if (match.index !== allowedDateDisplay) hits.push(prefix + "unexpected new Date at offset " + match.index);
+  }
+
+  if (!/var\s+adapter\s*=\s*FinAdapter\s*;/.test(source)) hits.push(prefix + "Folio-only adapter contract missing");
+  if (!/function\s+showFatal\s*\(error\)\s*\{[\s\S]*?加载失败（fail-closed，不兜底）[\s\S]*?\}/.test(source)) {
+    hits.push(prefix + "fail-closed fatal contract missing");
+  }
+  if (!/catch\s*\(error\)\s*\{\s*showFatal\(error\);\s*return;\s*\}/.test(source) || !/\.catch\(showFatal\)/.test(source)) {
+    hits.push(prefix + "bootstrap must terminate through showFatal");
+  }
+  return hits;
+}
+
 function findForbiddenPathHits(files, baseDir, rules, label) {
   const exact = new Set((rules.exact || []).map((item) => normalizeEntry(item).toLowerCase()));
   const prefixes = (rules.prefixes || []).map((item) => normalizeEntry(item).toLowerCase());
@@ -70,13 +130,18 @@ function findForbiddenContentHits(files, baseDir, rules, label) {
 function requireOutputPod(argv, usage) {
   if (argv.length !== 1) throw new Error("Usage: " + usage + " <extensions/upsPod/output/upsPod.pod>");
   const actual = path.resolve(argv[0]);
-  if (actual.toLowerCase() !== OUTPUT_POD.toLowerCase()) {
-    throw new Error("必须显式检查当前 checkout 的构建输出: " + OUTPUT_POD);
+  if (!fs.existsSync(OUTPUT_POD) || !fs.statSync(OUTPUT_POD).isFile()) {
+    throw new Error("缺少当前 checkout 构建输出；请先在 extensions/upsPod 运行 fan build: " + OUTPUT_POD);
   }
   if (!fs.existsSync(actual) || !fs.statSync(actual).isFile()) {
     throw new Error("缺少构建输出；请先在 extensions/upsPod 运行 fan build: " + actual);
   }
-  return actual;
+  const actualReal = fs.realpathSync.native(actual);
+  const outputReal = fs.realpathSync.native(OUTPUT_POD);
+  if (!samePath(actualReal, outputReal, process.platform)) {
+    throw new Error("必须显式检查当前 checkout 的构建输出: " + OUTPUT_POD);
+  }
+  return actualReal;
 }
 
 function withExtractedPod(podFile, fn) {
@@ -105,6 +170,8 @@ module.exports = {
   productionSourceFiles,
   normalizeEntry,
   normalizedRelative,
+  samePath,
+  findR3AppHits,
   findForbiddenPathHits,
   findForbiddenContentHits,
   requireOutputPod,

@@ -12,7 +12,7 @@ FIN 5.3.0 底座（Haxall 内核：Folio/hisRead/alarm/会话与授权）
   ├─ fan/UpsPodExt.fan   Pod 入口（@ExtMeta 注册）
   ├─ fan/UpsPodLib.fan   Axon 函数（upsOverview() 等，引擎实现层）
   ├─ frontend/           SPA（Ractive 1.4，# 号路由，D-06）
-  │    MockAdapter（演示）/ FinAdapter（实例，fail-closed）
+  │    FinAdapter（当前项目 Folio-only，失败与缺口均 fail-closed）
   └─ connectors          连接器在线状态/点位新鲜度（底座能力，不复述）
 ```
 
@@ -79,7 +79,7 @@ FIN 5.3.0 底座（Haxall 内核：Folio/hisRead/alarm/会话与授权）
 | 6 | API 行为 | 响应带 freshness 字段；禁止以默认值/插值静默填补 |
 | 7 | UI 呈现 | 参考值/缺口显式标注（fresh-stale 黄 / fresh-gap 红）；断讯卡等高虚线占位（D-M1-15） |
 | 8 | 测试用例 | TC-M1-逻辑-02 时效三态 / TC-M1-逻辑-11 hasTrend / TC-M1-UI-09 占位 |
-| 9 | CI 检查 | scripts/check/r3-no-fake-data.cjs：数据链路无 Math.random、种子无墙钟、fail-closed 无假数据兜底 |
+| 9 | CI 检查 | scripts/check/r3-no-fake-data.cjs：自有应用源码及 POD 内应用资源无数据随机源；墙钟仅限快照元数据、freshness 与已有采集时间显示；缺口与启动失败均 fail-closed（vendor 由 R4 管理） |
 | 10 | 审计 | 降级口径变化（ok→stale 批量出现）写审计，防长期以参考值充当实测 |
 
 ### R4 · 不改写上游内核（只扩展不补丁）
@@ -108,8 +108,8 @@ FIN 5.3.0 底座（Haxall 内核：Folio/hisRead/alarm/会话与授权）
 | 5 | 错误码 | UPS-6002 缺幂等键（400 语义）/ UPS-6003 幂等键冲突（409 语义） |
 | 6 | API 行为 | 写接口必带 Idempotency-Key，缺失即报错；缓存 24h |
 | 7 | UI 呈现 | 配置/映射版本历史只读列表，无编辑入口（M5） |
-| 8 | 测试用例 | TC-M5-* 幂等重放/红冲重算（M5 微流程定义）；TC-M1-逻辑-08 种子幂等 |
-| 9 | CI 检查 | scripts/check/r5-idempotent-seed.cjs：种子两次生成逐字节一致（演示数据亦守 R5） |
+| 8 | 测试用例 | TC-M5-* 幂等重放/红冲重算（M5 微流程定义）；生产包入口纯净负例测试 |
+| 9 | CI 检查 | scripts/check/r5-idempotent-seed.cjs：生产源码与当前 checkout 构建 POD 均无 seed/mock 入口 |
 | 10 | 审计 | 每次红冲留原条目引用 + 反向条目关联，可无损重算 |
 
 ## 4. 门禁自检（P2）

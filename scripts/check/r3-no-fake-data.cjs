@@ -11,11 +11,13 @@ const {
   normalizedRelative,
   findForbiddenPathHits,
   findForbiddenContentHits,
+  findR3AppHits,
   requireOutputPod,
   withExtractedPod,
 } = require("./pod-check-utils");
 
 const forbidden = [
+  "Math.random",
   "MockAdapter",
   "mock=1",
   "genHistory",
@@ -53,9 +55,12 @@ function scan(files, label, baseDir) {
   const hits = [];
   files.forEach((file) => {
     const body = fs.readFileSync(file);
+    const entry = normalizedRelative(baseDir, file);
     forbidden.forEach((token) => {
+      // Vendored Ractive uses randomness only for internal instance IDs; R4 owns that immutable dependency.
+      if (token === "Math.random" && /(?:^|\/)frontend\/vendor\//.test(entry)) return;
       if (body.includes(Buffer.from(token))) {
-        hits.push(label + " " + normalizedRelative(baseDir, file) + ": " + token);
+        hits.push(label + " " + entry + ": " + token);
       }
     });
   });
@@ -78,6 +83,23 @@ function assertGapContract(core, label) {
   assert.strictEqual(history.status, "unavailable", label + " history.status");
   assert.deepStrictEqual(history.series, { soc: [], load: [], temp: [] }, label + " history.series");
   assert.deepStrictEqual(history.events, [], label + " history.events");
+
+  const normalized = core.normalizeFinSnapshot({ units: [{ id: "@gap", soc: null, loadPct: null,
+    batteryTemp: null, ts: null }] }).units[0];
+  assert.strictEqual(normalized.soc, null, label + " normalized.soc");
+  assert.strictEqual(normalized.loadPct, null, label + " normalized.loadPct");
+  assert.strictEqual(normalized.batteryTemp, null, label + " normalized.batteryTemp");
+  assert.strictEqual(normalized.ts, null, label + " normalized.ts");
+  assert.strictEqual(normalized.commLost, true, label + " normalized.commLost");
+  assert.deepStrictEqual(normalized.socHistory, [], label + " normalized.socHistory");
+  assert.deepStrictEqual(normalized.loadHistory, [], label + " normalized.loadHistory");
+  assert.strictEqual(normalized.detail, null, label + " normalized.detail");
+
+  const previous = { units: [{ id: "@last-good" }] };
+  const failedPoll = core.pollTransition({ snapshot: previous, loadError: null },
+    { ok: false, error: new Error("offline") });
+  assert.strictEqual(failedPoll.snapshot, previous, label + " failed poll snapshot");
+  assert.match(failedPoll.loadError, /offline/, label + " failed poll error");
 }
 
 try {
@@ -86,13 +108,17 @@ try {
   const hits = scan(sourceFiles, "source", ROOT);
   hits.push(...findForbiddenPathHits(sourceFiles, ROOT, sourcePathRules, "source"));
   hits.push(...findForbiddenContentHits(sourceFiles, ROOT, seedBoundaryRules, "source"));
-  assertGapContract(require(path.join(POD_ROOT, "frontend", "app.js")), "source");
+  const sourceApp = path.join(POD_ROOT, "frontend", "app.js");
+  hits.push(...findR3AppHits(fs.readFileSync(sourceApp, "utf8"), "source"));
+  assertGapContract(require(sourceApp), "source");
 
   withExtractedPod(podFile, (podDir, podFiles, podEntries) => {
     hits.push(...scan(podFiles, "pod", podDir));
     hits.push(...findForbiddenPathHits(podEntries, null, podPathRules, "pod"));
     hits.push(...findForbiddenContentHits(podFiles, podDir, seedBoundaryRules, "pod"));
-    assertGapContract(require(path.join(podDir, "frontend", "app.js")), "pod");
+    const builtApp = path.join(podDir, "frontend", "app.js");
+    hits.push(...findR3AppHits(fs.readFileSync(builtApp, "utf8"), "pod"));
+    assertGapContract(require(builtApp), "pod");
   });
 
   if (hits.length) throw new Error("R3 禁止项:\n" + hits.join("\n"));

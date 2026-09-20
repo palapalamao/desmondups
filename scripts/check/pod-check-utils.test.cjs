@@ -10,6 +10,39 @@ assert.strictEqual(typeof utils.findForbiddenPathHits, "function",
   "shared POD checks must inspect normalized file and ZIP entry paths");
 assert.strictEqual(typeof utils.findForbiddenContentHits, "function",
   "shared POD checks must enforce deployment and generator content boundaries");
+assert.strictEqual(typeof utils.samePath, "function",
+  "output POD comparison must follow platform path semantics");
+assert.strictEqual(typeof utils.findR3AppHits, "function",
+  "R3 must enforce random, wall-clock, and fail-closed structure");
+
+assert.strictEqual(utils.samePath("C:\\Repo\\output\\upsPod.pod", "c:/repo/output/UPSPOD.POD", "win32"), true,
+  "Windows path comparison must be case-insensitive");
+assert.strictEqual(utils.samePath("/Repo/output/upsPod.pod", "/repo/output/upsPod.pod", "linux"), false,
+  "POSIX path comparison must remain case-sensitive");
+assert.strictEqual(utils.samePath("/repo/output/../output/upsPod.pod", "/repo/output/upsPod.pod", "linux"), true,
+  "POSIX path comparison must normalize dot segments");
+const currentLeft = process.platform === "win32" ? "C:\\Repo\\output\\upsPod.pod" : "/tmp/Repo/output/upsPod.pod";
+const currentRight = process.platform === "win32" ? "c:\\repo\\output\\UPSPOD.POD" : "/tmp/repo/output/upsPod.pod";
+assert.strictEqual(utils.samePath(currentLeft, currentRight, process.platform), process.platform === "win32",
+  "current-platform path comparison must use native case semantics");
+
+const validApp = fs.readFileSync(path.join(__dirname, "..", "..", "extensions", "upsPod", "frontend", "app.js"), "utf8");
+assert.deepStrictEqual(utils.findR3AppHits(validApp, "valid"), [],
+  "current production app must satisfy the structural R3 contract");
+
+const syntheticApp = `
+  function renamedTelemetryBuilder() {
+    var anchor = Date.now();
+    return { value: Math.random(), series: [{ ts: anchor, value: 1 }], events: [{ at: new Date() }] };
+  }
+  var adapter = FinAdapter;
+`;
+const syntheticHits = utils.findR3AppHits(syntheticApp, "negative").join("\n");
+assert.match(syntheticHits, /Math\.random/);
+assert.match(syntheticHits, /unexpected Date\.now/);
+assert.match(syntheticHits, /unexpected new Date/);
+assert.match(syntheticHits, /fail-closed fatal/);
+assert.match(syntheticHits, /bootstrap must terminate through showFatal/);
 
 const repo = path.resolve("C:\\repo");
 const sourceRules = {
@@ -77,4 +110,4 @@ try {
   fs.rmSync(tempRoot, { recursive: true, force: true });
 }
 
-console.log("PASS POD path guard rejects empty forbidden source files and ZIP entries");
+console.log("PASS POD path, platform path, and R3 source guards");

@@ -1,13 +1,13 @@
-// UPS 红线 CI 全量检查入口：node scripts/check-all.cjs extensions/upsPod/output/upsPod.pod
+// UPS 红线 CI 全量检查入口：默认检查当前 checkout 构建输出，也可显式传入同一路径。
 "use strict";
 const { spawnSync } = require("child_process");
 const path = require("path");
 const checks = ["pod-check-utils.test", "r1-no-frontend-auth", "r2-no-write-path", "r3-no-fake-data", "r4-no-kernel-patch", "r5-idempotent-seed"];
-const builtPod = process.argv[2];
-if (!builtPod || process.argv.length !== 3) {
-  console.error("Usage: node scripts/check-all.cjs <extensions/upsPod/output/upsPod.pod>");
+if (process.argv.length > 3) {
+  console.error("Usage: node scripts/check-all.cjs [extensions/upsPod/output/upsPod.pod]");
   process.exit(1);
 }
+const builtPod = process.argv[2] || path.join(__dirname, "..", "extensions", "upsPod", "output", "upsPod.pod");
 let fail = 0;
 checks.forEach(c => {
   const args = [path.join(__dirname, "check", c + ".cjs")];
