@@ -8,421 +8,110 @@
 <script src="vendor/ractive.min.js"></script>
 </head>
 <body>
-<aside id="data-mode" class="data-mode" aria-label="数据来源">演示模式 · 所有设备、曲线和告警均为模拟数据。告警确认、配置发布和审计仅保留在当前页面内存中，刷新后重置，不向真实设备写入。</aside>
+<aside id="data-mode" class="data-mode" aria-label="数据来源">正在连接当前 FIN 项目的 Folio 数据…</aside>
 <div id="app"></div>
 
 <script id="overview-template" type="text/ractive">
 {{#if view === "loading"}}
   <div class="fatal">加载中…</div>
 {{elseif view === "unit"}}
-  {{#if unit}}
   <header class="page-head">
     <button class="btn" on-click="@this.fire('goBack')">← 返回总览</button>
-    <h1>{{unit.name}}</h1>
-    <span class="muted">{{unit.siteName}} · {{unit.location}}</span>
-    <span class="sev-badge sev-{{sevClass}}">{{sevText}}</span>
-    <span class="muted">未确认告警 {{unackCount}}</span>
-    <span class="fresh-{{fresh}}">{{freshLabel}}</span>
+    <h1>{{unit ? unit.name : unitId}}</h1>
   </header>
+  {{#if unit}}
   <div class="archive-bar muted">
-    拓扑 {{unit.topology === 'online' ? '在线双变换' : unit.topology === 'lineInteractive' ? '后备式/线互动' : unit.topology === 'modularN1' ? '模块化 N+1 冗余' : unit.topology}} · 厂商 {{unit.make}} · 型号 {{unit.model}} · 序列号 {{unit.serial}} · 额定 {{unit.ratedKva}} kVA
-    · 供电模式 {{unit.mode === 'online' ? '市电' : unit.mode === 'battery' ? '电池' : unit.mode === 'bypass' ? '旁路' : '未知'}}
-    {{#if detail}} · 预估备电 {{detail.runtimeEstimate.minutes}} 分钟 <span class="ref-badge">参考值 · {{detail.runtimeEstimate.source}}</span>{{/if}}
+    {{unit.siteName}} · {{unit.location}} · 厂商 {{unit.make || '—'}} · 型号 {{unit.model || '—'}} · 序列号 {{unit.serial || '—'}}
   </div>
-  {{#if detailError}}<div class="fatal">详情刷新失败（轮询明细见运维手册）：{{detailError}}</div>{{/if}}
-  {{#if detail}}
   <div class="unit-grid">
     <section class="panel">
-      <h2>电池健康 <a class="hist-link" on-click="@this.fire('goHistory', unit.id, 'soc')">全量历史 →</a> <span class="fresh-tag fresh-{{groupFresh.battery}}">{{groupFresh.battery === 'ok' ? '实测' : groupFresh.battery === 'stale' ? '参考值' : '缺口'}}</span></h2>
-      <div class="stat-row"><span>组电压</span><b>{{detail.battery.stringVoltage}} V</b></div>
-      <div class="stat-row"><span>内阻 / 基线</span><b>{{detail.battery.impedance}} / {{detail.battery.impedanceBaseline}}</b></div>
-      <div class="stat-row"><span>温度</span><b>{{detail.battery.temperature}} °C</b></div>
-      <div class="stat-row"><span>充电电流</span><b>{{detail.battery.chargeCurrent}} A</b></div>
-      {{#if showTrend}}
-      <div class="trends">
-        <svg viewBox="0 0 240 60" class="sparkline" preserveAspectRatio="none" aria-hidden="true"><polyline points="{{trendSoc}}"></polyline></svg>
-      </div>
-      {{else}}
-      <div class="trend-placeholder">容量趋势不可用（断讯/缺口，R3）</div>
-      {{/if}}
-      <div class="stat-row"><span>预测更换窗口</span><b>{{detail.battery.predictedReplacement}} <span class="ref-badge">参考值 · {{detail.battery.source}}</span></b></div>
+      <h2>当前总览值</h2>
+      <div class="stat-row"><span>SOC</span><b>{{unit.soc === null ? '—' : unit.soc + '%'}}</b></div>
+      <div class="stat-row"><span>负载</span><b>{{unit.loadPct === null ? '—' : unit.loadPct + '%'}}</b></div>
+      <div class="stat-row"><span>电池温度</span><b>{{unit.batteryTemp === null ? '—' : unit.batteryTemp + '°C'}}</b></div>
+      <button class="btn" on-click="@this.fire('goHistory', unit.id)">查看历史数据状态</button>
     </section>
     <section class="panel">
-      <h2>负载与容量 <a class="hist-link" on-click="@this.fire('goHistory', unit.id, 'load')">全量历史 →</a> <span class="fresh-tag fresh-{{groupFresh.load}}">{{groupFresh.load === 'ok' ? '实测' : groupFresh.load === 'stale' ? '参考值' : '缺口'}}</span></h2>
-      <div class="load-figure"><b>{{unit.loadPct}}%</b><span class="muted">{{detail.load.kw}} / {{detail.load.capacityKw}} kW</span></div>
-      <div class="mini-bar"><i style="width: {{unit.loadPct}}%"></i></div>
-      <div class="stat-row"><span>需求备电时长</span><b>{{detail.load.requiredMinutes}} 分钟</b></div>
-      <div class="stat-row"><span>预估备电（模型）</span><b>{{detail.runtimeEstimate.minutes}} 分钟 <span class="ref-badge">参考值 · {{detail.runtimeEstimate.source}}</span></b></div>
-      {{#if showTrend}}
-      <div class="trends">
-        <svg viewBox="0 0 240 50" class="sparkline sparkline--muted" preserveAspectRatio="none" aria-hidden="true"><polyline points="{{trendLoad}}"></polyline></svg>
-      </div>
-      {{else}}
-      <div class="trend-placeholder">负载趋势不可用（断讯/缺口，R3）</div>
-      {{/if}}
-    </section>
-    <section class="panel">
-      <h2>电力电子 <span class="fresh-tag fresh-{{groupFresh.electronics}}">{{groupFresh.electronics === 'ok' ? '实测' : groupFresh.electronics === 'stale' ? '参考值' : '缺口'}}</span></h2>
-      <div class="stat-row"><span>逆变输出</span><b>{{detail.electronics.inverterVoltage}} V / {{detail.electronics.inverterFrequency}} Hz</b></div>
-      <div class="stat-row"><span>THD</span><b>{{detail.electronics.inverterThd}} %</b></div>
-      <div class="stat-row"><span>整流器</span><span class="tag tag-{{detail.electronics.rectifierStatus}}">{{detail.electronics.rectifierStatus === 'normal' ? '正常' : detail.electronics.rectifierStatus === 'warning' ? '警告' : '严重'}}</span></div>
-      <div class="stat-row"><span>风扇</span><span class="tag tag-{{detail.electronics.fanStatus}}">{{detail.electronics.fanStatus === 'normal' ? '正常' : detail.electronics.fanStatus === 'warning' ? '警告' : '严重'}}</span></div>
-      <div class="stat-row"><span>电容健康度</span><b>{{detail.electronics.capacitorHealthPct}} %</b></div>
-      <div class="mini-bar"><i style="width: {{detail.electronics.capacitorHealthPct}}%"></i></div>
-    </section>
-    <section class="panel">
-      <h2>环境 <a class="hist-link" on-click="@this.fire('goHistory', unit.id, 'temp')">全量历史 →</a> <span class="fresh-tag fresh-{{groupFresh.environment}}">{{groupFresh.environment === 'ok' ? '实测' : groupFresh.environment === 'stale' ? '参考值' : '缺口'}}</span></h2>
-      <div class="stat-row"><span>温度 / 湿度</span><b>{{detail.environment.ambientTempC}} °C / {{detail.environment.humidityPct}} %</b></div>
-      <div class="stat-row"><span>空气质量</span><span class="tag tag-{{detail.environment.airQuality}}">{{detail.environment.airQuality === 'normal' ? '正常' : detail.environment.airQuality === 'warning' ? '警告' : '严重'}}</span></div>
-      <div class="stat-row"><span>水浸</span><span class="tag {{detail.environment.waterDetected ? 'tag-critical' : 'tag-normal'}}">{{detail.environment.waterDetected ? '检测到' : '未检测到'}}</span></div>
-    </section>
-    <section class="panel">
-      <h2>切换与旁路 <span class="fresh-tag fresh-{{groupFresh.transfer}}">{{groupFresh.transfer === 'ok' ? '实测' : groupFresh.transfer === 'stale' ? '参考值' : '缺口'}}</span></h2>
-      <div class="stat-row"><span>开关状态</span><span class="tag tag-{{detail.transfer.switchStatus}}">{{detail.transfer.switchStatus === 'normal' ? '正常' : detail.transfer.switchStatus === 'warning' ? '警告' : '严重'}}</span></div>
-      <div class="stat-row"><span>维修旁路</span><span class="tag {{detail.transfer.bypassAvailable ? 'tag-normal' : 'tag-critical'}}">{{detail.transfer.bypassAvailable ? '可用' : '不可用'}}</span></div>
-      <div class="stat-row"><span>上次切换</span><b>{{detail.transfer.lastTransferMs}} ms · {{detail.transfer.lastTransferAt}}</b></div>
-    </section>
-    <section class="panel">
-      <h2>预测性维护</h2>
-      {{#each detail.predictions}}
-      <div class="predict-item">
-        <span class="tag {{.risk === 'critical' ? 'tag-critical' : 'tag-warning'}}">{{.risk === 'critical' ? '严重' : '警告'}}</span>
-        <span>{{.label}}（{{.value}}）</span>
-        <span class="ref-badge">参考值 · {{.source}}</span>
-      </div>
-      {{else}}
-      <div class="muted">暂无风险项（设备自诊断未上报预测）</div>
-      {{/each}}
-    </section>
-    <section class="panel alarm-panel">
-      <h2>告警与事件 <a class="hist-link" on-click="@this.fire('goAlarms', unit.id)">去处理 →</a> <span class="muted">列表只读（确认操作在告警页，R2 详情区不破）</span></h2>
-      {{#if alarms.length}}
-      <div class="alarm-filter">
-        <button class="btn mini {{alarmFilter === 'all' ? 'primary' : ''}}" on-click="@this.fire('setAlarmFilter', 'all')">全部 {{alarms.length}}</button>
-        <button class="btn mini {{alarmFilter === 'unack' ? 'primary' : ''}}" on-click="@this.fire('setAlarmFilter', 'unack')">未确认 {{unackCount}}</button>
-        <button class="btn mini {{alarmFilter === 'ack' ? 'primary' : ''}}" on-click="@this.fire('setAlarmFilter', 'ack')">已确认 {{alarms.length - unackCount}}</button>
-      </div>
-      {{#each alarms}}
-      {{#if alarmFilter === 'all' || (alarmFilter === 'unack' && !.ack) || (alarmFilter === 'ack' && .ack)}}
-      <div class="alarm-item sev-{{.severity}}">
-        <span class="tag {{.severity === 'critical' ? 'tag-critical' : 'tag-warning'}}">{{.severity === 'critical' ? '严重' : '警告'}}</span>
-        <span class="alarm-msg">{{.message}}</span>
-        <span class="muted">{{.time}}</span>
-        <span class="alarm-state {{.ack ? '' : 'unack'}}">{{.ack ? '已确认' : '未确认'}}</span>
-      </div>
-      {{/if}}
-      {{/each}}
-      {{else}}
-      <div class="muted">暂无告警记录</div>
-      {{/if}}
+      <h2>详情数据缺口</h2>
+      <div class="fatal">{{gap.reason}}</div>
+      <div class="muted">available=false · dataGap=true · 未从当前总览值推算详情。</div>
     </section>
   </div>
   {{else}}
-  <div class="fatal">遥测详情不可用：该设备通讯中断或数据缺口（D-M2-02）——上方档案区保留；恢复后 10s 轮询自动回填。</div>
-  {{/if}}
-  {{else}}
-  <div class="fatal">未找到设备 {{unitId}}（返回不兜底，明示缺口）</div>
+  <div class="fatal">未找到设备 {{unitId}}；未返回替代数据。</div>
   {{/if}}
 {{elseif view === "history"}}
+  <header class="page-head">
+    <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
+    <h1>{{unit ? unit.name : unitId}} · 历史与事件</h1>
+  </header>
   {{#if unit}}
-  <header class="page-head">
-    <button class="btn" on-click="@this.fire('goBack')">← 返回详情</button>
-    <h1>{{unit.name}} · 历史趋势</h1>
-    <span class="muted">{{unit.siteName}} · {{unit.location}}</span>
-    {{#if unit.commLost}}<span class="sev-badge sev-commLost">当前通讯中断 · 历史为已入库数据可查（D-M3-03）</span>{{/if}}
-  </header>
-  <div class="archive-bar hist-bar muted">
-    <span>跨度</span>
-    {{#each spans}}<button class="btn mini {{selSpan === key ? 'primary' : ''}}" on-click="@this.fire('setSpan', key)">{{label}}</button>{{/each}}
-    <span>指标</span>
-    {{#each metricOpts}}<button class="btn mini {{selMetrics.indexOf(key) >= 0 ? 'primary' : ''}}" on-click="@this.fire('toggleMetric', key)">{{label}}</button>{{/each}}
-    <span class="spacer"></span>
-    <span>粒度 {{grainText}} · 生效参数已按 D-M3-07 收敛</span>
-  </div>
-  {{#if selMetrics.length}}
   <div class="history-wrap">
-    <div class="legend">
-      {{#if hasPct}}<span class="lg lg-soc">SOC</span><span class="lg lg-load">负载</span>{{/if}}
-      {{#if hasTemp}}<span class="lg lg-temp">电池温度</span>{{/if}}
-      <span class="lg lg-fail">市电中断</span><span class="lg lg-ok">切换成功</span><span class="lg lg-gap">缺口留白（无数据，禁插值）</span>
-    </div>
-    <div class="chart-area">
-      {{#if hasPct}}<div class="ylab ylab-pct"><span>100</span><span>50</span><span>0</span></div>{{/if}}
-      {{#if hasTemp}}<div class="ylab ylab-temp"><span>45°C</span><span>30°C</span><span>15°C</span></div>{{/if}}
-      <svg viewBox="0 0 960 360" class="history-chart" preserveAspectRatio="none" aria-hidden="true">
-        {{#if hasPct}}{{#if hasTemp}}<line x1="0" y1="220" x2="960" y2="220" class="axis-sep"></line>{{/if}}{{/if}}
-        {{#each chart1Series}}<polyline points="{{seg}}" class="hs hs-{{key}}"></polyline>{{/each}}
-        {{#each chart2Series}}<polyline points="{{seg}}" class="hs hs-{{key}}"></polyline>{{/each}}
-        {{#each eventMarks}}<line x1="{{x}}" y1="0" x2="{{x}}" y2="220" class="ev ev-{{type}} {{ongoing ? 'ongoing' : ''}}"></line>{{/each}}
-      </svg>
-    </div>
-    <div class="xticks">{{#each ticks}}<span style="left:{{pct}}%">{{label}}</span>{{/each}}</div>
-    {{#if events.length}}
-    <div class="event-list">
-      {{#each events}}
-      <div class="event-item">
-        <span class="tag {{type === 'inputFail' ? 'tag-critical' : 'tag-normal'}}">{{type === 'inputFail' ? '市电中断' : '切换成功'}}</span>
-        <span class="muted">{{label}}</span>
-        {{#if ongoing}}<span class="tag tag-warning">进行中</span>{{/if}}
-      </div>
-      {{/each}}
-    </div>
-    {{/if}}
+    <div class="fatal">{{gap.reason}}</div>
+    <div class="muted">available=false · dataGap=true · series 为空 · events 为空。</div>
   </div>
   {{else}}
-  <div class="fatal">未选任何指标——点上方指标按钮恢复（fail-closed 收敛，不静默兜底）</div>
+  <div class="fatal">未找到设备 {{unitId}}；未返回替代历史。</div>
   {{/if}}
-  {{else}}
-  <div class="fatal">未找到设备 {{unitId}}（返回不兜底，明示缺口）</div>
-  {{/if}}
-{{elseif view === "alarms"}}
+{{elseif view === "unavailable"}}
   <header class="page-head">
     <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
-    <h1>告警与确认</h1>
-    <span class="muted">深链：#/ups/alarms?site=&sev=&state=&unit= · 操作者 mock-operator（无 FIN 会话，UI 明示口径）· 否决一律明示理由（铁律 3）</span>
+    <h1>{{title}}</h1>
   </header>
-
-  <form class="filter-bar" on-submit="@event.preventDefault(), @this.fire('alarmNav', @this.get('alFilter'))">
-    <label>站点
-      <select value="{{alFilter.site}}">
-        <option value="">全部</option>
-        {{#each sites}}<option value="{{.id}}">{{.name}}</option>{{/each}}
-      </select>
-    </label>
-    <label>严重度
-      <select value="{{alFilter.sev}}">
-        <option value="">全部</option><option value="critical">严重</option><option value="warning">警告</option>
-      </select>
-    </label>
-    <label>状态
-      <select value="{{alFilter.state}}">
-        <option value="">全部</option><option value="unack">未确认</option><option value="ack">已确认</option>
-      </select>
-    </label>
-    <label>单元
-      <input value="{{alFilter.unit}}" placeholder="名称/编号关键字">
-    </label>
-    <button class="btn primary" type="submit">筛选</button>
-  </form>
-
-  <div class="stat-badges">
-    <button class="badge crit {{stateSel.unack ? 'sel' : ''}}" on-click="@this.fire('setAlarmState', 'unack')">活动 {{alarmStats.active}}</button>
-    <button class="badge ok {{stateSel.ack ? 'sel' : ''}}" on-click="@this.fire('setAlarmState', 'ack')">已确认 {{alarmStats.acked}}</button>
-    <button class="badge warn {{sevSel.critical ? 'sel' : ''}}" on-click="@this.fire('setAlarmSev', 'critical')">严重 {{alarmStats.critical}}</button>
-    <span class="muted">当前筛选 {{rows.length}} 条 · 未确认优先（Q5）</span>
-  </div>
-
-  <div class="alarm-list">
-    {{#each rows}}
-    <div class="alarm-item sev-{{.severity}}">
-      <span class="tag {{.severity === 'critical' ? 'tag-critical' : 'tag-warning'}}">{{.severity === 'critical' ? '严重' : '警告'}}</span>
-      <span class="alarm-msg">{{.message}}</span>
-      <span class="muted">{{.unitName}} · {{.siteName}} · {{.time}}</span>
-      {{#if .ack}}
-      <span class="alarm-state">{{.ackInfo}}</span>
-      {{else}}
-      <button class="btn mini" on-click="@this.fire('openAck', .key)">确认</button>
-      {{/if}}
-    </div>
-    {{#if ackOpen === .key}}
-    <div class="ack-editor">
-      <textarea value="{{ackNote}}" rows="2" placeholder="确认备注（至少 2 字，留痕必填）"></textarea>
-      {{#if ackError}}<div class="fatal">{{ackError}}</div>{{/if}}
-      <div class="ack-actions">
-        <button class="btn primary" on-click="@this.fire('submitAck', .key)">提交确认</button>
-        <button class="btn" on-click="@this.fire('cancelAck')">取消</button>
-      </div>
-    </div>
-    {{/if}}
-    {{/each}}
-    {{#if !rows.length}}<div class="muted">当前筛选无告警（不兜底，明示为空）</div>{{/if}}
-  </div>
-{{elseif view === "config"}}
-  <header class="page-head">
-    <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
-    <h1>配置管理</h1>
-    <span class="muted">深链：#/ups/config · 操作者 mock-operator · 演示环境：重载回 base 版本（D-M5 §4）</span>
-  </header>
-
-  <div class="config-grid">
-    <section class="panel">
-      <h2>当前生效 <span class="muted">来源版本 v{{currentSeq}} / 共 {{totalVersions}} 版</span></h2>
-      {{#each defRows}}
-      <div class="stat-row"><span>{{label}}（{{min}}~{{max}}{{unit}}）</span><b>{{effValue}}{{unit}}</b></div>
-      {{/each}}
-      <button class="btn" on-click="@this.fire('toggleVersions')">{{showVersions ? '收起版本历史' : '版本历史'}}</button>
-      {{#if showVersions}}
-      <div class="version-list">
-        {{#each versions}}
-        <div class="version-item {{isCurrent ? 'cur' : ''}}">
-          <span class="tag {{kind === 'publish' ? 'tag-normal' : 'tag-warning'}}">v{{seq}} {{kindText}}</span>
-          <span class="muted">{{atText}} · {{by}}</span>
-          <span class="vsum">{{summary}}</span>
-          {{#unless isCurrent}}
-          <button class="btn mini" on-click="@this.fire('rollbackTo', seq)">回滚到此</button>
-          {{/unless}}
-        </div>
-        {{/each}}
-      </div>
-      {{/if}}
-    </section>
-    <section class="panel">
-      <h2>草稿编辑 <span class="muted">不影响生效值（A25）；校验不过不可发布（A3）</span></h2>
-      {{#each defRows}}
-      <div class="draft-row">
-        <label>{{label}}</label>
-        <input type="number" step="0.5" min="{{min}}" max="{{max}}" value="{{.draftValue}}">
-        <span class="muted">域 {{min}}~{{max}}{{unit}} · 生效 {{effValue}}{{unit}}</span>
-      </div>
-      {{/each}}
-      {{#if publishError}}
-      <div class="fatal">
-        守门拒绝（fail-closed，生效值未变）：
-        {{#each publishError}}<div>· {{.}}</div>{{/each}}
-      </div>
-      {{/if}}
-      <div class="ack-actions">
-        <button class="btn primary" on-click="@this.fire('submitPublish')">校验并发布</button>
-        <button class="btn" on-click="@this.fire('resetDraft')">放弃草稿</button>
-      </div>
-    </section>
-  </div>
-{{elseif view === "audit"}}
-  <header class="page-head">
-    <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
-    <h1>审计</h1>
-    <span class="muted">深链：#/ups/audit?type=&by=&since=&q= · append-only（零修改/删除入口，铁律 4）· 演示环境：重载清空审计流</span>
-  </header>
-
-  <form class="filter-bar" on-submit="@event.preventDefault(), @this.fire('auditNav', @this.get('auditFilter'))">
-    <label>类型
-      <select value="{{auditFilter.type}}">
-        <option value="">全部</option>
-        <option value="alarm.ack">告警确认</option>
-        <option value="config.publish">配置发布</option>
-        <option value="config.rollback">配置回滚</option>
-      </select>
-    </label>
-    <label>操作者
-      <select value="{{auditFilter.by}}">
-        <option value="">全部</option>
-        {{#each operators}}<option value="{{.}}">{{.}}</option>{{/each}}
-      </select>
-    </label>
-    <label>时间
-      <select value="{{auditFilter.since}}">
-        <option value="all">全部</option><option value="1h">最近 1 小时</option><option value="24h">最近 24 小时</option><option value="7d">最近 7 天</option>
-      </select>
-    </label>
-    <label>关键字
-      <input value="{{auditFilter.q}}" placeholder="备注/摘要/消息">
-    </label>
-    <button class="btn primary" type="submit">筛选</button>
-    <span class="spacer"></span>
-    <span class="muted">共 {{totalAll}} 条 · 当前筛选 {{rows.length}} 条</span>
-  </form>
-
-  <div class="stat-badges">
-    {{#each typeBadges}}
-    <button class="badge {{cls}} {{sel ? 'sel' : ''}}" on-click="@this.fire('setAuditType', type)">{{label}} {{count}}</button>
-    {{/each}}
-  </div>
-
-  <div class="audit-list">
-    {{#each rows}}
-    <div class="audit-item" on-click="@this.fire('toggleAuditDetail', seq)">
-      <span class="tag {{cls}}">{{label}}</span>
-      <span class="muted">{{atText}} · {{by}}</span>
-      <span class="vsum">{{summary}}</span>
-    </div>
-    {{#if showDetail === seq}}
-    <div class="audit-detail">
-      {{#each detailFields}}<div class="stat-row"><span>{{k}}</span><b>{{v}}</b></div>{{/each}}
-    </div>
-    {{/if}}
-    {{/each}}
-    {{#if !rows.length}}<div class="muted">当前筛选无审计记录（演示环境：走 M4 确认 / M5 发布后才有记录；重载清空）</div>{{/if}}
-  </div>
+  <div class="fatal">{{reason}}</div>
 {{else}}
   <header class="page-head">
     <h1>UPS 车队总览</h1>
-    <span class="muted">深链：#/ups/overview · 轮询 10s · Folio 实时数据</span>
-    <a class="hist-link" on-click="@this.fire('goConfig')">配置管理 →</a>
-    <a class="hist-link" on-click="@this.fire('goAudit')">审计 →</a>
+    <span class="muted">轮询 10s · Folio 实时数据</span>
   </header>
 
   {{#if newRisks.length}}
-  <div class="risk-banner">
-    ⚠ {{newRisks.length}} 台设备严重度恶化：
-    {{#each newRisks}}{{.name}}（{{.from}} → {{.to}}）{{/each}}
-    <button class="btn" on-click="@this.fire('applySort')">刷新排序</button>
-  </div>
+  <div class="risk-banner">⚠ {{newRisks.length}} 台设备严重度恶化；刷新结果已按当前实时值排序。</div>
   {{/if}}
 
   <form class="filter-bar" on-submit="@event.preventDefault(), @this.fire('filter', @this.get('filter'))">
     <label>站点
-      <select value="{{filter.site}}">
-        <option value="">全部</option>
-        {{#each sites}}<option value="{{.id}}">{{.name}}</option>{{/each}}
-      </select>
+      <select value="{{filter.site}}"><option value="">全部</option>{{#each sites}}<option value="{{.id}}">{{.name}}</option>{{/each}}</select>
     </label>
     <label>通讯
-      <select value="{{filter.comm}}">
-        <option value="">全部</option><option value="ok">正常</option><option value="lost">中断</option>
-      </select>
+      <select value="{{filter.comm}}"><option value="">全部</option><option value="ok">正常</option><option value="lost">中断</option></select>
     </label>
     <label>模式
-      <select value="{{filter.mode}}">
-        <option value="">全部</option><option value="online">市电</option><option value="battery">电池</option><option value="unknown">未知</option>
-      </select>
+      <select value="{{filter.mode}}"><option value="">全部</option><option value="online">市电</option><option value="battery">电池</option><option value="unknown">未知</option></select>
     </label>
     <label>严重度
-      <select value="{{filter.sev}}">
-        <option value="">全部</option><option value="critical">严重</option><option value="warning">警告</option><option value="normal">正常</option><option value="commLost">断讯</option>
-      </select>
+      <select value="{{filter.sev}}"><option value="">全部</option><option value="critical">严重</option><option value="warning">警告</option><option value="normal">正常</option><option value="commLost">断讯</option></select>
     </label>
     <button class="btn primary" type="submit">筛选</button>
     <span class="spacer"></span>
     <label>每页
-      <select value="{{pageSize}}" on-change="@this.fire('setPageSize')">
-        <option value="50">50</option><option value="100">100</option>
-      </select>
+      <select value="{{pageSize}}" on-change="@this.fire('setPageSize')"><option value="50">50</option><option value="100">100</option></select>
     </label>
   </form>
 
   <div class="stat-badges">
-    <span class="badge crit {{badgeSel.critical ? 'sel' : ''}}">严重 {{stats.critical}}</span>
-    <span class="badge warn {{badgeSel.warning ? 'sel' : ''}}">警告 {{stats.warning}}</span>
-    <span class="badge ok {{badgeSel.normal ? 'sel' : ''}}">正常 {{stats.normal}}</span>
-    <span class="badge lost {{badgeSel.commLost ? 'sel' : ''}}">断讯 {{stats.commLost}}</span>
+    <span class="badge crit">严重 {{stats.critical}}</span>
+    <span class="badge warn">警告 {{stats.warning}}</span>
+    <span class="badge ok">正常 {{stats.normal}}</span>
+    <span class="badge lost">断讯 {{stats.commLost}}</span>
     <span class="muted">共 {{pagination.total}} 台 · 第 {{pagination.page}}/{{pagination.pages}} 页</span>
   </div>
 
   <div class="card-grid">
     {{#each badges}}
     <div class="card sev-{{sev}} {{sev === 'commLost' ? 'card-lost' : ''}}" on-click="@this.fire('goUnit', .unit.id)" tabindex="0">
-      <div class="card-head">
-        <strong>{{.unit.name}}</strong>
-        <span class="dot mode-{{.unit.mode}}"></span>
-      </div>
+      <div class="card-head"><strong>{{.unit.name}}</strong><span class="dot mode-{{.unit.mode}}"></span></div>
       <div class="muted">{{.unit.siteName}} · {{.unit.location}}</div>
       <div class="metrics">
         <span>负载 <b>{{.unit.loadPct === null ? '—' : .unit.loadPct + '%'}}</b></span>
-        <span>SOC <b>{{.unit.soc === null ? '—' : Math.round(.unit.soc) + '%'}}</b></span>
+        <span>SOC <b>{{.unit.soc === null ? '—' : .unit.soc + '%'}}</b></span>
         <span class="sev-label">{{sev === 'critical' ? '严重' : sev === 'warning' ? '警告' : sev === 'commLost' ? '通讯中断' : '正常'}}</span>
       </div>
-      {{#if .showTrend}}
-      <div class="trends">
-        <svg viewBox="0 0 240 60" class="sparkline" preserveAspectRatio="none" aria-hidden="true"><polyline points="{{.trendSoc}}"></polyline></svg>
-        <svg viewBox="0 0 240 50" class="sparkline sparkline--muted" preserveAspectRatio="none" aria-hidden="true"><polyline points="{{.trendLoad}}"></polyline></svg>
-      </div>
-      {{else}}
-      <div class="trend-placeholder">趋势不可用 · {{sev === 'commLost' ? '通讯中断' : '无数据'}}</div>
-      {{/if}}
-      <div class="fresh-{{fresh}}">
-        {{fresh === 'ok' ? '采集 ' + tsText : fresh === 'stale' ? '参考值 · 采集 ' + tsText : '缺口 · 无数据'}}
-      </div>
+      <div class="trend-placeholder">趋势不可用 · Folio 历史数据源未接入</div>
+      <div class="fresh-{{fresh}}">{{fresh === 'ok' ? '采集 ' + tsText : fresh === 'stale' ? '参考值 · 采集 ' + tsText : '缺口 · 无数据'}}</div>
     </div>
+    {{else}}
+    <div class="fatal">当前筛选无 Folio 设备记录。</div>
     {{/each}}
   </div>
 
@@ -438,5 +127,3 @@
 <script src="app.js"></script>
 </body>
 </html>
-
-
