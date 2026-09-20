@@ -18,7 +18,13 @@ class VerifyRegistration {
      `/frontend/vendor/ractive.min.js`].each |uri| {
       if (pod.file(uri).size == 0) throw Err("Empty resource: " + uri)
     }
+    forbidden := ["/frontend/seed.json", "/frontend/seed-data.js"]
+    pod.files.each |file| {
+      path := file.uri.pathStr
+      if (forbidden.any |uri| { path.endsWith(uri) })
+        throw Err("Demo seed resource must not be packaged: " + path)
+    }
     echo("PASS upsPod class metadata, extension index, function index, constructor signature")
-    echo("PASS production frontend resources packaged without demo data")
+    echo("PASS production frontend resources packaged without demo seed resources")
   }
 }
