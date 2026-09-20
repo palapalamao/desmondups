@@ -13,11 +13,15 @@ class Build : build::BuildPod {
       "concurrent 1.0+",
       "haystack 3.0.20+",
       "axon 3.0.20+",
+      "folio 3.0.20+",
+      "hx 3.0.20+",
       "skyarc 3.0.20+",
       "skyarcd 3.0.20+",
+      "util 1.0+",
+      "web 1.0+",
     ]
     srcDirs = [`fan/`]
-    resDirs = [`locale/`, `frontend/`]
+    resDirs = [`locale/`, `frontend/`, `frontend/vendor/`, `lib/`]
     version = Version("0.8.1")
     outPodDir = (scriptDir + `output/`).uri
     index = [
@@ -25,5 +29,15 @@ class Build : build::BuildPod {
       "skyarc.lib": "upsPod::UpsPodLib",
       "fin.lang": "upsPod",
     ]
+  }
+
+  // FIN publishes .js resources but excludes .json. Keep the demo seed canonical
+  // as JSON, then package the same bytes under a served extension.
+  override Void compileFan() {
+    servedSeed := scriptDir + `frontend/seed-data.js`
+    if (servedSeed.exists) throw Err("Unexpected generated file: " + servedSeed)
+    (scriptDir + `frontend/seed.json`).copyTo(servedSeed)
+    try { super.compileFan() }
+    finally { servedSeed.delete }
   }
 }

@@ -1,7 +1,7 @@
 /* ============================================================================
  * upsPod M1 设备总览 · 前端 SPA（app.js）
  * 结构：upsCore 纯逻辑（Node 可测，verify.cjs 入口） + 浏览器侧 Ractive 应用
- * 数据适配器：MockAdapter（确定性种子 + 10s 抖动）/ FinAdapter（桩，待 U-API-01）
+ * 数据适配器：MockAdapter（显式 ?mock=1 演示）/ FinAdapter（FIN API eval -> upsOverview -> Folio）
  * 红线落实：R1 权限=站点过滤参数留位（无环境，标注未验）；R3 时效标注 ok/stale/gap
  * REQ-M1-10 v0.3：卡片双 sparkline（SOC 主 + 负载次）+ 断讯等高占位
  * REQ-M2-xx v0.4：设备详情 8 面板（告警只读 R2 / 参考值标记 D-M2-04）
@@ -372,6 +372,67 @@
     return [];
   }
 
+  function normalizeFinSnapshot(raw) {
+    raw = raw || {};
+    var now = Date.now();
+    var sites = (raw.sites || []).map(function (s) {
+      return { id: String(s.id), name: String(s.name || s.dis || s.id) };
+    });
+    var units = (raw.units || []).map(function (u) {
+      var soc = typeof u.soc === "number" ? u.soc : null;
+      var load = typeof u.loadPct === "number" ? u.loadPct : null;
+      var ts = typeof u.ts === "number" ? u.ts : null;
+      var commLost = !!u.commLost || ts === null;
+      return {
+        id: String(u.id),
+        name: String(u.name || u.dis || u.id),
+        siteId: String(u.siteId || ""),
+        siteName: String(u.siteName || u.siteId || ""),
+        floorId: String(u.floorId || ""),
+        floorName: String(u.floorName || ""),
+        location: String(u.location || u.floorName || ""),
+        make: u.make || "",
+        model: u.model || "",
+        serial: u.serial || "",
+        ratedKva: u.ratedKva === undefined ? null : u.ratedKva,
+        loadPct: load,
+        soc: soc,
+        batteryTemp: typeof u.batteryTemp === "number" ? u.batteryTemp : null,
+        commLost: commLost,
+        mode: u.mode || (commLost ? "offline" : "online"),
+        ts: ts,
+        socHistory: commLost || soc === null ? [] : [round1(soc)],
+        loadHistory: commLost || load === null ? [] : [round1(load)],
+        detail: u.detail || {
+          ts: { battery: ts, load: ts, electronics: ts, environment: ts, transfer: ts },
+          alarms: [],
+        },
+      };
+    });
+    return {
+      source: raw.source || "fin-tree",
+      sourceText: raw.sourceText || "设备树数据",
+      pollPeriodMs: raw.pollPeriodMs || 10000,
+      generatedAt: raw.generatedAt || now,
+      sites: sites,
+      units: units,
+      auditLog: raw.auditLog || [],
+      configStore: raw.configStore || defaultConfigStore(),
+    };
+  }
+
+  function defaultConfigStore() {
+    return {
+      currentSeq: 1,
+      defs: {
+        socLowPct: { label: "SOC 告警下限", unit: "%", min: 5, max: 50 },
+        impedanceDevPct: { label: "内阻偏差阈值", unit: "%", min: 5, max: 40 },
+        battTempHighC: { label: "电池温度上限", unit: "°C", min: 30, max: 55 },
+      },
+      versions: [{ seq: 1, at: null, by: "fin-tree", kind: "publish", fromSeq: null, summary: "设备树默认配置", values: { socLowPct: 20, impedanceDevPct: 15, battTempHighC: 40 } }],
+    };
+  }
+
   var upsCore = {
     SEV_RANK: SEV_RANK,
     topSeverity: topSeverity,
@@ -407,6 +468,7 @@
     collectOperators: collectOperators,
     queryAudit: queryAudit,
     auditDetailFields: auditDetailFields,
+    normalizeFinSnapshot: normalizeFinSnapshot,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;
@@ -422,7 +484,11 @@
   var MockAdapter = { // 确定性种子 + 10s 抖动；FinAdapter 待 U-API-01 后按同一接口实现
     seed: null,
     load: function () {
-      return fetch("seed.json").then(function (r) { return r.json(); }).then(function (s) {
+      var seedUrl = location.pathname.indexOf("/pod/") === 0 ? "seed-data.js" : "seed.json";
+      return fetch(seedUrl).then(function (r) {
+        if (!r.ok) throw new Error("演示数据加载失败：HTTP " + r.status);
+        return r.json();
+      }).then(function (s) {
         var base = Date.now(); // Mock 演示墙钟：仅算偏移，种子文件本身仍确定性（TC-08 不受影响）
         s.units.forEach(function (u, idx) {
           u.ts = u.tsOffsetSec === null || u.tsOffsetSec === undefined ? null : base - u.tsOffsetSec * 1000; // 种子契约：偏移→绝对时间
@@ -465,13 +531,112 @@
         meta: { span: q.span, grainMs: spec.grainMs, anchorTs: anchor, metrics: q.metrics } });
     },
   };
-  var FinAdapter = { // 桩：对接 upsOverview()（fan/UpsPodLib.fan），U-API-01 解锁
-    load: function () { return Promise.reject(new Error("FinAdapter 未实现：待 FIN 5.3.0 实例（U-API-01）")); },
+  var FinAdapter = {
+    snapshot: null,
+    projectName: function () {
+      var candidates = [location.pathname, document.referrer || ""];
+      try { if (parent && parent.location) candidates.push(parent.location.pathname); } catch (e) {}
+      try { if (top && top.location) candidates.push(top.location.pathname); } catch (e) {}
+      for (var i = 0; i < candidates.length; i++) {
+        var m = String(candidates[i]).match(/\/finMobile\/([^\/?#]+)/);
+        if (m) return decodeURIComponent(m[1]);
+        m = String(candidates[i]).match(/\/api\/([^\/?#]+)/);
+        if (m) return decodeURIComponent(m[1]);
+      }
+      throw new Error("无法确定 FIN 项目名，不能读取 Folio");
+    },
+    evalUrl: function () {
+      return "/api/" + encodeURIComponent(FinAdapter.projectName()) + "/eval";
+    },
+    load: function () {
+      return FinAdapter.evalAxon("upsOverview()").then(function (raw) {
+        var snap = upsCore.normalizeFinSnapshot(raw);
+        FinAdapter.snapshot = snap;
+        return snap;
+      });
+    },
+    evalAxon: function (expr) {
+      return global.FinApi.evalZinc(fetch, FinAdapter.evalUrl(), expr).then(function (text) {
+        return FinAdapter.gridToSnapshot(FinAdapter.parseZincGrid(text));
+      });
+    },
+    parseZincGrid: function (text) {
+      var lines = String(text || "").replace(/\r/g, "").split("\n").filter(function (line) { return line.trim() !== ""; });
+      if (!lines.length || lines[0].indexOf("ver:") !== 0) throw new Error("Folio 数据接口返回格式不是 Zinc Grid");
+      if (lines.length < 2) return { meta: {}, cols: [], rows: [] };
+      var cols = FinAdapter.splitZincLine(lines[1]).map(function (c) { return c.split(" ")[0].trim(); }).filter(Boolean);
+      var rows = [];
+      for (var i = 2; i < lines.length; i++) {
+        var vals = FinAdapter.splitZincLine(lines[i]), row = {};
+        cols.forEach(function (c, idx) { row[c] = FinAdapter.parseZincVal(vals[idx]); });
+        rows.push(row);
+      }
+      return { meta: {}, cols: cols, rows: rows };
+    },
+    splitZincLine: function (line) {
+      var out = [], cur = "", quote = false, esc = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line.charAt(i);
+        if (esc) { cur += ch; esc = false; continue; }
+        if (ch === "\\") { cur += ch; esc = true; continue; }
+        if (ch === "\"") { cur += ch; quote = !quote; continue; }
+        if (ch === "," && !quote) { out.push(cur); cur = ""; continue; }
+        cur += ch;
+      }
+      out.push(cur);
+      return out;
+    },
+    parseZincVal: function (v) {
+      return global.FinApi.parseZincScalar(v);
+    },
+    gridToSnapshot: function (grid) {
+      var sitesById = {};
+      var units = grid.rows.map(function (r) {
+        var siteId = r.siteId ? String(r.siteId) : "";
+        if (siteId) sitesById[siteId] = { id: siteId, name: String(r.siteName || siteId) };
+        return {
+          id: String(r.id || ""),
+          name: String(r.dis || r.name || r.id || ""),
+          siteId: siteId,
+          siteName: String(r.siteName || siteId),
+          floorId: r.floorId ? String(r.floorId) : "",
+          floorName: String(r.floorName || ""),
+          location: String(r.floorName || ""),
+          soc: typeof r.soc === "number" ? r.soc : null,
+          loadPct: typeof r.loadPct === "number" ? r.loadPct : null,
+          batteryTemp: typeof r.batteryTemp === "number" ? r.batteryTemp : null,
+          commLost: !!r.commLost,
+          mode: r.mode || "",
+          ts: typeof r.ts === "number" ? r.ts : null,
+        };
+      });
+      return {
+        source: "fin-folio",
+        sourceText: "Folio 设备树数据",
+        pollPeriodMs: 10000,
+        generatedAt: Date.now(),
+        sites: Object.keys(sitesById).sort().map(function (id) { return sitesById[id]; }),
+        units: units,
+      };
+    },
     poll: function () { return this.load(); },
-    detail: function () { return Promise.reject(new Error("FinAdapter.detail 未实现：待 FIN 5.3.0 实例（U-API-01）")); },
-    history: function () { return Promise.reject(new Error("FinAdapter.history 未实现：hisRead 通道，待 FIN 5.3.0 实例（U-API-01）")); },
+    detail: function (id) {
+      return Promise.resolve(upsCore.buildDetail(FinAdapter.snapshot ? FinAdapter.snapshot.units : [], id));
+    },
+    history: function (id, query) {
+      var found = upsCore.buildDetail(FinAdapter.snapshot ? FinAdapter.snapshot.units : [], id);
+      if (!found) return Promise.resolve(null);
+      var q = upsCore.normalizeHistoryQuery(query), anchor = Date.now(),
+        spec = upsCore.spanSpec(q.span), series = {}, events = [];
+      q.metrics.forEach(function (m) { series[m] = upsCore.deriveHistory(found.unit, m, q.span, anchor); });
+      return Promise.resolve({ series: series, events: events,
+        meta: { span: q.span, grainMs: spec.grainMs, anchorTs: anchor, metrics: q.metrics } });
+    },
   };
-  var adapter = /[?&]mock=0/.test(location.search) ? FinAdapter : MockAdapter; // R1 注：站点授权过滤在 FinAdapter 由 FIN 会话驱动；Mock 不过滤
+  var adapter = /[?&]mock=1/.test(location.search) ? MockAdapter : FinAdapter; // R1：真实模式由 FIN 会话驱动；演示须显式开启
+  if (adapter === FinAdapter) {
+    document.getElementById("data-mode").textContent = "Folio 设备树数据 · 当前项目：" + FinAdapter.projectName() + " · 实时读取 site/floor/equip/point；无静态兜底。";
+  }
 
   /* ---------------- 路由（SPA，D-06：# 号路由） ---------------- */
   function parseHash() {

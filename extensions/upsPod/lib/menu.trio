@@ -1,0 +1,63 @@
+//
+// upsPod —— FIN 顶栏菜单注册
+//
+// `finStackMobileMenu` 标记让 FIN 外壳在构建 app launcher 时调用本函数，
+// 函数返回的菜单条目 Grid 被合并进顶栏。深链与前端 hash 路由一一对应
+// （frontend/app.js）：#/ups/overview、#/ups/unit/:id、#/ups/history/:id、
+// #/ups/alarms、#/ups/config、#/ups/audit。
+//
+// 扩展发现依赖 UpsPodExt 类上的 @ExtMeta；本文件负责菜单函数注册。
+// 默认读取 FIN 设备树；演示数据仅通过前端 ?mock=1 显式开启。
+//
+
+---
+name: upsApp
+finStackMobileMenu
+func
+overridable
+doc: "在 FIN 顶栏注册 desmondUPS UPS 车队监控应用及其屏的深链。"
+src:
+  () => do
+    root: "/pod/upsPod/frontend/index.html"
+    open: (route) => "top.app.LoadApplication('" + root + "#" + route +
+                     "', null, null, {app: '_upsPod'});top.app.ToggleCollapse(true);"
+    entry: (dis, route, order, icon) => {
+      displayName: dis,
+      appId:       "upsApp",
+      parentAppId: "upsApp",
+      link:        "",
+      icon:        icon,
+      iconType:    "class",
+      ui:          "mobile",
+      minUiTarget: "phone",
+      order:       order,
+      action:      open(route),
+      keepOpen:    true
+    }
+    [
+      {displayName:"UPS 车队监控", appId:"", isDivider:true, level:0, order:-320, ui:"mobile"},
+
+      // 顶级入口 —— 落在车队总览
+      {
+        displayName: "UPS 总览",
+        appId:       "upsApp",
+        link:        "",
+        icon:        "icon-gauge",
+        iconType:    "class",
+        ui:          "mobile",
+        minUiTarget: "phone",
+        order:       -319,
+        action:      open("/ups/overview"),
+        keepOpen:    true
+      },
+
+      // ── 监控 ────────────────────────────────────────────────
+      entry("设备详情", "/ups/unit/ups-pod-01",              -318, "sm-ups"),
+      entry("历史趋势", "/ups/history/ups-pod-01?metrics=soc,load", -317, "chart-no-axes-column"),
+      entry("告警中心", "/ups/alarms",    -316, "icon-alert"),
+
+      // ── 管理 ────────────────────────────────────────────────
+      entry("运行配置", "/ups/config",                     -315, "icon-settings"),
+      entry("审计追踪", "/ups/audit",                       -314, "icon-file")
+    ].toGrid
+  end

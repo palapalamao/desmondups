@@ -6,7 +6,9 @@ const assert = require("assert");
 const core = require("../frontend/app.js"); // Node 分支导出 upsCore
 
 let pass = 0;
+let total = 0;
 function tc(id, name, fn) {
+  total++;
   try { fn(); pass++; console.log("PASS", id, name); }
   catch (e) { console.error("FAIL", id, name, "-", e.message); process.exitCode = 1; }
 }
@@ -21,6 +23,63 @@ tc("TC-M1-逻辑-01", "严重度：电池+SOC<30=critical", () => {
   assert.strictEqual(core.topSeverity(mk({ mode: "battery", soc: 60 })), "warning");
   assert.strictEqual(core.topSeverity(mk({ mode: "online" })), "normal");
   assert.strictEqual(core.topSeverity(mk({ commLost: true })), "commLost"); // Q5/F4
+});
+
+tc("TC-FIN-逻辑-01", "设备树聚合：保留 site-floor-equip 来源", () => {
+  const t = 1800000000000;
+  const snap = core.normalizeFinSnapshot({
+    pollPeriodMs: 10000,
+    sites: [{ id: "site-ups", name: "UPS 监控站点" }],
+    units: [{
+      id: "ups-01", name: "UPS-01",
+      siteId: "site-ups", siteName: "UPS 监控站点",
+      floorId: "floor-ups", floorName: "UPS 配电间",
+      location: "UPS 配电间",
+      soc: 92, loadPct: 41, batteryTemp: 26,
+      commLost: false, mode: "online", ts: t,
+    }],
+    source: "fin-tree",
+  });
+  assert.strictEqual(snap.source, "fin-tree");
+  assert.deepStrictEqual(snap.sites, [{ id: "site-ups", name: "UPS 监控站点" }]);
+  assert.strictEqual(snap.units.length, 1);
+  assert.strictEqual(snap.units[0].floorId, "floor-ups");
+  assert.strictEqual(snap.units[0].floorName, "UPS 配电间");
+  assert.deepStrictEqual(snap.units[0].socHistory, [92]);
+  assert.deepStrictEqual(snap.units[0].loadHistory, [41]);
+});
+
+tc("TC-FIN-逻辑-02", "设备树聚合：无实测值保持缺口", () => {
+  const snap = core.normalizeFinSnapshot({
+    sites: [{ id: "site-ups", name: "UPS 监控站点" }],
+    units: [{
+      id: "ups-gap", name: "UPS-GAP",
+      siteId: "site-ups", siteName: "UPS 监控站点",
+      floorId: "floor-ups", floorName: "UPS 配电间",
+      soc: null, loadPct: null, batteryTemp: null,
+      commLost: true, mode: "offline", ts: null,
+    }],
+  });
+  assert.strictEqual(snap.units[0].soc, null);
+  assert.strictEqual(snap.units[0].loadPct, null);
+  assert.deepStrictEqual(snap.units[0].socHistory, []);
+  assert.deepStrictEqual(snap.units[0].loadHistory, []);
+  assert.strictEqual(core.hasTrend(snap.units[0]), false);
+});
+
+tc("TC-FIN-逻辑-03", "真实模式：禁止设备树快照兜底", () => {
+  const fs = require("fs"), path = require("path");
+  const app = fs.readFileSync(path.join(__dirname, "..", "frontend", "app.js"), "utf8");
+  assert.ok(app.includes("/eval"));
+  assert.ok(app.includes("upsOverview()"));
+  assert.ok(!app.includes("tree-snapshot"));
+});
+tc("TC-FIN-逻辑-04", "真实模式：显示当前项目且不再标记为 Mock", () => {
+  const fs = require("fs"), path = require("path");
+  const app = fs.readFileSync(path.join(__dirname, "..", "frontend", "app.js"), "utf8");
+  const index = fs.readFileSync(path.join(__dirname, "..", "frontend", "index.html"), "utf8");
+  assert.ok(app.includes("当前项目："));
+  assert.ok(!index.includes("Mock 数据（FinAdapter 待 U-API-01）"));
 });
 // TC-M1-逻辑-02 时效分级（R3）
 tc("TC-M1-逻辑-02", "时效：ok/stale/gap 三态", () => {
@@ -441,4 +500,4 @@ tc("TC-M6-逻辑-05", "空筛选空数组不造假；非法 type 零命中", () 
   assert.strictEqual(core.auditDetailFields({ type: "alarm.ack", message: "m", note: "n", unitId: "U", siteId: "s", severity: "warning" }).length, 5);
 });
 
-console.log(`\n${pass}/35 通过${process.exitCode ? "（存在失败）" : ""}`);
+console.log(`\n${pass}/${total} 通过${process.exitCode ? "（存在失败）" : ""}`);

@@ -8,6 +8,7 @@
 <script src="vendor/ractive.min.js"></script>
 </head>
 <body>
+<aside id="data-mode" class="data-mode" aria-label="数据来源">演示模式 · 所有设备、曲线和告警均为模拟数据。告警确认、配置发布和审计仅保留在当前页面内存中，刷新后重置，不向真实设备写入。</aside>
 <div id="app"></div>
 
 <script id="overview-template" type="text/ractive">
@@ -345,7 +346,7 @@
 {{else}}
   <header class="page-head">
     <h1>UPS 车队总览</h1>
-    <span class="muted">深链：#/ups/overview · 轮询 10s · Mock 数据（FinAdapter 待 U-API-01）</span>
+    <span class="muted">深链：#/ups/overview · 轮询 10s · Folio 实时数据</span>
     <a class="hist-link" on-click="@this.fire('goConfig')">配置管理 →</a>
     <a class="hist-link" on-click="@this.fire('goAudit')">审计 →</a>
   </header>
@@ -433,6 +434,7 @@
   {{/if}}
 {{/if}}
 </script>
+<script src="fin-api.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
