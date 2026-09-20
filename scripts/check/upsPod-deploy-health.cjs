@@ -6,6 +6,15 @@ const path = require("path");
 
 const deploy = fs.readFileSync(path.join(__dirname, "..", "deploy-upsPod-tree.ps1"), "utf8");
 
+assert.doesNotMatch(deploy, /projDb|upsPodTreeSeed|seed project tree|\bseed\b/i,
+  "部署脚本不得打开或修改项目数据库，也不得运行 seed");
+assert.match(deploy, /Get-FileHash[\s\S]*\$podSrc[\s\S]*SHA256/i,
+  "部署脚本必须计算构建源 POD 的 SHA-256");
+assert.match(deploy, /Get-FileHash[\s\S]*\$podDst[\s\S]*SHA256/i,
+  "部署脚本必须计算安装目标 POD 的 SHA-256");
+assert.match(deploy, /\$sourceHash\s+-ne\s+\$(destinationHash|destHash)/i,
+  "部署脚本必须比较源和目标 POD 的 SHA-256");
+
 assert.ok(
   deploy.includes('/api/$ProjectName/eval'),
   "部署脚本必须检查目标项目 API，而不只是检查 FIN 首页"

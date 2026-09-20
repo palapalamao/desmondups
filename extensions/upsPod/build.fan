@@ -31,13 +31,4 @@ class Build : build::BuildPod {
     ]
   }
 
-  // FIN publishes .js resources but excludes .json. Keep the demo seed canonical
-  // as JSON, then package the same bytes under a served extension.
-  override Void compileFan() {
-    servedSeed := scriptDir + `frontend/seed-data.js`
-    if (servedSeed.exists) throw Err("Unexpected generated file: " + servedSeed)
-    (scriptDir + `frontend/seed.json`).copyTo(servedSeed)
-    try { super.compileFan() }
-    finally { servedSeed.delete }
-  }
 }

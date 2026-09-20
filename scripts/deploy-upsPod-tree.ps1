@@ -8,9 +8,6 @@ Add-Type -AssemblyName System.Net.Http
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $podSrc = Join-Path $repo "extensions\upsPod\output\upsPod.pod"
 $podDst = Join-Path $FinHome "lib\fan\upsPod.pod"
-$fan = Join-Path $FinHome "bin\fan.bat"
-$seed = Join-Path $repo "scripts\seed\upsPodTreeSeed.fan"
-$projDb = Join-Path $FinHome "var\proj\$ProjectName\db"
 $evidence = Join-Path $repo "docs\evidence\upsPod-tree-deploy-latest.log"
 
 function Log($msg) {
@@ -30,7 +27,6 @@ try {
   Log "deploy upsPod tree start project=$ProjectName"
 
   if (-not (Test-Path -LiteralPath $podSrc)) { throw "Missing built pod: $podSrc" }
-  if (-not (Test-Path -LiteralPath $projDb)) { throw "Missing project db: $projDb" }
 
   $svc = Get-Service -Name FIN5
   if ($svc.Status -ne "Stopped") {
@@ -41,11 +37,12 @@ try {
 
   Log "copy pod"
   Copy-Item -LiteralPath $podSrc -Destination $podDst -Force
-
-  Log "seed project tree"
-  $seedOut = & $fan $seed $projDb 2>&1
-  $seedOut | ForEach-Object { Log $_ }
-  if ($LASTEXITCODE -ne 0) { throw "Seed failed with exit code $LASTEXITCODE" }
+  $sourceHash = (Get-FileHash -LiteralPath $podSrc -Algorithm SHA256).Hash
+  $destinationHash = (Get-FileHash -LiteralPath $podDst -Algorithm SHA256).Hash
+  if ($sourceHash -ne $destinationHash) {
+    throw "POD SHA-256 mismatch: source=$sourceHash destination=$destinationHash"
+  }
+  Log "pod sha256 verified $sourceHash"
 
   Log "starting FIN5"
   Start-Service -Name FIN5
