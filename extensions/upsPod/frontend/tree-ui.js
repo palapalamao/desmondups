@@ -228,7 +228,10 @@
       var record = find(pending.type, pending.id);
       if (!record) return false;
       return Object.keys(pending.payload).every(function (name) {
-        var actual = record[name] === undefined || record[name] === null ? "" : record[name];
+        var actual = record[name];
+        if (name === "ratedKva" && pending.payload[name] === null) {
+          return actual === undefined || actual === null || actual === "";
+        }
         return String(actual) === String(pending.payload[name]);
       });
     }

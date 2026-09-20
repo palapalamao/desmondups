@@ -284,6 +284,33 @@ function deferred() {
     ["e:1", { dis: "UPS A confirmed" }],
   ]);
 
+  let clearReadCount = 0;
+  const clearCalls = [];
+  const clearedRows = rows.map(row => {
+    const copy = Object.assign({}, row);
+    if (copy.id === "e:1") delete copy.ratedKva;
+    return copy;
+  });
+  const clearing = TreeUi.createTreeController({
+    treeRead: async () => ++clearReadCount === 1 ? rows : clearedRows,
+    treeCreate: async () => { throw new Error("unused"); },
+    treeUpdate: async (id, payload) => {
+      clearCalls.push([id, Object.assign({}, payload)]);
+      return { status: "updated", id, type: "equip", dis: "UPS A" };
+    },
+  }, { project: "clear-rated", keyGenerator: () => "unused" });
+  await clearing.refresh();
+  clearing.edit("equip", "e:1");
+  clearing.state.edit.draft.ratedKva = "";
+  const cleared = await clearing.update();
+  assert.strictEqual(cleared.status, "updated");
+  assert.deepStrictEqual(clearCalls, [["e:1", { ratedKva: null }]]);
+  assert.strictEqual(clearing.state.pendingMutation, null);
+  assert.strictEqual(clearing.state.edit.original.ratedKva, undefined);
+  assert.strictEqual(clearing.state.edit.draft.ratedKva, "");
+  assert.strictEqual(clearing.state.operation.status, "success");
+  assert.strictEqual(clearing.state.operation.message, "保存成功");
+
   const html = fs.readFileSync(path.join(__dirname, "..", "frontend", "index.html"), "utf8");
   const app = fs.readFileSync(path.join(__dirname, "..", "frontend", "app.js"), "utf8");
   const helper = fs.readFileSync(path.join(__dirname, "..", "frontend", "tree-ui.js"), "utf8");
