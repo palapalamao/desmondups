@@ -1,30 +1,53 @@
-using skyarcd
-using upsPod
-
-** Verify the metadata consumed by FIN's extension discovery, not just class loading.
+** Verify the pod built by this checkout without resolving an installed upsPod.
 class VerifyRegistration {
-  static Void main() {
-    t := Type.find("upsPod::UpsPodExt")
-    meta := (ExtMeta)t.facet(ExtMeta#)
-    if (meta.name != "upsPod") throw Err("Incorrect extension name")
-    if (!meta.depends.contains("finstack") || !meta.depends.contains("finStackMobile"))
-      throw Err("Missing FIN menu namespace and launcher dependencies")
-    if (!Env.cur.index("skyarc.ext").contains(t.qname)) throw Err("Missing extension index")
-    if (!Env.cur.index("skyarc.lib").contains("upsPod::UpsPodLib")) throw Err("Missing function index")
-    if (!t.fits(Ext#)) throw Err("Invalid extension base class")
-    if (!t.method("make").params.isEmpty) throw Err("Extension constructor requires arguments")
-    pod := Pod.find("upsPod")
-    [`/frontend/index.html`, `/frontend/app.js`, `/frontend/styles.css`,
-     `/frontend/vendor/ractive.min.js`].each |uri| {
-      if (pod.file(uri).size == 0) throw Err("Empty resource: " + uri)
+  static Void main(Str[] args) {
+    if (args.size != 1) throw ArgErr("Usage: verifyRegistration.fan <built-upsPod.pod>")
+    podFile := File.os(args.first).normalize
+    if (!podFile.exists) throw Err("Missing built pod: " + podFile.osPath)
+
+    zip := Zip.open(podFile)
+    try {
+      files := zip.contents
+      if (files == null) throw Err("Cannot read built pod archive")
+
+      [`/frontend/index.html`, `/frontend/app.js`, `/frontend/styles.css`,
+       `/frontend/vendor/ractive.min.js`].each |uri| {
+        file := files[uri]
+        if (file == null || file.in.readAllBuf.isEmpty)
+          throw Err("Missing or empty resource in built pod: " + uri)
+      }
+
+      [`/frontend/seed.json`, `/frontend/seed-data.js`].each |uri| {
+        if (files.containsKey(uri)) throw Err("Demo seed resource must not be packaged: " + uri)
+      }
+
+      meta := read(files, `/meta.props`).in.readProps
+      if (meta["pod.name"] != "upsPod") throw Err("Incorrect pod name")
+      if (meta["pod.isScript"] != "false") throw Err("upsPod must be a compiled pod")
+
+      index := read(files, `/index.props`).in.readProps
+      if (index["skyarc.ext"] != "upsPod::UpsPodExt") throw Err("Missing extension index")
+      if (index["skyarc.lib"] != "upsPod::UpsPodLib") throw Err("Missing function index")
+
+      api := read(files, `/doc/UpsPodExt.apidoc`)
+      if (!api.contains("base=skyarcd::Ext hx::HxLib sys::Obj")) throw Err("Invalid extension base class")
+      if (!api.contains("name=\"upsPod\"")) throw Err("Incorrect extension name")
+      if (!api.contains("depends=[\"finstack\",\"finStackMobile\"]"))
+        throw Err("Missing FIN menu namespace and launcher dependencies")
+      if (!api.contains("-- make(\n) sys::Void")) throw Err("Extension constructor requires arguments")
+
+      echo("PASS built upsPod metadata, extension index, function index, constructor signature")
+      echo("PASS built production frontend excludes demo seed resources")
+    } finally {
+      zip.close
     }
-    forbidden := ["/frontend/seed.json", "/frontend/seed-data.js"]
-    pod.files.each |file| {
-      path := file.uri.pathStr
-      if (forbidden.any |uri| { path.endsWith(uri) })
-        throw Err("Demo seed resource must not be packaged: " + path)
-    }
-    echo("PASS upsPod class metadata, extension index, function index, constructor signature")
-    echo("PASS production frontend resources packaged without demo seed resources")
+  }
+
+  private static Str read([Uri:File] files, Uri uri) {
+    file := files[uri]
+    if (file == null) throw Err("Missing resource in built pod: " + uri)
+    text := file.readAllStr
+    if (text.isEmpty) throw Err("Empty resource in built pod: " + uri)
+    return text
   }
 }

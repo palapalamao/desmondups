@@ -20,7 +20,7 @@ try {
   Copy-Item -LiteralPath $src -Destination $dst -Force
   if ((Get-FileHash -LiteralPath $src).Hash -ne (Get-FileHash -LiteralPath $dst).Hash) { throw 'Installed POD hash mismatch' }
   'POD SHA256 verified' | Add-Content -LiteralPath $log
-  & (Join-Path $FinHome 'bin\fan.bat') (Join-Path $repoRoot 'extensions\upsPod\test\verifyRegistration.fan') 2>&1 | Out-File -LiteralPath $log -Append -Encoding UTF8
+  & (Join-Path $FinHome 'bin\fan.bat') (Join-Path $repoRoot 'extensions\upsPod\test\verifyRegistration.fan') $src 2>&1 | Out-File -LiteralPath $log -Append -Encoding UTF8
   if ($LASTEXITCODE -ne 0) { throw 'Extension registration verification failed' }
   Restart-Service FIN5 -Force
   (Get-Service FIN5).WaitForStatus('Running', [TimeSpan]::FromSeconds(60))

@@ -14,6 +14,25 @@ assert.match(deploy, /Get-FileHash[\s\S]*\$podDst[\s\S]*SHA256/i,
   "部署脚本必须计算安装目标 POD 的 SHA-256");
 assert.match(deploy, /\$sourceHash\s+-ne\s+\$(destinationHash|destHash)/i,
   "部署脚本必须比较源和目标 POD 的 SHA-256");
+const sourceHashAt = deploy.indexOf("$sourceHash =");
+const stopAt = deploy.indexOf("Stop-Service -Name FIN5");
+const backupAt = deploy.indexOf("Copy-Item -LiteralPath $podDst -Destination $backupPath");
+const replaceAt = deploy.indexOf("Copy-Item -LiteralPath $podSrc -Destination $podDst");
+const destinationHashAt = deploy.indexOf("$destinationHash =");
+assert.ok(sourceHashAt >= 0 && sourceHashAt < stopAt,
+  "源 POD 哈希必须在停止 FIN 前计算");
+assert.match(deploy, /\$originalServiceStatus\s*=\s*\$svc\.Status/,
+  "部署脚本必须记录服务原状态");
+assert.ok(backupAt >= 0 && backupAt < stopAt,
+  "现有目标 POD 必须在停止 FIN 前备份");
+assert.ok(replaceAt > stopAt && destinationHashAt > replaceAt,
+  "目标 POD 只能在停服后替换并立即校验");
+assert.match(deploy, /finally\s*\{[\s\S]*\$deploymentError[\s\S]*Copy-Item -LiteralPath \$backupPath -Destination \$podDst -Force/i,
+  "部署失败必须在 finally 中恢复目标 POD 备份");
+assert.match(deploy, /finally\s*\{[\s\S]*\$originalServiceStatus -eq "Running"[\s\S]*Start-Service -Name FIN5/i,
+  "部署失败必须在 finally 中恢复原先 Running 的 FIN 服务");
+assert.match(deploy, /if \(\$deploymentError\)\s*\{\s*throw \$deploymentError\s*\}/i,
+  "完成恢复后必须重新抛出原部署错误");
 
 assert.ok(
   deploy.includes('/api/$ProjectName/eval'),
