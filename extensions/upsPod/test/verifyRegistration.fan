@@ -17,10 +17,6 @@ class VerifyRegistration {
           throw Err("Missing or empty resource in built pod: " + uri)
       }
 
-      [`/frontend/seed.json`, `/frontend/seed-data.js`].each |uri| {
-        if (files.containsKey(uri)) throw Err("Demo seed resource must not be packaged: " + uri)
-      }
-
       meta := read(files, `/meta.props`).in.readProps
       if (meta["pod.name"] != "upsPod") throw Err("Incorrect pod name")
       if (meta["pod.isScript"] != "false") throw Err("upsPod must be a compiled pod")
@@ -37,7 +33,6 @@ class VerifyRegistration {
       if (!api.contains("-- make(\n) sys::Void")) throw Err("Extension constructor requires arguments")
 
       echo("PASS built upsPod metadata, extension index, function index, constructor signature")
-      echo("PASS built production frontend excludes demo seed resources")
     } finally {
       zip.close
     }

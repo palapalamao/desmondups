@@ -93,9 +93,7 @@ tc("TC-FIN-05", "production frontend has only the Folio adapter and no pseudo wr
   assert.match(app, /detail:\s*function[\s\S]*?unavailableDetail\(/);
   assert.match(app, /history:\s*function[\s\S]*?unavailableHistory\(/);
   [
-    ["MockAdapter", /MockAdapter/], ["mock query", /mock=1/], ["overview generator", /genHistory/],
-    ["history generator", /deriveHistory/], ["event generator", /deriveEvents/], ["PRNG", /prnd3/],
-    ["metric domain", /METRIC_DOMAIN/], ["alarm pseudo-write", /applyAck|submitAck|openAck|ackNote|mock-operator/],
+    ["alarm pseudo-write", /applyAck|submitAck|openAck|ackNote|mock-operator/],
     ["config pseudo-write", /publishConfig|rollbackConfig|submitPublish|rollbackTo|configStore/],
   ].forEach(([label, re]) => {
     assert.doesNotMatch(app, re, "app.js contains " + label);

@@ -1,28 +1,34 @@
-// UPS 红线 CI 检查（P6）——退出码 0=通过 1=失败；输出命中行便于定位
+// R5: production source and the explicitly built POD expose no demo seed or mock entry.
 "use strict";
-const fs = require("fs"), path = require("path");
-const POD = path.join(__dirname, "..", "..", "extensions", "upsPod");
-let hits = [];
-function scan(file, re, label) {
-  const txt = fs.readFileSync(file, "utf8");
-  txt.split(/\r?\n/).forEach((line, i) => {
-    if (re.test(line)) hits.push(label + " " + path.relative(path.join(__dirname, "..", ".."), file) + ":" + (i + 1) + "  " + line.trim().slice(0, 90));
+
+const fs = require("fs");
+const {
+  productionSourceFiles,
+  requireOutputPod,
+  withExtractedPod,
+  relative,
+} = require("./pod-check-utils");
+
+const forbidden = ["seed.json", "seed-data.js", "MockAdapter", "mock=1"];
+
+function scan(files, label) {
+  const hits = [];
+  files.forEach((file) => {
+    const body = fs.readFileSync(file);
+    forbidden.forEach((token) => {
+      if (body.includes(Buffer.from(token))) hits.push(label + " " + relative(file) + ": " + token);
+    });
   });
-}
-function walk(d, exts) {
-  return fs.readdirSync(d, { withFileTypes: true }).flatMap(e => {
-    const p = path.join(d, e.name);
-    if (e.isDirectory()) return e.name === "vendor" ? [] : walk(p, exts);
-    return exts.includes(path.extname(e.name)) ? [p] : [];
-  });
+  return hits;
 }
 
-// 红线 R5（演示数据侧）：种子脚本幂等——两次生成逐字节一致
-const { execSync } = require("child_process");
-const seedPath = path.join(POD, "frontend", "seed.json");
-const seedJs = path.join(__dirname, "..", "seed", "demoSeed.js");
-const before = fs.readFileSync(seedPath, "utf8");
-execSync("node \"" + seedJs + "\"");
-const after = fs.readFileSync(seedPath, "utf8");
-if (before !== after) { console.error("FAIL R5 种子两次生成不一致（长度 " + before.length + " vs " + after.length + "）"); process.exit(1); }
-console.log("PASS R5 种子幂等（逐字节一致，长度 " + after.length + "）");
+try {
+  const podFile = requireOutputPod(process.argv.slice(2), "node scripts/check/r5-idempotent-seed.cjs");
+  const hits = scan(productionSourceFiles(), "source");
+  withExtractedPod(podFile, (_podDir, podFiles) => hits.push(...scan(podFiles, "pod")));
+  if (hits.length) throw new Error("R5 禁止入口:\n" + hits.join("\n"));
+  console.log("PASS R5 production source and explicit output POD contain no seed or mock entry");
+} catch (error) {
+  console.error("FAIL R5", error.message);
+  process.exit(1);
+}

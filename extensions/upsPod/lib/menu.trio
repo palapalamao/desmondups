@@ -7,7 +7,7 @@
 // #/ups/alarms、#/ups/config、#/ups/audit。
 //
 // 扩展发现依赖 UpsPodExt 类上的 @ExtMeta；本文件负责菜单函数注册。
-// 默认读取 FIN 设备树；演示数据仅通过前端 ?mock=1 显式开启。
+// 数据仅从 FIN 设备树读取；缺失值由前端按数据缺口契约呈现。
 //
 
 ---

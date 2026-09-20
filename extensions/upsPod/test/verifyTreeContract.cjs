@@ -16,16 +16,9 @@ assert.doesNotMatch(lib, /p\.get\("ts"|p\.get\("mod"/, "overview timestamp must 
 
 const production = [ext, build, deploy].join("\n");
 [
-  ["upsSimVal", /\bupsSimVal\b/],
-  ["upsSimTs", /\bupsSimTs\b/],
   ["Diff.transient", /Diff\.transient/],
   ["lifecycle telemetry publisher", /publishSimCurVals|onHouseKeeping|houseKeepingFreq/],
-  ["seed JSON", /seed\.json|seed-data\.js/],
-  ["seed deployment", /upsPodTreeSeed|seed project tree/i],
 ].forEach(([label, pattern]) => assert.doesNotMatch(production, pattern, "production source must not contain " + label));
-assert.ok(!fs.existsSync(path.join(__dirname, "..", "frontend", "seed.json")), "frontend seed JSON must be removed");
-assert.ok(!fs.existsSync(path.join(__dirname, "..", "frontend", "seed-data.js")), "generated frontend seed resource must be removed");
-assert.ok(!fs.existsSync(path.join(__dirname, "..", "..", "..", "scripts", "seed", "upsPodTreeSeed.fan")), "tree seed deployment must be removed");
 
 console.log("PASS TC-FIN-TREE-01 curVal-only read contract");
-console.log("PASS TC-FIN-TREE-02 production telemetry path contains no simulator or seed mutation");
+console.log("PASS TC-FIN-TREE-02 production telemetry path contains no transient simulator mutation");

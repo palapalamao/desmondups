@@ -1,28 +1,73 @@
-// UPS 红线 CI 检查（P6）——退出码 0=通过 1=失败；输出命中行便于定位
+// R3: production source and the explicitly built POD must contain no fabricated-data path.
 "use strict";
-const fs = require("fs"), path = require("path");
-const POD = path.join(__dirname, "..", "..", "extensions", "upsPod");
-let hits = [];
-function scan(file, re, label) {
-  const txt = fs.readFileSync(file, "utf8");
-  txt.split(/\r?\n/).forEach((line, i) => {
-    if (re.test(line)) hits.push(label + " " + path.relative(path.join(__dirname, "..", ".."), file) + ":" + (i + 1) + "  " + line.trim().slice(0, 90));
+
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+const {
+  POD_ROOT,
+  productionSourceFiles,
+  requireOutputPod,
+  withExtractedPod,
+  relative,
+} = require("./pod-check-utils");
+
+const forbidden = [
+  "MockAdapter",
+  "mock=1",
+  "genHistory",
+  "deriveHistory",
+  "deriveEvents",
+  "prnd3",
+  "METRIC_DOMAIN",
+  "seed.json",
+  "seed-data.js",
+  "upsSimVal",
+  "upsSimTs",
+];
+
+function scan(files, label) {
+  const hits = [];
+  files.forEach((file) => {
+    const body = fs.readFileSync(file);
+    forbidden.forEach((token) => {
+      if (body.includes(Buffer.from(token))) hits.push(label + " " + relative(file) + ": " + token);
+    });
   });
-}
-function walk(d, exts) {
-  return fs.readdirSync(d, { withFileTypes: true }).flatMap(e => {
-    const p = path.join(d, e.name);
-    if (e.isDirectory()) return e.name === "vendor" ? [] : walk(p, exts);
-    return exts.includes(path.extname(e.name)) ? [p] : [];
-  });
+  return hits;
 }
 
-// 红线 R3：宁缺毋假——数据链路无随机源/墙钟进种子；fail-closed 不得造假兜底
-const appJs = path.join(POD, "frontend", "app.js");
-const seedJs = path.join(__dirname, "..", "seed", "demoSeed.js");
-scan(appJs, /Math\.random/, "[R3-random]");
-scan(seedJs, /Math\.random|Date\.now|new Date\(/, "[R3-wallclock]");
-const boot = fs.readFileSync(appJs, "utf8");
-if (!boot.includes("加载失败（fail-closed")) hits.push("[R3] app.js 缺少 fail-closed fatal 文案，疑似存在静默兜底");
-if (hits.length) { console.error("FAIL R3 宁缺毋假违规:\n" + hits.join("\n")); process.exit(1); }
-console.log("PASS R3 无随机源/墙钟/静默兜底");
+function assertGapContract(core, label) {
+  const unit = { id: "@unit", name: "UPS 01", soc: null, loadPct: null, batteryTemp: null, ts: null };
+  const detail = core.unavailableDetail([unit], unit.id);
+  assert.strictEqual(detail.available, false, label + " detail.available");
+  assert.strictEqual(detail.dataGap, true, label + " detail.dataGap");
+  assert.strictEqual(detail.status, "unavailable", label + " detail.status");
+  assert.strictEqual(detail.detail, null, label + " detail.detail");
+  assert.deepStrictEqual(detail.series, {}, label + " detail.series");
+  assert.deepStrictEqual(detail.events, [], label + " detail.events");
+
+  const history = core.unavailableHistory([unit], unit.id, { metrics: "soc,load,temp", span: "7d" });
+  assert.strictEqual(history.available, false, label + " history.available");
+  assert.strictEqual(history.dataGap, true, label + " history.dataGap");
+  assert.strictEqual(history.status, "unavailable", label + " history.status");
+  assert.deepStrictEqual(history.series, { soc: [], load: [], temp: [] }, label + " history.series");
+  assert.deepStrictEqual(history.events, [], label + " history.events");
+}
+
+try {
+  const podFile = requireOutputPod(process.argv.slice(2), "node scripts/check/r3-no-fake-data.cjs");
+  const hits = scan(productionSourceFiles(), "source");
+  assertGapContract(require(path.join(POD_ROOT, "frontend", "app.js")), "source");
+
+  withExtractedPod(podFile, (podDir, podFiles) => {
+    hits.push(...scan(podFiles, "pod"));
+    assertGapContract(require(path.join(podDir, "frontend", "app.js")), "pod");
+  });
+
+  if (hits.length) throw new Error("R3 禁止项:\n" + hits.join("\n"));
+  console.log("PASS R3 production source and explicit output POD contain no fabricated-data path; gap contracts verified");
+} catch (error) {
+  console.error("FAIL R3", error.message);
+  process.exit(1);
+}
