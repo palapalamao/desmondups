@@ -82,8 +82,12 @@ assert.match(tree, /effective\.isEmpty\) return result\("unchanged", old, type\)
   "identical updates must return unchanged without committing");
 assert.match(tree, /"status": "conflict"[\s\S]*?"conflictId": existing\.id/,
   "conflicts must return the conflicting record id");
-assert.doesNotMatch(tree, /Diff\.remove|Remove\.val|commitRemoveTrash/,
-  "tree boundary must not expose deletion");
+assert.doesNotMatch(tree, /Diff\.remove|commitRemoveTrash/,
+  "tree boundary must not expose record deletion");
+assert.match(tree, /allowRatedKvaRemove && name == "ratedKva"\) out\[name\] = Remove\.val/,
+  "only ratedKva update null may translate to a tag removal");
+assert.match(tree, /normalize\(parsePayload\(payloadJson\), updateAllowed\(type\), true\)/,
+  "tag removal must be enabled only for update normalization");
 [
   "curVal", "curStatus", "curStatusTs", "his", "history", "alarms",
   "val", "dmValue", "upsSimVal", "upsSimTs",

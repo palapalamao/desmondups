@@ -133,6 +133,11 @@
           {{#if tree.edit.type === "site"}}<label>时区<input value="{{tree.edit.draft.tz}}"></label>{{/if}}
           {{#if tree.edit.type === "equip"}}<label>厂商<input value="{{tree.edit.draft.make}}"></label><label>型号<input value="{{tree.edit.draft.model}}"></label><label>序列号<input value="{{tree.edit.draft.serial}}"></label><label>额定容量（kVA）<input type="number" min="0" step="any" value="{{tree.edit.draft.ratedKva}}"></label>{{/if}}
           {{#if tree.edit.type === "point"}}<label>数据类别<input required value="{{tree.edit.draft.kind}}"></label><label>单位<input required value="{{tree.edit.draft.unit}}"></label>{{/if}}
+          <div class="create-preview" aria-live="polite">
+            <h3>即将保存</h3>
+            {{#if treeVm.updatePreviewError}}<p class="preview-hint">{{treeVm.updatePreviewError}}</p>{{/if}}
+            {{#if treeVm.updatePreview.length}}<dl>{{#each treeVm.updatePreview}}<div><dt>{{.label}}</dt><dd>{{.value}}</dd></div>{{/each}}</dl>{{else}}<p class="preview-hint">尚未修改信息。</p>{{/if}}
+          </div>
           <button class="btn primary tree-submit" type="submit" disabled="{{tree.busy}}">保存更改</button>
         </form>
       {{/if}}

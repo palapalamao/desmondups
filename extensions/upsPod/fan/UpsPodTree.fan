@@ -51,11 +51,13 @@ const class UpsPodTree {
       type := recType(old)
       if (type == null || !isReadable(db, old, type))
         throw ArgErr("Record is outside the coherent UPS tree: $ref")
-      changes := normalize(parsePayload(payloadJson), updateAllowed(type))
+      changes := normalize(parsePayload(payloadJson), updateAllowed(type), true)
       if (changes.isEmpty) throw ArgErr("Update payload must not be empty")
       effective := Str:Obj?[:]
       changes.each |val, name| {
-        if (old[name] != val) effective[name] = val
+        if (val == Remove.val) {
+          if (old.has(name)) effective[name] = val
+        } else if (old[name] != val) effective[name] = val
       }
       if (effective.isEmpty) return result("unchanged", old, type)
       duplicate := findDuplicateUpdate(db, type, old, effective)
@@ -117,11 +119,15 @@ const class UpsPodTree {
     }
   }
 
-  private static Str:Obj? normalize(Str:Obj? payload, Str[] allowed) {
+  private static Str:Obj? normalize(Str:Obj? payload, Str[] allowed, Bool allowRatedKvaRemove := false) {
     out := Str:Obj?[:]
     payload.each |val, name| {
       if (!allowed.contains(name)) throw ArgErr("Field is not allowed: $name")
-      if (val == null) throw ArgErr("Field may not be null: $name")
+      if (val == null) {
+        if (allowRatedKvaRemove && name == "ratedKva") out[name] = Remove.val
+        else throw ArgErr("Field may not be null: $name")
+        return
+      }
       if (markerNames.contains(name)) out[name] = toMarker(name, val)
       else if (refNames.contains(name)) {
         if (val isnot Str) throw ArgErr("$name must be a record id")

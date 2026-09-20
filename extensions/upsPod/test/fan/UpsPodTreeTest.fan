@@ -11,6 +11,12 @@ class UpsPodTreeTest : HxTest {
 
   override Void teardown() {}
 
+  Void testLoadsProductionPodFromActivePathEnv() {
+    treeUi := Pod.find("upsPod").file(`/frontend/tree-ui.js`).readAllStr
+    verify(treeUi.contains("getRandomValues"))
+    verifyFalse(treeUi.contains("treeKeyCounter"))
+  }
+
   private once HxTestSpi hxdSpi() {
     Type.find("hxd::HxdTestSpi").make([this])
   }
@@ -358,6 +364,49 @@ class UpsPodTreeTest : HxTest {
     verifyEq(equip["model"], "NewModel")
     verifyEq(equip["serial"], "NewSerial")
     verifyEq(((Number)equip["ratedKva"]).toInt, 80)
+  }
+
+  Void testClearRatedKvaRemovesOnlyThatTag() {
+    ids := createTree
+    equipId := ids["equip"]
+    pointId := ids["point"]
+    ts := DateTime.now - 1min
+    equip := testRt.db.readById(equipId)
+    equip = testRt.db.commit(Diff(equip, ["unrequestedMeta":"keep-me"])).newRec
+    point := testRt.db.readById(pointId)
+    point = testRt.db.commit(Diff(point, ["his":Marker.val, "tz":TimeZone.cur.name])).newRec
+    testRt.db.commit(Diff(point, [
+      "curVal":Number(17), "curStatus":"ok", "curStatusTs":ts,
+    ], Diff.transient))
+    testRt.db.his.write(pointId, [HisItem(ts, Number(17))]).get
+    before := testRt.db.readById(equipId)
+    beforePoint := testRt.db.readById(pointId)
+    beforeHistory := readHistory(pointId)
+
+    result := UpsPodTree.update(testRt.db, equipId, "{\"ratedKva\":null}")
+
+    verifyEq(result["status"], "updated")
+    after := testRt.db.readById(equipId)
+    verifyFalse(after.has("ratedKva"))
+    ["dis", "navName", "make", "model", "serial", "siteRef", "floorRef",
+     "equip", "upsUnit", "upsTreeKey", "unrequestedMeta"].each |name| {
+      verifyEq(after[name], before[name], "Unrelated field changed while clearing ratedKva: $name")
+    }
+    verify(Etc.dictEq(testRt.db.readById(pointId), beforePoint))
+    verifyEq(readHistory(pointId), beforeHistory)
+
+    beforeRepeatVer := testRt.db.curVer
+    repeated := UpsPodTree.update(testRt.db, equipId, "{\"ratedKva\":null}")
+    verifyEq(repeated["status"], "unchanged")
+    verifyEq(testRt.db.curVer, beforeRepeatVer)
+
+    verifyErr(ArgErr#) { UpsPodTree.update(testRt.db, equipId, "{\"make\":null}") }
+    siteId := ids["site"].id
+    floorId := ids["floor"].id
+    verifyErr(ArgErr#) {
+      UpsPodTree.create(testRt.db, "equip",
+        "{\"dis\":\"Bad\",\"navName\":\"bad\",\"siteRef\":\"$siteId\",\"floorRef\":\"$floorId\",\"ratedKva\":null,\"upsTreeKey\":\"bad-null-rated\"}")
+    }
   }
 
   Void testRepeatedUpdateDoesNotCommitOrNotifyObservers() {

@@ -16,10 +16,17 @@ const rows = [
   { id: "p:1", type: "point", dis: "SOC", navName: "soc", siteId: "s:1", floorId: "f:1", equipId: "e:1", kind: "Number", unit: "%", metric: "upsSocPct", status: "ok" },
 ];
 
-function storage() {
-  const values = new Map();
-  return { getItem: key => values.has(key) ? values.get(key) : null,
-    setItem: (key, value) => values.set(key, String(value)) };
+function deterministicCrypto(seed) {
+  return { getRandomValues: bytes => {
+    for (let index = 0; index < bytes.length; index++) bytes[index] = (seed + index) & 255;
+    return bytes;
+  } };
+}
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
 }
 
 (async () => {
@@ -34,12 +41,26 @@ function storage() {
   assert.deepStrictEqual(TreeUi.childrenFor(model, "point", { siteId: "s:1", floorId: "f:1", equipId: "e:1" }).map(record => record.id), ["p:1"]);
   assert.deepStrictEqual(model.points[0].parentChain, ["北区", "一层", "UPS A"]);
 
-  const fallbackStorage = storage();
-  const nextFallback = TreeUi.createKeyGenerator("my-project", {}, fallbackStorage);
-  assert.strictEqual(nextFallback(), "ups-tree:my-project:1");
-  assert.strictEqual(nextFallback(), "ups-tree:my-project:2");
-  const nextUuid = TreeUi.createKeyGenerator("my-project", { randomUUID: () => "uuid-1" }, fallbackStorage);
+  const nextUuid = TreeUi.createKeyGenerator("my-project", { randomUUID: () => "uuid-1" });
   assert.strictEqual(nextUuid(), "ups-tree:my-project:uuid-1");
+  const sessionOneKey = TreeUi.createKeyGenerator("my-project", deterministicCrypto(1))();
+  const sessionTwoKey = TreeUi.createKeyGenerator("my-project", deterministicCrypto(33))();
+  assert.match(sessionOneKey, /^ups-tree:my-project:[0-9a-f]{32}$/);
+  assert.notStrictEqual(sessionOneKey, sessionTwoKey, "independent sessions must not reuse a counter-derived key");
+  const uuidFallbackCrypto = deterministicCrypto(65);
+  uuidFallbackCrypto.randomUUID = () => { throw new Error("UUID unavailable"); };
+  assert.match(TreeUi.createKeyGenerator("my-project", uuidFallbackCrypto)(), /^ups-tree:my-project:[0-9a-f]{32}$/);
+  assert.throws(() => TreeUi.createKeyGenerator("my-project", {})(), /安全随机数不可用，无法创建/);
+  assert.throws(() => TreeUi.createKeyGenerator("my-project", {
+    getRandomValues: () => { throw new Error("entropy unavailable"); },
+  })(), /安全随机数不可用，无法创建/);
+  const noRandomController = TreeUi.createTreeController({
+    treeRead: async () => [], treeCreate: async () => { throw new Error("must not run"); },
+    treeUpdate: async () => { throw new Error("must not run"); },
+  }, { project: "no-random", cryptoApi: {} });
+  assert.strictEqual(noRandomController.prepare("site"), null);
+  assert.match(noRandomController.state.operation.message, /安全随机数不可用，无法创建/);
+  await assert.rejects(() => noRandomController.create("site"), /安全随机数不可用，无法创建/);
 
   const selections = { siteId: "s:1", floorId: "f:1", equipId: "e:1", pointId: "" };
   assert.deepStrictEqual(TreeUi.buildCreatePayload("site", { dis: "北区", navName: "north", tz: "Asia/Shanghai" }, selections, "k-site"), {
@@ -73,6 +94,9 @@ function storage() {
   assert.deepStrictEqual(TreeUi.buildUpdatePayload("equip", {
     dis: "UPS A+", navName: "upsA", make: "Acme", model: "X", serial: "SN-1", ratedKva: "50",
   }, model.equips[0]), { dis: "UPS A+", ratedKva: 50 });
+  assert.deepStrictEqual(TreeUi.buildUpdatePayload("equip", {
+    dis: "UPS A", navName: "upsA", make: "Acme", model: "X", serial: "SN-1", ratedKva: "",
+  }, model.equips[0]), { ratedKva: null });
   assert.deepStrictEqual(TreeUi.buildUpdatePayload("point", {
     dis: "SOC", navName: "soc", kind: "Number", unit: "%", metric: "upsLoadPct", equipId: "e:2",
   }, model.points[0]), {});
@@ -127,6 +151,57 @@ function storage() {
   await controller.refresh();
   assert.strictEqual(controller.state.treeError, null);
 
+  const orderedReads = [];
+  const ordered = TreeUi.createTreeController({
+    treeRead: () => { const next = deferred(); orderedReads.push(next); return next.promise; },
+    treeCreate: async () => { throw new Error("unused"); }, treeUpdate: async () => { throw new Error("unused"); },
+  }, { project: "ordered", cryptoApi: deterministicCrypto(50) });
+  const oldRefresh = ordered.refresh();
+  await Promise.resolve();
+  const newRefresh = ordered.refresh();
+  await Promise.resolve();
+  assert.strictEqual(ordered.state.busy, true);
+  orderedReads[1].resolve(rows.concat({ id: "s:new", type: "site", dis: "最新站点", navName: "new" }));
+  await newRefresh;
+  assert.strictEqual(ordered.state.tree.byId["s:new"].dis, "最新站点");
+  assert.strictEqual(ordered.state.busy, true, "older refresh remains active");
+  orderedReads[0].resolve(rows);
+  await oldRefresh;
+  assert.strictEqual(ordered.state.tree.byId["s:new"].dis, "最新站点", "stale response must not overwrite latest tree");
+  assert.strictEqual(ordered.state.busy, false);
+
+  const mutationReads = [];
+  let mutationReadCount = 0;
+  const staleMutation = TreeUi.createTreeController({
+    treeRead: async () => {
+      mutationReadCount++;
+      if (mutationReadCount === 1) return rows;
+      const next = deferred(); mutationReads.push(next); return next.promise;
+    },
+    treeCreate: async (type, payload) => ({ status: "created", id: "f:stale", type,
+      dis: payload.dis, siteId: payload.siteRef }),
+    treeUpdate: async () => { throw new Error("unused"); },
+  }, { project: "stale", keyGenerator: () => "stale-key" });
+  await staleMutation.refresh();
+  staleMutation.select("site", "s:1");
+  staleMutation.prepare("floor");
+  Object.assign(staleMutation.state.drafts.floor, { dis: "乱序楼层", navName: "staleFloor" });
+  const mutationCreate = staleMutation.create("floor");
+  while (mutationReads.length < 1) await Promise.resolve();
+  const latestRefresh = staleMutation.refresh();
+  while (mutationReads.length < 2) await Promise.resolve();
+  mutationReads[1].resolve(rows);
+  await latestRefresh;
+  assert.strictEqual(staleMutation.state.busy, true, "mutation refresh remains active");
+  mutationReads[0].resolve(rows.concat({ id: "f:stale", type: "floor", dis: "乱序楼层",
+    navName: "staleFloor", siteId: "s:1", status: "ok" }));
+  await assert.rejects(() => mutationCreate, /写入结果未确认/);
+  assert.strictEqual(staleMutation.state.tree.byId["f:stale"], undefined,
+    "stale mutation response must not confirm or replace the latest tree");
+  assert.strictEqual(staleMutation.state.keys.floor, "stale-key");
+  assert.strictEqual(staleMutation.state.drafts.floor.dis, "乱序楼层");
+  assert.strictEqual(staleMutation.state.busy, false);
+
   let confirmRead = 0;
   const confirmationCalls = [];
   const confirmingAdapter = {
@@ -163,6 +238,21 @@ function storage() {
   assert.strictEqual(confirming.state.selections.floorId, "f:confirmed");
   assert.strictEqual(confirming.state.activeType, "equip");
   assert.deepStrictEqual(confirmationCalls.map(call => call[1].upsTreeKey), ["confirm-key", "confirm-key", "confirm-key"]);
+
+  const editedExisting = TreeUi.createTreeController({
+    treeRead: async () => rows.concat({ id: "f:edited", type: "floor", dis: "后来改名",
+      navName: "laterName", siteId: "s:1", status: "ok" }),
+    treeCreate: async (type, payload) => ({ status: "existing", id: "f:edited", type,
+      dis: payload.dis, siteId: payload.siteRef }),
+    treeUpdate: async () => { throw new Error("unused"); },
+  }, { project: "edited-existing", keyGenerator: () => "edited-existing-key" });
+  await editedExisting.refresh();
+  editedExisting.select("site", "s:1");
+  editedExisting.prepare("floor");
+  Object.assign(editedExisting.state.drafts.floor, { dis: "原始楼层", navName: "originalFloor" });
+  await assert.rejects(() => editedExisting.create("floor"), /写入结果未确认/);
+  assert.strictEqual(editedExisting.state.keys.floor, "edited-existing-key");
+  assert.strictEqual(editedExisting.state.drafts.floor.dis, "原始楼层");
 
   let updateRead = 0;
   const updateCalls = [];
@@ -202,11 +292,13 @@ function storage() {
   assert.match(menu, /设备树管理[\s\S]*\/ups\/tree/);
   assert.match(html, /设备树管理/);
   assert.match(html, /层级与数据类型创建后不可更改/);
+  assert.match(html, /即将保存/);
   assert.doesNotMatch(html, /<input[^>]+(?:curVal|curStatusTs)|<select[^>]+(?:curVal|curStatusTs)/i);
   assert.doesNotMatch(html, /删除|更换父级|运行值|告警确认/);
   assert.match(app, /route\.page === "tree"[\s\S]*renderTree\(\)/);
   assert.match(app, /treeController\.refresh\(\)/);
   assert.doesNotMatch(helper, /Math\.random|Date\.now/);
+  assert.doesNotMatch(helper, /treeKeyCounter|localCounter|sessionStorage/);
   assert.match(styles, /@media \(max-width: 800px\)[\s\S]*\.tree-layout\s*\{\s*grid-template-columns: 1fr/);
   assert.match(styles, /:focus-visible/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
@@ -241,7 +333,7 @@ function storage() {
   Object.assign(fixtureController.state.drafts.floor, { dis: "交互测试楼层", navName: "fixtureFloor" });
   const typeLabels = { site: "站点", floor: "楼层", equip: "UPS", point: "点位" };
   const fieldLabels = { dis: "显示名称", navName: "导航名称", siteRef: "所属站点",
-    upsTreeKey: "创建标识", floor: "楼层标记" };
+    upsTreeKey: "创建标识", floor: "楼层标记", ratedKva: "额定容量（kVA）" };
   function fixtureVm() {
     const state = fixtureController.state;
     let preview = [], previewError = null;
@@ -263,6 +355,11 @@ function storage() {
       floorChoices: TreeUi.childrenFor(state.tree, "floor", { siteId: state.selections.siteId }),
       equipChoices: TreeUi.childrenFor(state.tree, "equip", { siteId: state.selections.siteId, floorId: state.selections.floorId }),
       preview, previewError,
+      updatePreview: state.mode === "edit" ? Object.entries(TreeUi.buildUpdatePayload(state.edit.type,
+        state.edit.draft, state.edit.original)).map(([name, value]) => ({
+          label: fieldLabels[name] || name, value: value === null ? "清空" : String(value),
+        })) : [],
+      updatePreviewError: null,
       parentText: state.edit && state.edit.original.parentChain && state.edit.original.parentChain.length
         ? state.edit.original.parentChain.join(" / ") : "顶层",
     };
@@ -312,7 +409,9 @@ function storage() {
   assert.match(fixtureHtml, /记录 ID<\/dt><dd>e:1/);
   assert.match(fixtureHtml, /层级与数据类型创建后不可更改/);
   fixtureController.state.edit.draft.dis = "UPS A 交互修改";
+  fixtureController.state.edit.draft.ratedKva = "";
   fixtureRender();
+  assert.match(fixture.toHTML(), /额定容量（kVA）<\/dt><dd>清空/);
   fixture.fire("treeUpdate");
   await fixtureAction;
   fixtureHtml = fixture.toHTML();

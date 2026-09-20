@@ -412,10 +412,26 @@
     }
   }
 
+  function treeUpdatePreviewRows(state) {
+    try {
+      var payload = global.TreeUi.buildUpdatePayload(state.edit.type, state.edit.draft, state.edit.original);
+      return {
+        error: null,
+        rows: Object.keys(payload).map(function (name) {
+          return { label: TREE_FIELD_LABELS[name] || name,
+            value: payload[name] === null ? "清空" : String(payload[name]) };
+        }),
+      };
+    } catch (error) {
+      return { error: String(error.message || error), rows: [] };
+    }
+  }
+
   function treeViewModel() {
     var state = treeController.state;
     var selections = state.selections;
     var preview = state.mode === "create" ? treePreviewRows(state.activeType, state) : { rows: [], error: null };
+    var updatePreview = state.mode === "edit" ? treeUpdatePreviewRows(state) : { rows: [], error: null };
     return {
       step: global.TreeUi.TYPES.indexOf(state.activeType) + 1,
       typeLabel: TREE_TYPE_LABELS[state.mode === "edit" && state.edit ? state.edit.type : state.activeType],
@@ -427,6 +443,8 @@
       equipChoices: global.TreeUi.childrenFor(state.tree, "equip", { siteId: selections.siteId, floorId: selections.floorId }),
       preview: preview.rows,
       previewError: preview.error,
+      updatePreview: updatePreview.rows,
+      updatePreviewError: updatePreview.error,
       parentText: state.edit && state.edit.original.parentChain && state.edit.original.parentChain.length
         ? state.edit.original.parentChain.join(" / ") : "顶层",
     };
@@ -443,10 +461,8 @@
       return;
     }
     if (!treeController) {
-      var sessionStore = null;
-      try { sessionStore = global.sessionStorage; } catch (ignore) {}
       treeController = global.TreeUi.createTreeController(adapter, {
-        project: adapter.projectName(), cryptoApi: global.crypto, storage: sessionStore,
+        project: adapter.projectName(), cryptoApi: global.crypto,
       });
     }
     renderTreeState();

@@ -75,22 +75,24 @@
     });
   }
 
-  function createKeyGenerator(project, cryptoApi, sessionStore) {
+  function createKeyGenerator(project, cryptoApi) {
     project = text(project);
-    var localCounter = 0;
-    var storageKey = "upsPod.treeKeyCounter." + project;
     return function () {
       if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
-        return "ups-tree:" + project + ":" + cryptoApi.randomUUID();
+        try { return "ups-tree:" + project + ":" + cryptoApi.randomUUID(); }
+        catch (ignoreUuid) {}
       }
-      var counter = localCounter;
-      try { counter = parseInt(sessionStore && sessionStore.getItem(storageKey) || "0", 10) || 0; }
-      catch (ignore) {}
-      counter += 1;
-      localCounter = counter;
-      try { if (sessionStore) sessionStore.setItem(storageKey, String(counter)); }
-      catch (ignore) {}
-      return "ups-tree:" + project + ":" + counter;
+      if (cryptoApi && typeof cryptoApi.getRandomValues === "function" && typeof Uint8Array !== "undefined") {
+        try {
+          var bytes = new Uint8Array(16);
+          cryptoApi.getRandomValues(bytes);
+          var hex = Array.prototype.map.call(bytes, function (value) {
+            return ("0" + value.toString(16)).slice(-2);
+          }).join("");
+          return "ups-tree:" + project + ":" + hex;
+        } catch (ignoreRandomValues) {}
+      }
+      throw new Error("安全随机数不可用，无法创建记录");
     };
   }
 
@@ -160,9 +162,11 @@
     if (!UPDATE_FIELDS[type]) throw new Error("不支持的设备树层级：" + type);
     var payload = {};
     UPDATE_FIELDS[type].forEach(function (name) {
-      var before = original[name] === undefined || original[name] === null ? "" : original[name];
+      var before = original[name] === undefined || original[name] === null
+        ? (name === "ratedKva" ? null : "") : original[name];
       var after = draft[name] === undefined || draft[name] === null ? "" : draft[name];
-      if (name === "ratedKva" && text(after).trim() !== "") after = numeric(after, "额定容量");
+      if (name === "ratedKva" && text(after).trim() === "") after = null;
+      else if (name === "ratedKva") after = numeric(after, "额定容量");
       else if (typeof after === "string") after = after.trim();
       if (String(after) !== String(before)) payload[name] = after;
     });
@@ -173,8 +177,9 @@
 
   function createTreeController(adapter, options) {
     options = options || {};
-    var nextKey = options.keyGenerator || createKeyGenerator(options.project,
-      options.cryptoApi, options.storage);
+    var nextKey = options.keyGenerator || createKeyGenerator(options.project, options.cryptoApi);
+    var refreshSequence = 0;
+    var activeCount = 0;
     var state = {
       tree: buildTreeModel([]), treeLoaded: false, treeError: null, busy: false,
       activeType: "site", mode: "create",
@@ -197,7 +202,26 @@
       if (pending.type !== "site" && text(record.siteId) !== text(pending.payload.siteRef)) return false;
       if ((pending.type === "equip" || pending.type === "point") && text(record.floorId) !== text(pending.payload.floorRef)) return false;
       if (pending.type === "point" && text(record.equipId) !== text(pending.payload.equipRef)) return false;
+      if (!UPDATE_FIELDS[pending.type].every(function (name) {
+        var expected = pending.payload[name] === undefined || pending.payload[name] === null ? "" : pending.payload[name];
+        var actual = record[name] === undefined || record[name] === null ? "" : record[name];
+        return String(actual) === String(expected);
+      })) return false;
+      if (pending.type === "point") {
+        var expectedMetric = METRICS.find(function (name) { return pending.payload[name] === true; });
+        if (record.metric !== expectedMetric) return false;
+      }
       return true;
+    }
+
+    function beginActivity() {
+      activeCount += 1;
+      state.busy = true;
+    }
+
+    function endActivity() {
+      activeCount = Math.max(0, activeCount - 1);
+      state.busy = activeCount > 0;
     }
 
     function updateConfirmed(pending) {
@@ -241,8 +265,10 @@
     }
 
     function refresh(clearOperationError) {
-      state.busy = true;
+      var requestSequence = ++refreshSequence;
+      beginActivity();
       return Promise.resolve().then(function () { return adapter.treeRead(); }).then(function (rows) {
+        if (requestSequence !== refreshSequence) return state.tree;
         state.tree = buildTreeModel(rows);
         state.treeLoaded = true;
         state.treeError = null;
@@ -253,9 +279,9 @@
         }
         return state.tree;
       }).catch(function (error) {
-        state.treeError = errorText(error);
+        if (requestSequence === refreshSequence) state.treeError = errorText(error);
         throw error;
-      }).finally(function () { state.busy = false; });
+      }).finally(endActivity);
     }
 
     function prepare(type) {
@@ -263,7 +289,13 @@
       state.activeType = type;
       state.mode = "create";
       state.edit = null;
-      if (!state.keys[type]) state.keys[type] = nextKey();
+      if (!state.keys[type]) {
+        try { state.keys[type] = nextKey(); }
+        catch (error) {
+          state.operation = { status: "error", message: errorText(error), conflictId: null };
+          return null;
+        }
+      }
       return state.keys[type];
     }
 
@@ -303,13 +335,17 @@
 
     function create(type) {
       prepare(type);
+      if (!state.keys[type]) {
+        var keyError = new Error(state.operation.message || "安全随机数不可用，无法创建记录");
+        return Promise.reject(keyError);
+      }
       var payload;
       try { payload = buildCreatePayload(type, state.drafts[type], state.selections, state.keys[type]); }
       catch (error) {
         state.operation = { status: "error", message: errorText(error), conflictId: null };
         return Promise.reject(error);
       }
-      state.busy = true;
+      beginActivity();
       state.operation = { status: "working", message: "正在创建…", conflictId: null };
       return Promise.resolve().then(function () { return adapter.treeCreate(type, payload); }).then(function (result) {
         if (result && result.status === "conflict") {
@@ -334,7 +370,7 @@
           state.operation = { status: "error", message: errorText(error), conflictId: error && error.conflictId || null };
         }
         throw error;
-      }).finally(function () { state.busy = false; });
+      }).finally(endActivity);
     }
 
     function update() {
@@ -347,7 +383,7 @@
         state.operation = { status: "error", message: errorText(error), conflictId: null };
         return Promise.reject(error);
       }
-      state.busy = true;
+      beginActivity();
       state.operation = { status: "working", message: "正在保存…", conflictId: null };
       return Promise.resolve().then(function () { return adapter.treeUpdate(state.edit.id, payload); }).then(function (result) {
         if (result && result.status === "conflict") {
@@ -370,7 +406,7 @@
           state.operation = { status: "error", message: errorText(error), conflictId: error && error.conflictId || null };
         }
         throw error;
-      }).finally(function () { state.busy = false; });
+      }).finally(endActivity);
     }
 
     return { state: state, refresh: refresh, prepare: prepare, select: select, edit: edit, create: create, update: update };
