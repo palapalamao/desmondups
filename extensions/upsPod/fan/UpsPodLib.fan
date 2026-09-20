@@ -11,6 +11,25 @@ using util
 ** 版本 0.1.0
 const class UpsPodLib {
   @Axon { admin = false }
+  static Grid upsTreeRead() {
+    UpsPodTree.read(HxContext.curHx(true).db)
+  }
+
+  @Axon { admin = true }
+  static Dict upsTreeCreate(Str recType, Str payloadJson) {
+    cx := HxContext.curHx(true)
+    cx.checkAdmin("upsTreeCreate")
+    return UpsPodTree.create(cx.db, recType, payloadJson)
+  }
+
+  @Axon { admin = true }
+  static Dict upsTreeUpdate(Obj id, Str payloadJson) {
+    cx := HxContext.curHx(true)
+    cx.checkAdmin("upsTreeUpdate")
+    return UpsPodTree.update(cx.db, id, payloadJson)
+  }
+
+  @Axon { admin = false }
   static Grid upsOverview(Str? site := null) {
     cx := HxContext.curHx(true)
     rows := buildUnits(cx, site)

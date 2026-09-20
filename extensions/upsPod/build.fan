@@ -20,7 +20,7 @@ class Build : build::BuildPod {
       "util 1.0+",
       "web 1.0+",
     ]
-    srcDirs = [`fan/`]
+    srcDirs = [`fan/`, `test/`]
     resDirs = [`locale/`, `frontend/`, `frontend/vendor/`, `lib/`]
     version = Version("0.8.1")
     outPodDir = (scriptDir + `output/`).uri
