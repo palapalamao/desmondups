@@ -1,0 +1,113 @@
+// Read-only acceptance check for the upsNew demo tree in FIN project "mytest".
+// It validates hierarchy, UI semantic cardinality and every numeric history.
+do
+  sampleHours:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
+  currentHour:dateTime(today(), time(now().time.hour, 0), "Shanghai")
+  baseTs:currentHour-23hr
+  historySpan:now()-24hr..now()
+
+  sites:readAll(upsDemo and site)
+  floors:readAll(upsDemo and floor)
+  equips:readAll(upsDemo and equip)
+  groups:readAll(upsDemo and upsBatteryGroup)
+  points:readAll(upsDemo and point)
+  numericPoints:readAll(upsDemo and point and kind=="Number")
+
+  if(sites.size!=1) throw("UPSNEW_VERIFY siteCount expected 1, got "+sites.size)
+  if(floors.size!=2) throw("UPSNEW_VERIFY floorCount expected 2, got "+floors.size)
+  if(equips.size!=3) throw("UPSNEW_VERIFY equipCount expected 3, got "+equips.size)
+  if(groups.size!=3) throw("UPSNEW_VERIFY batteryGroupCount expected 3, got "+groups.size)
+  if(points.size!=66) throw("UPSNEW_VERIFY pointCount expected 66, got "+points.size)
+  if(numericPoints.size!=45) throw("UPSNEW_VERIFY numericPointCount expected 45, got "+numericPoints.size)
+  site:sites.first
+
+  // Site -> Floor -> Equip -> Point reference integrity.
+  floors.each(f=>do
+    if(not f.has("siteRef") or f->siteRef!=site->id) throw("UPSNEW_VERIFY floor siteRef mismatch: "+f->dis)
+  end)
+  equips.each(e=>do
+    if(not e.has("siteRef") or not e.has("floorRef")) throw("UPSNEW_VERIFY equip missing siteRef/floorRef: "+e->dis)
+    if(e.has("spaceRef")) throw("UPSNEW_VERIFY equip must not carry spaceRef: "+e->dis)
+    floorRec:readById(e->floorRef)
+    if(not floorRec.has("floor") or floorRec->siteRef!=site->id or e->siteRef!=floorRec->siteRef) throw("UPSNEW_VERIFY equip hierarchy mismatch: "+e->dis)
+  end)
+  points.each(p=>do
+    if(not p.has("siteRef") or not p.has("floorRef") or not p.has("equipRef")) throw("UPSNEW_VERIFY point missing hierarchy refs: "+p->dis)
+    if(p.has("spaceRef")) throw("UPSNEW_VERIFY point must not carry spaceRef: "+p->dis)
+    equipRec:readById(p->equipRef)
+    if(p->siteRef!=equipRec->siteRef or p->floorRef!=equipRec->floorRef) throw("UPSNEW_VERIFY point hierarchy mismatch: "+p->dis)
+  end)
+  groups.each(g=>do
+    if(not g.has("siteRef") or not g.has("floorRef") or not g.has("equipRef")) throw("UPSNEW_VERIFY battery group missing hierarchy refs: "+g->dis)
+    if(g.has("spaceRef")) throw("UPSNEW_VERIFY battery group must not carry spaceRef: "+g->dis)
+    equipRec:readById(g->equipRef)
+    if(g->siteRef!=equipRec->siteRef or g->floorRef!=equipRec->floorRef) throw("UPSNEW_VERIFY battery group hierarchy mismatch: "+g->dis)
+  end)
+
+  if(readAll(upsDemo and point and writable).size!=0) throw("UPSNEW_VERIFY final points must not be writable")
+  if(readAll(upsDemo and point and curTracksWrite).size!=0) throw("UPSNEW_VERIFY final points must not carry curTracksWrite")
+  if(readAll(upsDemo and point and curVal).size!=66) throw("UPSNEW_VERIFY every point requires curVal")
+  if(readAll(upsDemo and point and curStatus).size!=66) throw("UPSNEW_VERIFY every point requires curStatus")
+  if(readAll(upsDemo and point and upsObservedAt).size!=66) throw("UPSNEW_VERIFY every point requires upsObservedAt")
+  if(readAll(upsDemo and point and upsDataQuality).size!=66) throw("UPSNEW_VERIFY every point requires upsDataQuality")
+  if(readAll(upsDemo and point and upsStaleAfterSec).size!=66) throw("UPSNEW_VERIFY every point requires upsStaleAfterSec")
+  if(readAll(upsDemo and point and upsDataSource=="simulated").size!=66) throw("UPSNEW_VERIFY every point must declare simulated source")
+
+  // Each UI field must resolve to exactly one point per equipment by the full
+  // semantic tag combination, type and unit. Display names are never used.
+  uiFields:[
+    {name:"mode", tags:["upsMode"], kind:"Str"},
+    {name:"batteryVoltage", tags:["upsBatteryVolt"], kind:"Number", unit:"V"},
+    {name:"batteryImpedance", tags:["upsBatteryImpedance"], kind:"Number", unit:"mΩ"},
+    {name:"batteryTemperature", tags:["upsBatteryTemp"], kind:"Number", unit:"°C"},
+    {name:"chargeCurrent", tags:["upsChargeCurrent"], kind:"Number", unit:"A"},
+    {name:"batteryCapacity", tags:["upsBatteryCapacity"], kind:"Number", unit:"%"},
+    {name:"runtimeEstimate", tags:["upsRuntimeEstimate"], kind:"Number", unit:"min"},
+    {name:"loadRate", tags:["upsLoadRate"], kind:"Number", unit:"%"},
+    {name:"loadPower", tags:["upsLoadPower"], kind:"Number", unit:"kW"},
+    {name:"inverterVoltage", tags:["upsInverter","upsVoltage"], kind:"Number", unit:"V"},
+    {name:"inverterFrequency", tags:["upsInverter","upsFrequency"], kind:"Number", unit:"Hz"},
+    {name:"inverterThd", tags:["upsInverter","upsThd"], kind:"Number", unit:"%"},
+    {name:"rectifier", tags:["upsRectifier"], kind:"Str"},
+    {name:"capacitorHealth", tags:["upsCapacitorHealth"], kind:"Number", unit:"%"},
+    {name:"fanStatus", tags:["upsFanStatus"], kind:"Str"},
+    {name:"ambientTemperature", tags:["upsAmbientTemp"], kind:"Number", unit:"°C"},
+    {name:"humidity", tags:["upsHumidity"], kind:"Number", unit:"%RH"},
+    {name:"airQuality", tags:["upsAirQuality"], kind:"Str"},
+    {name:"waterDetected", tags:["upsWaterDetected"], kind:"Bool"},
+    {name:"transferStatus", tags:["upsTransfer","upsTransferStatus"], kind:"Str"},
+    {name:"bypassAvailable", tags:["upsBypassAvailable"], kind:"Bool"},
+    {name:"transferDuration", tags:["upsTransfer","upsTransferDuration"], kind:"Number", unit:"ms"}
+  ]
+  equips.each(e=>uiFields.each(field=>do
+    matches:points.findAll(p=>p->equipRef==e->id and
+      p->kind==field->kind and
+      p.get("unit", null)==field.get("unit", null) and
+      field->tags.findAll(tag=>not p.has(tag)).size==0)
+    if(matches.size!=1) throw("UPSNEW_VERIFY "+e->dis+" field "+field->name+" expected exactly 1 point, got "+matches.size)
+  end))
+
+  // Every numeric point, not only selected sparkline points, is historized and
+  // contains exactly the current-hour-aligned rolling 24 samples.
+  numericPoints.each(p=>do
+    if(not p.has("his")) throw("UPSNEW_VERIFY numeric point missing his: "+p->dis)
+    history:hisRead(p, historySpan)
+    if(history.size!=24) throw("UPSNEW_VERIFY "+p->dis+" expected 24 current-window samples, got "+history.size)
+    badTs:sampleHours.findAll(h=>history.findAll(row=>row->ts==baseTs+h*1hr).size!=1)
+    if(badTs.size>0) throw("UPSNEW_VERIFY non-contiguous hourly history: "+p->dis)
+  end)
+
+  badGroups:equips.findAll(e=>groups.findAll(g=>g->equipRef==e->id and g.has("primary")).size!=1)
+  if(badGroups.size>0) throw("UPSNEW_VERIFY every equip requires exactly one primary battery group")
+  if(groups.findAll(g=>not g.has("upsCellCount")).size>0) throw("UPSNEW_VERIFY every battery group requires upsCellCount")
+
+  {verified:true, siteCount:sites.size, floorCount:floors.size,
+   equipCount:equips.size, batteryGroupCount:groups.size, pointCount:points.size,
+   uiFieldCountPerEquip:uiFields.size, numericHistoryPointCount:numericPoints.size,
+   historyPointCountWith24CurrentHourlySamples:numericPoints.size,
+   currentValueCount:readAll(upsDemo and point and curVal and curStatus).size,
+   writablePointCount:readAll(upsDemo and point and writable).size,
+   curTracksWritePointCount:readAll(upsDemo and point and curTracksWrite).size,
+   spaceRefViolationCount:readAll(upsDemo and (equip or point or upsBatteryGroup) and spaceRef).size,
+   historyStart:baseTs, historyEnd:currentHour}
+end

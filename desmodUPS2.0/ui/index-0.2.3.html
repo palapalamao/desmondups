@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f3f6f8">
+  <meta name="color-scheme" content="light dark">
+  <title>upsNew · UPS Fleet Monitor</title>
+  <script>
+    try {
+      var savedUpsTheme = localStorage.getItem('upsNew.theme');
+      document.documentElement.dataset.theme = savedUpsTheme === 'dark' ? 'dark' : 'light';
+      document.querySelector('meta[name="theme-color"]').content = savedUpsTheme === 'dark' ? '#0e1218' : '#f3f6f8';
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="styles-0.2.3.css">
+</head>
+<body>
+  <main class="dash" id="dashboard">
+    <header class="dash__header">
+      <div class="dash__brand">
+        <span class="dash__brand-mark" aria-hidden="true"></span>
+        <div><h1>upsNew · UPS Fleet Monitor</h1><p class="dash__brand-sub">工业物联网 · 电池健康与供电连续性</p></div>
+      </div>
+      <div class="dash__tools">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="当前浅色模式，切换深色模式"><span class="theme-toggle__dot" aria-hidden="true"></span><span>浅色模式</span></button>
+        <time class="dash__clock" id="clock">—</time>
+      </div>
+    </header>
+    <div class="notice notice--error" id="app-error" role="alert" hidden><span>暂时无法读取 FIN 数据</span><button class="btn" id="retry-load" type="button">重新加载</button></div>
+    <nav class="fleet-tabs" id="fleet-tabs" aria-label="UPS 设备选择"><div class="empty-state">正在读取 UPS 设备…</div></nav>
+    <section class="hero status-online" id="hero" aria-label="UPS 运行状态">
+      <div class="hero__mode">
+        <span class="hero__mode-flag" id="hero-mode">等待设备数据</span>
+        <h2><span id="equip-name">尚未选择 UPS</span><small id="equip-topology"></small></h2>
+        <p class="hero__loc" id="equip-location">正在读取设备树</p>
+        <div class="hero__actions"><span id="observed-status">等待实时观测值</span></div>
+      </div>
+      <div class="hero__metric">
+        <span class="hero__metric-value"><span id="runtime-value">—</span><small id="runtime-unit">min</small></span>
+        <span class="hero__metric-label" id="runtime-label">当前负载下预计续航</span>
+        <span class="hero__metric-flag flag-unknown" id="runtime-flag">尚无续航数据</span>
+      </div>
+      <div class="hero__health" aria-label="健康评分">
+        <svg class="health-ring" viewBox="0 0 110 110" aria-hidden="true"><circle class="health-ring__track" cx="55" cy="55" r="48"></circle><circle class="health-ring__value" id="health-progress" cx="55" cy="55" r="48" stroke-dasharray="301.593 301.593" stroke-dashoffset="301.593"></circle></svg>
+        <div class="health-ring__label"><strong id="health-score">—</strong><span id="health-label">尚无评分</span></div>
+      </div>
+    </section>
+    <div class="grid" id="device-panels">
+      <section class="panel panel--battery" aria-labelledby="battery-title"><header class="panel__head"><h3 id="battery-title">电池健康</h3><span class="panel__tag" id="battery-meta">电池组</span></header><div class="panel__body" id="battery-body"><div class="empty-state">正在读取电池监测点…</div></div></section>
+      <section class="panel panel--load" aria-labelledby="load-title"><header class="panel__head"><h3 id="load-title">负载与容量</h3><span class="panel__tag" id="load-meta">额定能力</span></header><div class="panel__body" id="load-body"><div class="empty-state">正在读取负载监测点…</div></div></section>
+      <section class="panel panel--electronics" aria-labelledby="electronics-title"><header class="panel__head"><h3 id="electronics-title">电力电子</h3><span class="panel__tag" id="electronics-meta">实时点位</span></header><div class="panel__body" id="electronics-body"><div class="empty-state">正在读取电力电子监测点…</div></div></section>
+      <section class="panel panel--environment" aria-labelledby="environment-title"><header class="panel__head"><h3 id="environment-title">环境</h3><span class="panel__tag" id="environment-meta">机房传感器</span></header><div class="panel__body" id="environment-body"><div class="empty-state">正在读取环境监测点…</div></div></section>
+      <section class="panel panel--transfer" aria-labelledby="transfer-title"><header class="panel__head"><h3 id="transfer-title">转换与旁路</h3><span class="panel__tag" id="transfer-meta">供电连续性</span></header><div class="panel__body" id="transfer-body"><div class="empty-state">正在读取转换与旁路状态…</div></div></section>
+      <section class="panel panel--predictive" aria-labelledby="predictive-title"><header class="panel__head"><h3 id="predictive-title">预测性维护</h3><span class="panel__tag" id="predictive-meta">最新健康评估</span></header><div class="panel__body" id="predictive-body"><div class="empty-state">正在读取健康评估…</div></div></section>
+      <section class="panel panel--alarms panel--wide" aria-labelledby="alarms-title"><header class="panel__head"><h3 id="alarms-title">告警</h3><span class="panel__tag" id="alarm-count">正在读取</span></header><div class="panel__body"><div class="alarm-list" id="alarm-list"><div class="empty-state">正在读取当前 UPS 的活动告警…</div></div></div></section>
+    </div>
+    <footer class="dash__footer"><p>数据来自 FIN 设备树与历史接口 · 设备遥测只读 · 告警确认需授权</p><p class="connection-line"><span class="connection-dot" aria-hidden="true"></span><span id="connection-status">连接 FIN API…</span><span id="project-name"></span><span id="last-refresh"></span><button class="text-button" id="refresh-data" type="button">刷新数据</button></p></footer>
+    <div class="visually-hidden" id="live-status" aria-live="polite" aria-atomic="true"></div>
+  </main>
+  <dialog class="history-dialog" id="history-dialog" aria-labelledby="history-title" aria-describedby="history-subtitle">
+    <header class="history-dialog__head"><div><h2 id="history-title">监测点历史</h2><p id="history-subtitle">从 FIN 历史接口读取</p></div><button class="icon-button" id="history-close" type="button" aria-label="关闭历史详情">×</button></header>
+    <div class="history-dialog__body">
+      <div class="history-toolbar"><div class="range-tabs" id="history-ranges" aria-label="历史时间范围"><button class="is-active" type="button" data-range="24h" aria-pressed="true">24 小时</button><button type="button" data-range="7d" aria-pressed="false">7 天</button><button type="button" data-range="30d" aria-pressed="false">30 天</button><button type="button" data-range="custom" aria-pressed="false">自定义</button></div><button class="btn" id="history-refresh" type="button">刷新历史</button></div>
+      <div class="history-custom-range" id="history-custom-range" hidden><label>开始时间<input id="history-start" name="start" type="datetime-local"></label><label>结束时间<input id="history-end" name="end" type="datetime-local"></label><button class="btn" id="history-apply" type="button">应用范围</button></div>
+      <div class="history-selection"><label for="history-point-select">对比点位 <span>仅可选择相同单位的监测点</span></label><select id="history-point-select" multiple aria-label="选择同单位历史对比点位"></select></div>
+      <div class="notice notice--error" id="history-error" role="alert" hidden></div>
+      <p class="history-range-label" id="history-range-label">—</p>
+      <div class="history-chart" id="history-chart" aria-label="监测点历史趋势"><div class="empty-state">正在读取历史…</div></div>
+      <div class="history-legend" id="history-legend"></div><div class="history-stats" id="history-stats"></div>
+      <p class="history-note">图表仅展示返回的历史记录。缺测保留为空，统计排除无效样本。</p>
+    </div>
+  </dialog>
+  <script src="app-0.2.3.js"></script>
+</body>
+</html>

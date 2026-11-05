@@ -1,0 +1,76 @@
+// Versioned business records. Assessments never overwrite raw observations.
+
+upsRuleSet:          Marker <doc:"告警或健康评估规则集">
+upsAlarmRecord:      Marker <doc:"需要人工处置的告警记录">
+upsHealthAssessment: Marker <doc:"指定对象、窗口和规则版本下的健康评估">
+upsRiskItem:         Marker <doc:"评估识别的异常趋势、能力不足或证据缺口">
+upsRecommendation:   Marker <doc:"等待专业人员复核的维护建议">
+
+UpsRuleSet: Dict {
+  ups
+  upsRuleSet
+  id: Ref
+  dis: Str
+  upsRuleVersion: Str
+  effective: Span?
+  approvedBy: Str?
+  approvedAt: DateTime?
+}
+
+UpsAlarmRecord: Dict {
+  ups
+  upsAlarmRecord
+  id: Ref
+  subjectRef: Ref
+  upsAlarmState: UpsAlarmState
+  upsRiskLevel: UpsRiskLevel
+  upsRuleVersion: Str
+  upsAlarmVersion: Int
+  raisedAt: DateTime
+  triggerValue: Obj?
+  threshold: Obj?
+  evidenceRefs: List? <of:Ref>
+  acknowledgedBy: Str?
+  acknowledgedAt: DateTime?
+  resolvedAt: DateTime?
+  closedBy: Str?
+  closedAt: DateTime?
+  conclusion: Str?
+}
+
+UpsHealthAssessment: Dict {
+  ups
+  upsHealthAssessment
+  id: Ref
+  subjectRef: Ref
+  span: Span
+  upsAssessmentState: UpsAssessmentState
+  upsRuleVersion: Str
+  upsHealthScore: Number <minVal:0, maxVal:100>
+  coverage: Number <unit:"%">
+  upsConfidence: UpsConfidence
+  calculatedAt: DateTime
+  riskItemRefs: List? <of:Ref>
+}
+
+UpsRiskItem: Dict {
+  ups
+  upsRiskItem
+  id: Ref
+  assessmentRef: Ref <of:UpsHealthAssessment>
+  upsRiskLevel: UpsRiskLevel
+  dis: Str
+  evidenceRefs: List? <of:Ref>
+}
+
+UpsMaintenanceRecommendation: Dict {
+  ups
+  upsRecommendation
+  id: Ref
+  riskItemRef: Ref <of:UpsRiskItem>
+  dis: Str
+  priority: Str?
+  dueDate: Date?
+  reviewedBy: Str?
+  reviewedAt: DateTime?
+}

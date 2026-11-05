@@ -1,0 +1,61 @@
+// All point specs are read-only and historical. No writable/command point is defined.
+// FIN project instances must carry siteRef, floorRef and equipRef. Trio import data
+// materializes all three references on every point for FIN navigation and filtering.
+
+UpsPointContext: Dict {
+  ups
+  upsReadOnly
+  siteRef: Ref
+  floorRef: Ref <of:UpsFloor>
+  equipRef: Ref
+  upsObservedAt: DateTime
+}
+
+upsMode:              Marker <doc:"UPS 运行模式">
+upsBatteryVolt:       Marker <doc:"电池组电压">
+upsBatteryImpedance:  Marker <doc:"电池组内阻">
+upsBatteryCapacity:   Marker <doc:"电池容量百分比或厂家 SOC">
+upsRuntimeEstimate:   Marker <doc:"预计续航；时点估计，不是电池寿命">
+upsLoadRate:          Marker <doc:"UPS 当前负载率">
+upsInverter:          Marker <doc:"逆变器侧监测">
+upsRectifier:         Marker <doc:"整流器或充电器状态">
+upsCapacitorHealth:   Marker <doc:"电容健康度；厂家或批准模型推导">
+upsFanStatus:         Marker <doc:"风机状态">
+upsAirQuality:        Marker <doc:"机房空气质量状态">
+upsWaterDetected:     Marker <doc:"漏水检测状态">
+upsTransfer:          Marker <doc:"转换开关或切换事件">
+upsBypassAvailable:   Marker <doc:"旁路可用性">
+upsBatteryTemp: Marker <doc:"电池温度点">
+upsChargeCurrent: Marker <doc:"充电电流点">
+upsLoadPower: Marker <doc:"当前负载有功功率点">
+upsVoltage: Marker <doc:"UPS 电压点；与部件标记组合使用">
+upsFrequency: Marker <doc:"UPS 频率点；与部件标记组合使用">
+upsThd: Marker <doc:"UPS 总谐波失真点；与部件标记组合使用">
+upsAmbientTemp: Marker <doc:"UPS 环境温度点">
+upsHumidity: Marker <doc:"UPS 环境湿度点">
+upsTransferStatus: Marker <doc:"转换开关状态点">
+upsTransferDuration: Marker <doc:"最近一次转换耗时点">
+upsLastTransferAt: DateTime? <doc:"最近一次转换发生时间">
+
+UpsOperatingModePoint:     StrPoint    { upsMode, sensor, his }
+UpsBatteryVoltage:         NumberPoint { elec, volt, sensor, upsBatteryVolt, unit:"V", his }
+UpsBatteryImpedance:       NumberPoint { elec, sensor, upsBatteryImpedance, unit:"mΩ", his }
+UpsBatteryTemperature:     NumberPoint { temp, sensor, upsBatteryTemp, unit:"°C", his }
+UpsChargeCurrent:          NumberPoint { elec, current, sensor, upsChargeCurrent, unit:"A", his }
+UpsBatteryCapacityPct:     NumberPoint { sensor, upsBatteryCapacity, unit:"%", his }
+UpsRuntimeEstimate:        NumberPoint { sensor, upsRuntimeEstimate, unit:"min", his }
+UpsLoadPct:                NumberPoint { elec, sensor, upsLoadRate, unit:"%", his }
+UpsLoadPower:              NumberPoint { elec, power, sensor, upsLoadPower, unit:"kW", his }
+UpsInverterVoltage:        NumberPoint { elec, volt, sensor, upsInverter, upsVoltage, unit:"V", his }
+UpsInverterFrequency:      NumberPoint { elec, freq, sensor, upsInverter, upsFrequency, unit:"Hz", his }
+UpsInverterThd:            NumberPoint { elec, sensor, upsInverter, upsThd, unit:"%", his }
+UpsRectifierStatus:        StrPoint    { sensor, upsRectifier, his }
+UpsCapacitorHealthPct:     NumberPoint { sensor, upsCapacitorHealth, unit:"%", his }
+UpsFanStatus:              StrPoint    { sensor, upsFanStatus, his }
+UpsAmbientTemperature:     NumberPoint { temp, sensor, upsAmbientTemp, unit:"°C", his }
+UpsHumidityPct:            NumberPoint { humidity, sensor, upsHumidity, unit:"%RH", his }
+UpsAirQuality:             StrPoint    { sensor, upsAirQuality, his }
+UpsWaterDetected:          BoolPoint   { sensor, upsWaterDetected, his }
+UpsTransferStatus:         StrPoint    { sensor, upsTransfer, upsTransferStatus, his }
+UpsBypassAvailable:        BoolPoint   { sensor, upsBypassAvailable, his }
+UpsLastTransferMs:         NumberPoint { sensor, upsTransfer, upsTransferDuration, unit:"ms", his }

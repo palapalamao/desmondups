@@ -1,0 +1,42 @@
+{
+  "url": "http://localhost:8080/finMobile/ups2#_upsNew?lhs=frame&url=%2Fpod%2FupsNew%2Fui%2Findex-0.2.3.html%23overview",
+  "version": "0.2.3",
+  "snapshotAt": "2026-11-05T16:54:49+08:00",
+  "desktopPanels": [
+    {
+      "y": 414,
+      "height": 250
+    },
+    {
+      "y": 682,
+      "height": 250
+    },
+    {
+      "y": 950,
+      "height": 218
+    }
+  ],
+  "customHistory": {
+    "start": "2026-11-04T18:00+08:00",
+    "endExclusive": "2026-11-05T12:00+08:00",
+    "samples": 18,
+    "first": "2026-11-04T18:00+08:00",
+    "last": "2026-11-05T11:00+08:00"
+  },
+  "deviceChecks": {
+    "A01": {
+      "runtime": 36,
+      "score": 92
+    },
+    "A02": {
+      "runtime": 28,
+      "score": 76
+    },
+    "B01": {
+      "mode": "bypass",
+      "runtime": 42,
+      "score": 88
+    }
+  },
+  "lightAndDarkVerified": true
+}

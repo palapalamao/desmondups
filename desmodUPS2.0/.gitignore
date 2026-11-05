@@ -1,0 +1,32 @@
+# Local FIN runtime, dependencies and deployment backups
+/work/
+/build/
+/deployment-backups/
+**/node_modules/
+**/__pycache__/
+*.pyc
+*.log
+.env
+.env.*
+!.env.example
+
+# Superseded generated bundles and local deployment attempts
+/ui/*-0.2.[12].*
+/scripts/deploy-upsNew-0.1.1-*.ps1
+/scripts/deploy-upsNew-0.2.[0-2]-*.ps1
+/scripts/deploy-upsNew.ps1
+/scripts/inspect-fin-*
+/scripts/*-result.json
+!/scripts/deploy-upsNew-0.2.3-20261105-result.json
+/scripts/deploy-result.json
+/demo/**/*.zip
+
+# Retain approved design references and final release evidence only
+/.codex-artifacts/*
+!/.codex-artifacts/figma-upsnew-foundation.png
+!/.codex-artifacts/upsnew-figma-prototype-light.png
+!/.codex-artifacts/upsnew-figma-history-light.png
+!/.codex-artifacts/ups2-0.2.3-final-desktop.jpg
+!/.codex-artifacts/ups2-0.2.3-final-dark.jpg
+!/.codex-artifacts/ups2-0.2.3-verification.txt
+!/.codex-artifacts/ups2-0.2.3-ui-verification.json

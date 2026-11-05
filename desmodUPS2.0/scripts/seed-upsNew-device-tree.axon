@@ -1,0 +1,118 @@
+// Idempotent upsNew demo seed for the registered FIN project "mytest".
+// All browser-visible values live in Folio/history; the pod ships no fallback data.
+do
+  sampleHours:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
+  currentHour:dateTime(today(), time(now().time.hour, 0), "Shanghai")
+  baseTs:currentHour-23hr
+  observedAt:now()
+
+  upsert:(key, rec)=>do
+    found:readAll(upsDemo and upsExternalCode==key)
+    if(found.size>1) throw("Duplicate upsNew demo key: "+key)
+    if(found.size==1) do
+      commit(diff(found.first, rec))
+      found.first->id
+    end else commit(diff(null, rec, {add}))->id
+  end
+
+  site:upsert("upsnew.demo.site", {site, ups, upsDemo, dis:"upsNew 模拟站点", tz:"Shanghai", upsDataSource:"simulated", upsExternalCode:"upsnew.demo.site"})
+  floor1:upsert("upsnew.demo.floor.f1", {floor, space, ups, upsDemo, siteRef:site, dis:"UPS 机房 F1", floorNum:1, upsDataSource:"simulated", upsExternalCode:"upsnew.demo.floor.f1"})
+  floor2:upsert("upsnew.demo.floor.f2", {floor, space, ups, upsDemo, siteRef:site, dis:"UPS 机房 F2", floorNum:2, upsDataSource:"simulated", upsExternalCode:"upsnew.demo.floor.f2"})
+
+  equip:(key, name, floorRef, topology, rated, runtime)=>upsert(key, {
+    equip, ups, upsDemo, upsReadOnly, siteRef:site, floorRef:floorRef,
+    dis:name, upsTopology:topology, upsRatedPower:rated, upsRequiredRuntime:runtime,
+    upsDataSource:"simulated", upsExternalCode:key
+  })
+  upsA01:equip("upsnew.demo.equip.a01", "UPS-DEMO-A01", floor1, "onlineDoubleConversion", 80kW, 30min)
+  upsA02:equip("upsnew.demo.equip.a02", "UPS-DEMO-A02", floor1, "onlineDoubleConversion", 60kW, 30min)
+  upsB01:equip("upsnew.demo.equip.b01", "UPS-DEMO-B01", floor2, "modularN1", 120kW, 45min)
+
+  batteryGroup:(key, name, equipRef, floorRef, cells)=>upsert(key, {
+    upsBatteryGroup, primary, ups, upsDemo, upsReadOnly,
+    siteRef:site, floorRef:floorRef, equipRef:equipRef,
+    dis:name, upsCellCount:cells, upsInstallDate:2024-01-15,
+    upsDataSource:"simulated", upsExternalCode:key
+  })
+  batteryGroup("upsnew.demo.battery.a01", "UPS-DEMO-A01 主电池组", upsA01, floor1, 40)
+  batteryGroup("upsnew.demo.battery.a02", "UPS-DEMO-A02 主电池组", upsA02, floor1, 32)
+  batteryGroup("upsnew.demo.battery.b01", "UPS-DEMO-B01 主电池组", upsB01, floor2, 64)
+
+  numericPoint:(equipRef, floorRef, key, name, unit, semantic, base, step, extra)=>do
+    pointRef:upsert(key, {
+      point, sensor, his, cur, curTracksWrite, writable,
+      ups, upsDemo, upsReadOnly, siteRef:site, floorRef:floorRef, equipRef:equipRef,
+      dis:name, kind:"Number", unit:unit, tz:"Shanghai", upsObservedAt:observedAt,
+      upsDataSource:"simulated", upsDataQuality:"valid",
+      upsSourceSystem:"upsNew-device-tree-demo", upsExternalCode:key,
+      upsSamplePeriodSec:3600, upsStaleAfterSec:7200
+    }.merge(semantic).merge(extra))
+    pointRec:readById(pointRef)
+    series:sampleHours.map(h=>{ts:baseTs+h*1hr, val:base+h*step})
+    // These points are explicitly demo-only. Rebuild their rolling 24-hour
+    // window so running the seed on a later day cannot accumulate old samples.
+    hisClear(pointRec, null)
+    hisWrite(series.toGrid, pointRec)
+    pointWrite(pointRec, base+23*step, 17, "upsNew demo seed")
+    commit(diff(readById(pointRef), {-writable, -curTracksWrite}))
+    pointRef
+  end
+
+  statePoint:(equipRef, floorRef, key, name, kind, semantic, value, extra)=>do
+    pointRef:upsert(key, {
+      point, sensor, cur, curTracksWrite, writable,
+      ups, upsDemo, upsReadOnly, siteRef:site, floorRef:floorRef, equipRef:equipRef,
+      dis:name, kind:kind, upsObservedAt:observedAt,
+      upsDataSource:"simulated", upsDataQuality:"valid",
+      upsSourceSystem:"upsNew-device-tree-demo", upsExternalCode:key,
+      upsSamplePeriodSec:60, upsStaleAfterSec:180
+    }.merge(semantic).merge(extra))
+    pointRec:readById(pointRef)
+    // FIN 3.x initializes a newly-created Bool write reliably after a concrete
+    // true write; immediately apply the intended value afterwards.
+    if(not pointRec.has("curVal")) do
+      if(kind=="Bool" and value==false) pointWrite(pointRec, true, 17, "upsNew demo seed init")
+      pointWrite(pointRec, value, 17, "upsNew demo seed")
+    end else if(pointRec->curVal!=value) do
+      pointWrite(pointRec, value, 17, "upsNew demo seed")
+    end
+    commit(diff(readById(pointRef), {-writable, -curTracksWrite}))
+    pointRef
+  end
+
+  seedEquip:(equipRef, floorRef, prefix, name, scale, mode, transferState)=>do
+    numericPoint(equipRef, floorRef, prefix+".inputVoltage", name+" 逆变器电压", "V", {elec, volt, upsInverter, upsVoltage}, 379.4V+scale*0.2V, 0.04V, {})
+    numericPoint(equipRef, floorRef, prefix+".bypassFrequency", name+" 逆变器频率", "Hz", {elec, freq, upsInverter, upsFrequency}, 49.96Hz+scale*0.01Hz, 0.002Hz, {})
+    numericPoint(equipRef, floorRef, prefix+".inverterThd", name+" 逆变器 THD", "%", {elec, upsInverter, upsThd}, 1.6% + scale*0.2%, 0.01%, {})
+    numericPoint(equipRef, floorRef, prefix+".outputLoadPct", name+" 当前负载率", "%", {elec, upsLoadRate}, 45% + scale*7%, 0.25%, {})
+    numericPoint(equipRef, floorRef, prefix+".loadPower", name+" 当前负载功率", "kW", {elec, power, upsLoadPower}, 34kW+scale*12kW, 0.18kW, {})
+    numericPoint(equipRef, floorRef, prefix+".batteryVoltage", name+" 电池组电压", "V", {battery, elec, volt, upsBatteryVolt}, 430V - scale*12V, -0.05V, {})
+    numericPoint(equipRef, floorRef, prefix+".batteryImpedance", name+" 电池组内阻", "mΩ", {battery, upsBatteryImpedance}, 3.1mΩ+scale*0.5mΩ, 0.01mΩ, {upsBaselineValue:3.0mΩ, upsBaselineSource:"commissioning-2024-01-15"})
+    numericPoint(equipRef, floorRef, prefix+".batteryTemperature", name+" 电池温度", "°C", {battery, temp, upsBatteryTemp}, 24.8°C+scale*0.8°C, 0.03°C, {})
+    numericPoint(equipRef, floorRef, prefix+".chargeCurrent", name+" 充电电流", "A", {battery, elec, current, upsChargeCurrent}, 3.2A+scale*0.7A, -0.01A, {})
+    numericPoint(equipRef, floorRef, prefix+".batterySocPct", name+" 电池容量", "%", {battery, upsBatteryCapacity}, 98% - scale*4%, -0.04%, {})
+    numericPoint(equipRef, floorRef, prefix+".runtimeEstimate", name+" 预计续航", "min", {battery, upsRuntimeEstimate}, 58min - scale*9min, -0.15min, {})
+    numericPoint(equipRef, floorRef, prefix+".capacitorHealth", name+" 电容健康度", "%", {upsCapacitorHealth}, 94% - scale*3%, -0.02%, {})
+    numericPoint(equipRef, floorRef, prefix+".ambientTemperature", name+" 环境温度", "°C", {temp, upsAmbientTemp}, 22.5°C+scale*0.7°C, 0.025°C, {})
+    numericPoint(equipRef, floorRef, prefix+".humidity", name+" 环境湿度", "%RH", {humidity, upsHumidity}, 43%RH+scale*3%RH, 0.03%RH, {})
+    numericPoint(equipRef, floorRef, prefix+".transferDuration", name+" 最近转换耗时", "ms", {upsTransfer, upsTransferDuration}, 16ms+scale*3ms, 0ms, {upsLastTransferAt:observedAt-45min})
+
+    statePoint(equipRef, floorRef, prefix+".mode", name+" 运行模式", "Str", {upsMode}, mode, {})
+    statePoint(equipRef, floorRef, prefix+".rectifier", name+" 整流器/充电器", "Str", {upsRectifier}, "charging", {})
+    statePoint(equipRef, floorRef, prefix+".fan", name+" 风机状态", "Str", {upsFanStatus}, "running", {})
+    statePoint(equipRef, floorRef, prefix+".airQuality", name+" 空气质量", "Str", {upsAirQuality}, "good", {})
+    statePoint(equipRef, floorRef, prefix+".waterDetected", name+" 漏水检测", "Bool", {upsWaterDetected}, false, {})
+    statePoint(equipRef, floorRef, prefix+".transferStatus", name+" 转换开关", "Str", {upsTransfer, upsTransferStatus}, transferState, {upsLastTransferAt:observedAt-45min})
+    statePoint(equipRef, floorRef, prefix+".bypassAvailable", name+" 旁路可用", "Bool", {upsBypassAvailable}, true, {})
+  end
+
+  seedEquip(upsA01, floor1, "upsnew.demo.a01", "UPS-DEMO-A01", 0, "online", "utility")
+  seedEquip(upsA02, floor1, "upsnew.demo.a02", "UPS-DEMO-A02", 1, "online", "utility")
+  seedEquip(upsB01, floor2, "upsnew.demo.b01", "UPS-DEMO-B01", 2, "bypass", "bypass")
+
+  {siteRef:site, floorCount:readAll(upsDemo and floor and siteRef==site).size,
+   equipCount:readAll(upsDemo and equip and siteRef==site).size,
+   batteryGroupCount:readAll(upsDemo and upsBatteryGroup and siteRef==site).size,
+   pointCount:readAll(upsDemo and point and siteRef==site).size,
+   historyPointCount:readAll(upsDemo and point and his and siteRef==site).size}
+end

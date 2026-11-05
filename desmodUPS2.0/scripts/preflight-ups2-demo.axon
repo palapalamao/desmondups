@@ -1,0 +1,34 @@
+// READ ONLY. Run in the authenticated FIN ups2 project before the seed.
+// context().projName is documented by this installed FIN's hx::context.
+do
+  project:context().get("projName", null)
+  if(project!="ups2") throw("UPS2_DEMO wrong project: "+project)
+  source:"ups2-prototype-demo-v1"
+  prefixes:["bacnet","modbus","haystack","obix","niagara","mqtt","opc","snmp","knx","dnp","conn","nhaystack","remote","lon","plc","control"]
+  forbidden:["writable","curTracksWrite","schedulable","scheduleRef","writeRef","writeExpr","writeAction","writeFunc","writeUri","writePath","actions","cmd","sp","proxyRef","deviceRef","curFunc","curExpr","curUri","curPath","curRef","curConvert","hisFunc","hisExpr","hisUri","hisPath","hisRef"]
+  suffixes:["inputVoltage","bypassFrequency","inverterThd","outputLoadPct","loadPower","batteryVoltage","batteryImpedance","batteryTemperature","chargeCurrent","batterySocPct","runtimeEstimate","capacitorHealth","ambientTemperature","humidity","transferDuration","mode","rectifier","fan","airQuality","waterDetected","transferStatus","bypassAvailable"]
+  codes:["a01","a02","b01"]
+  riskTypes:["battery","capacitor","fan"]
+  expected:codes.flatMap(code=>do
+    baseKeys:["ups2.demo.equip."+code,"ups2.demo.battery."+code,"ups2.demo.assessment."+code]
+    pointKeys:suffixes.map(suffix=>"ups2.demo."+code+"."+suffix)
+    riskKeys:riskTypes.flatMap(item=>["ups2.demo.risk."+code+"."+item,"ups2.demo.recommendation."+code+"."+item])
+    baseKeys.addAll(pointKeys).addAll(riskKeys)
+  end).addAll(["ups2.demo.site","ups2.demo.floor.f1","ups2.demo.floor.f2","ups2.demo.alarm.a01.test","ups2.demo.alarm.a01.impedance"])
+  existing:readAll(upsExternalCode).findAll(r=>r->upsExternalCode.startsWith("ups2.demo."))
+  expected.each(key=>do
+    if(existing.findAll(r=>r->upsExternalCode==key).size>1) throw("UPS2_DEMO duplicate key: "+key)
+  end)
+  existing.each(r=>do
+    if(not expected.contains(r->upsExternalCode)) throw("UPS2_DEMO unexpected key: "+r->upsExternalCode)
+    if(not r.has("upsDemo") or r.get("upsDataSource",null)!="simulated" or r.get("upsSourceSystem",null)!=source) throw("UPS2_DEMO unsafe ownership: "+r->upsExternalCode)
+    r.each((value,name)=>do
+      if(forbidden.contains(name) or prefixes.findAll(prefix=>name.lower().startsWith(prefix)).size>0) throw("UPS2_DEMO prohibited capability "+name+" on "+r->upsExternalCode)
+    end)
+  end)
+  {project:project, preflight:true, sourceSystem:source, existingRecordCount:existing.size,
+   expectedRecordCount:expected.size, siteCount:1, floorCount:2, equipCount:3,
+   batteryGroupCount:3, pointCount:66, numericPointCount:45, numericHistorySamples:1080,
+   assessmentCount:3, riskCount:9, recommendationCount:9, alarmCount:2,
+   checkedAt:now().toTimeZone("Shanghai")}
+end

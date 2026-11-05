@@ -1,0 +1,16 @@
+// desmodUPS UPS monitoring semantic library — candidate specification.
+// The dependency names must be checked against the target FIN/Haxall runtime.
+
+pragma: Lib <
+  doc: "desmodUPS UPS 只读监测、告警与健康评估候选语义库"
+  version: "0.1.0"
+  depends: {
+    { lib: "sys" }
+    { lib: "ph" }
+    { lib: "ph.points" }
+    { lib: "ph.equips" }
+  }
+  org: {
+    dis: "desmodUPS"
+  }
+>

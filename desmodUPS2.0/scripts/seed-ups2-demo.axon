@@ -1,0 +1,203 @@
+// Authorized virtual demo seed for FIN project ups2 ONLY.
+// Mutates only the ups2.demo.* namespace. Never bind these records to devices.
+// Histories for these verified simulated points are replaced, not appended.
+// Execute once, then the read-only verifier. Unknown outcomes require readback.
+do
+  project:context().get("projName", null)
+  if(project!="ups2") throw("UPS2_DEMO wrong project: "+project)
+  source:"ups2-prototype-demo-v1"
+  prefixes:["bacnet","modbus","haystack","obix","niagara","mqtt","opc","snmp","knx","dnp","conn","nhaystack","remote","lon","plc","control"]
+  forbidden:["writable","curTracksWrite","schedulable","scheduleRef","writeRef","writeExpr","writeAction","writeFunc","writeUri","writePath","actions","cmd","sp","proxyRef","deviceRef","curFunc","curExpr","curUri","curPath","curRef","curConvert","hisFunc","hisExpr","hisUri","hisPath","hisRef"]
+  suffixes:["inputVoltage","bypassFrequency","inverterThd","outputLoadPct","loadPower","batteryVoltage","batteryImpedance","batteryTemperature","chargeCurrent","batterySocPct","runtimeEstimate","capacitorHealth","ambientTemperature","humidity","transferDuration","mode","rectifier","fan","airQuality","waterDetected","transferStatus","bypassAvailable"]
+  codes:["a01","a02","b01"]
+  riskTypes:["battery","capacitor","fan"]
+  expected:codes.flatMap(code=>do
+    baseKeys:["ups2.demo.equip."+code,"ups2.demo.battery."+code,"ups2.demo.assessment."+code]
+    pointKeys:suffixes.map(suffix=>"ups2.demo."+code+"."+suffix)
+    riskKeys:riskTypes.flatMap(item=>["ups2.demo.risk."+code+"."+item,"ups2.demo.recommendation."+code+"."+item])
+    baseKeys.addAll(pointKeys).addAll(riskKeys)
+  end).addAll(["ups2.demo.site","ups2.demo.floor.f1","ups2.demo.floor.f2","ups2.demo.alarm.a01.test","ups2.demo.alarm.a01.impedance"])
+  existing:readAll(upsExternalCode).findAll(r=>r->upsExternalCode.startsWith("ups2.demo."))
+  expected.each(key=>do
+    if(existing.findAll(r=>r->upsExternalCode==key).size>1) throw("UPS2_DEMO duplicate key: "+key)
+  end)
+  existing.each(r=>do
+    if(not expected.contains(r->upsExternalCode)) throw("UPS2_DEMO unexpected key: "+r->upsExternalCode)
+    if(not r.has("upsDemo") or r.get("upsDataSource",null)!="simulated" or r.get("upsSourceSystem",null)!=source) throw("UPS2_DEMO unsafe ownership: "+r->upsExternalCode)
+    r.each((value,name)=>do
+      if(forbidden.contains(name) or prefixes.findAll(prefix=>name.lower().startsWith(prefix)).size>0) throw("UPS2_DEMO prohibited capability "+name+" on "+r->upsExternalCode)
+    end)
+  end)
+  n:now().toTimeZone("Shanghai")
+  observedAt:n
+  currentHour:dateTime(n.date, time(n.time.hour,0), "Shanghai")
+  baseTs:currentHour-23hr
+  sampleHours:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
+  assertOwned:(r, allowLocalWrite)=>do
+    if(not r.has("upsDemo") or r.get("upsDataSource",null)!="simulated" or r.get("upsSourceSystem",null)!=source) throw("UPS2_DEMO unsafe ownership: "+r->upsExternalCode)
+    r.each((value,name)=>do
+      localWrite:allowLocalWrite and contains(["writable","curTracksWrite"],name)
+      if((forbidden.contains(name) and not localWrite) or prefixes.findAll(prefix=>name.lower().startsWith(prefix)).size>0) throw("UPS2_DEMO forbidden capability before update: "+name)
+    end)
+  end
+  upsert:(key, rec)=>do
+    if(not expected.contains(key)) throw("UPS2_DEMO unplanned key: "+key)
+    found:readAll(upsExternalCode==key)
+    if(found.size>1) throw("UPS2_DEMO duplicate key: "+key)
+    changes:rec.merge({ups,upsDemo,upsDataSource:"simulated",upsSourceSystem:source,upsExternalCode:key})
+    if(found.size==1) do
+      assertOwned(found.first,false)
+      commit(diff(found.first,changes))
+      found.first->id
+    end else commit(diff(null,changes,{add}))->id
+  end
+  // Cleanup is attempted even when history or current-value initialization fails.
+  removeLocalWrite:(pointRef)=>commit(diff(readById(pointRef),{-writable,-curTracksWrite}))
+  site:upsert("ups2.demo.site",{site,dis:"upsNew 模拟站点",tz:"Shanghai",upsDemoSeedAt:observedAt,upsDemoSeedHour:currentHour})
+  floor1:upsert("ups2.demo.floor.f1",{floor,space,siteRef:site,dis:"UPS 机房 F1",floorNum:1})
+  floor2:upsert("ups2.demo.floor.f2",{floor,space,siteRef:site,dis:"UPS 机房 F2",floorNum:2})
+  equip:(key,name,floorRef,topology,rated,runtime)=>upsert(key,{
+    equip,upsReadOnly,siteRef:site,floorRef:floorRef,dis:name,
+    upsTopology:topology,upsRatedPower:rated,upsRequiredRuntime:runtime
+  })
+  upsA01:equip("ups2.demo.equip.a01","UPS-DEMO-A01",floor1,"onlineDoubleConversion",80kW,15min)
+  upsA02:equip("ups2.demo.equip.a02","UPS-DEMO-A02",floor1,"onlineDoubleConversion",60kW,30min)
+  upsB01:equip("ups2.demo.equip.b01","UPS-DEMO-B01",floor2,"modularN1",120kW,30min)
+  batteryGroup:(key,name,equipRef,floorRef,cells)=>upsert(key,{
+    upsBatteryGroup,primary,upsReadOnly,siteRef:site,floorRef:floorRef,equipRef:equipRef,
+    dis:name,upsCellCount:cells,upsInstallDate:2024-01-15,upsBatteryType:"VRLA"
+  })
+  batteryGroup("ups2.demo.battery.a01","UPS-DEMO-A01 主电池组",upsA01,floor1,40)
+  batteryGroup("ups2.demo.battery.a02","UPS-DEMO-A02 主电池组",upsA02,floor1,32)
+  batteryGroup("ups2.demo.battery.b01","UPS-DEMO-B01 主电池组",upsB01,floor2,64)
+  numericPoint:(equipRef,floorRef,key,name,unit,semantic,finalValue,step,extra)=>do
+    pointRef:upsert(key,{
+      point,sensor,his,cur,curTracksWrite,writable,upsReadOnly,
+      siteRef:site,floorRef:floorRef,equipRef:equipRef,dis:name,kind:"Number",unit:unit,tz:"Shanghai",
+      upsObservedAt:observedAt,upsDataQuality:"valid",upsSamplePeriodSec:3600,upsStaleAfterSec:7200
+    }.merge(semantic).merge(extra))
+    try do
+      pointRec:readById(pointRef)
+      assertOwned(pointRec,true)
+      series:sampleHours.map(h=>{ts:baseTs+h*1hr,val:finalValue+(h-23)*step})
+      hisClear(pointRec,null)
+      hisWrite(series.toGrid,pointRec)
+      pointWrite(pointRec,finalValue,17,"ups2 simulated demo snapshot")
+      removeLocalWrite(pointRef)
+    end catch(ex) do
+      cleaned:try do removeLocalWrite(pointRef); true end catch false
+      throw {dis:"UPS2_DEMO numeric initialization failed; read back before any retry",pointRef:pointRef,cleanupSucceeded:cleaned,cause:ex}
+    end
+    pointRef
+  end
+  statePoint:(equipRef,floorRef,key,name,kind,semantic,value,extra)=>do
+    pointRef:upsert(key,{
+      point,sensor,cur,curTracksWrite,writable,upsReadOnly,
+      siteRef:site,floorRef:floorRef,equipRef:equipRef,dis:name,kind:kind,
+      upsObservedAt:observedAt,upsDataQuality:"valid",upsSamplePeriodSec:3600,upsStaleAfterSec:7200
+    }.merge(semantic).merge(extra))
+    try do
+      pointRec:readById(pointRef)
+      assertOwned(pointRec,true)
+      // Required only by FIN's local Bool initialization. No connectors permitted.
+      if(not pointRec.has("curVal") and kind=="Bool" and value==false) pointWrite(pointRec,true,17,"ups2 simulated Bool init")
+      pointWrite(pointRec,value,17,"ups2 simulated demo snapshot")
+      removeLocalWrite(pointRef)
+    end catch(ex) do
+      cleaned:try do removeLocalWrite(pointRef); true end catch false
+      throw {dis:"UPS2_DEMO state initialization failed; read back before any retry",pointRef:pointRef,cleanupSucceeded:cleaned,cause:ex}
+    end
+    pointRef
+  end
+  seedEquip:(equipRef,floorRef,code,name,values)=>do
+    prefix:"ups2.demo."+code
+    numericPoint(equipRef,floorRef,prefix+".inputVoltage",name+" 逆变器电压","V",{elec,volt,upsInverter,upsVoltage},values->inverterVoltage,0.04V,{})
+    numericPoint(equipRef,floorRef,prefix+".bypassFrequency",name+" 逆变器频率","Hz",{elec,freq,upsInverter,upsFrequency},values->inverterFrequency,0.002Hz,{})
+    numericPoint(equipRef,floorRef,prefix+".inverterThd",name+" 逆变器 THD","%",{elec,upsInverter,upsThd},values->thd,0.01%,{})
+    numericPoint(equipRef,floorRef,prefix+".outputLoadPct",name+" 当前负载率","%",{elec,upsLoadRate},values->loadRate,0.15%,{})
+    numericPoint(equipRef,floorRef,prefix+".loadPower",name+" 当前负载功率","kW",{elec,power,upsLoadPower},values->loadPower,0.08kW,{})
+    numericPoint(equipRef,floorRef,prefix+".batteryVoltage",name+" 电池组电压","V",{battery,elec,volt,upsBatteryVolt},values->voltage,-0.02V,{})
+    numericPoint(equipRef,floorRef,prefix+".batteryImpedance",name+" 电池组内阻","mΩ",{battery,upsBatteryImpedance},values->impedance,0.005mΩ,{upsBaselineValue:3.2mΩ,upsBaselineSource:"simulated prototype baseline",upsRiskLevel:"warning"})
+    numericPoint(equipRef,floorRef,prefix+".batteryTemperature",name+" 电池温度","°C",{battery,temp,upsBatteryTemp},values->batteryTemp,0.02°C,{})
+    numericPoint(equipRef,floorRef,prefix+".chargeCurrent",name+" 充电电流","A",{battery,elec,current,upsChargeCurrent},values->chargeCurrent,-0.005A,{})
+    numericPoint(equipRef,floorRef,prefix+".batterySocPct",name+" 电池容量","%",{battery,upsBatteryCapacity},values->capacity,-0.02%,{})
+    numericPoint(equipRef,floorRef,prefix+".runtimeEstimate",name+" 预计续航","min",{battery,upsRuntimeEstimate},values->runtime,-0.1min,{})
+    numericPoint(equipRef,floorRef,prefix+".capacitorHealth",name+" 电容健康度","%",{upsCapacitorHealth},values->capacitor,-0.01%,{})
+    numericPoint(equipRef,floorRef,prefix+".ambientTemperature",name+" 环境温度","°C",{temp,upsAmbientTemp},values->ambient,0.01°C,{})
+    numericPoint(equipRef,floorRef,prefix+".humidity",name+" 环境湿度","%RH",{humidity,upsHumidity},values->humidity,0.02%RH,{})
+    numericPoint(equipRef,floorRef,prefix+".transferDuration",name+" 最近转换耗时","ms",{upsTransfer,upsTransferDuration},values->transfer,0ms,{upsLastTransferAt:observedAt-35min})
+    statePoint(equipRef,floorRef,prefix+".mode",name+" 运行模式","Str",{upsMode},values->mode,{})
+    statePoint(equipRef,floorRef,prefix+".rectifier",name+" 整流器/充电器","Str",{upsRectifier},"normal",{})
+    statePoint(equipRef,floorRef,prefix+".fan",name+" 风机状态","Str",{upsFanStatus},"normal",{})
+    statePoint(equipRef,floorRef,prefix+".airQuality",name+" 空气质量","Str",{upsAirQuality},"good",{})
+    statePoint(equipRef,floorRef,prefix+".waterDetected",name+" 漏水检测","Bool",{upsWaterDetected},false,{})
+    statePoint(equipRef,floorRef,prefix+".transferStatus",name+" 转换开关","Str",{upsTransfer,upsTransferStatus},"ready",{upsLastTransferAt:observedAt-35min})
+    statePoint(equipRef,floorRef,prefix+".bypassAvailable",name+" 旁路可用","Bool",{upsBypassAvailable},true,{})
+  end
+  seedEquip(upsA01,floor1,"a01","UPS-DEMO-A01",{
+    voltage:402.8V,impedance:3.8mΩ,batteryTemp:26.4°C,chargeCurrent:2.1A,capacity:94%,runtime:36min,
+    loadRate:58%,loadPower:46.4kW,inverterVoltage:380.6V,inverterFrequency:50.01Hz,thd:1.8%,
+    capacitor:88%,ambient:22.8°C,humidity:41%RH,transfer:4ms,mode:"online"})
+  seedEquip(upsA02,floor1,"a02","UPS-DEMO-A02",{
+    voltage:394.1V,impedance:4.4mΩ,batteryTemp:28.0°C,chargeCurrent:1.5A,capacity:86%,runtime:28min,
+    loadRate:59%,loadPower:35.4kW,inverterVoltage:379.8V,inverterFrequency:49.99Hz,thd:2.1%,
+    capacitor:81%,ambient:24.1°C,humidity:45%RH,transfer:5ms,mode:"online"})
+  seedEquip(upsB01,floor2,"b01","UPS-DEMO-B01",{
+    voltage:412.5V,impedance:4.1mΩ,batteryTemp:25.2°C,chargeCurrent:2.4A,capacity:91%,runtime:42min,
+    loadRate:52%,loadPower:62.4kW,inverterVoltage:381.2V,inverterFrequency:50.00Hz,thd:1.6%,
+    capacitor:86%,ambient:23.6°C,humidity:39%RH,transfer:3ms,mode:"bypass"})
+
+  // Scenario scores and recommendations are demonstration fixtures, not analysis.
+  // Keep low confidence and explicit provenance; never publish as production facts.
+  assess:(equipRef,floorRef,code,score)=>do
+    key:"ups2.demo.assessment."+code
+    assessmentRef:upsert(key,{upsHealthAssessment,subjectRef:equipRef,siteRef:site,floorRef:floorRef,
+      dis:"模拟健康评估 · "+code,upsWindowStart:baseTs,upsWindowEnd:currentHour+1hr,upsAssessmentState:"calculated",
+      upsRuleVersion:"demo-prototype-v2.4",upsHealthScore:score,coverage:100%,upsConfidence:"low",
+      calculatedAt:observedAt,upsAssessmentBasis:"仅用于界面验收的模拟场景评分；未执行生产健康模型",riskItemRefs:[]})
+    riskDefinitions:[
+      {key:"battery",label:"电池组更换窗口",value:"18–22 月",level:"info",priority:"low",evidence:"batteryImpedance",due:n.date+600day},
+      {key:"capacitor",label:"电容组维护",value:"约 14 月",level:"warning",priority:"medium",evidence:"capacitorHealth",due:n.date+420day},
+      {key:"fan",label:"风机轴承磨损",value:"状态正常",level:"info",priority:"low",evidence:"fan",due:n.date+180day}
+    ]
+    riskRefs:riskDefinitions.map(item=>do
+      evidence:readAll(upsExternalCode=="ups2.demo."+code+"."+item->evidence).first->id
+      riskRef:upsert("ups2.demo.risk."+code+"."+item->key,{
+        upsRiskItem,assessmentRef:assessmentRef,subjectRef:equipRef,siteRef:site,floorRef:floorRef,
+        upsRiskLevel:item->level,dis:item->label,evidenceRefs:[evidence]})
+      upsert("ups2.demo.recommendation."+code+"."+item->key,{
+        upsRecommendation,riskItemRef:riskRef,subjectRef:equipRef,siteRef:site,floorRef:floorRef,
+        dis:item->value,priority:item->priority,dueDate:item->due,
+        upsRecommendationBasis:"模拟维护建议，须由专业人员复核；不得用于真实检修决策"})
+      riskRef
+    end)
+    commit(diff(readById(assessmentRef),{riskItemRefs:riskRefs}))
+    assessmentRef
+  end
+  assess(upsA01,floor1,"a01",92)
+  assess(upsA02,floor1,"a02",76)
+  assess(upsB01,floor2,"b01",88)
+  testAt:if(n.time>=08:12) dateTime(n.date,08:12,"Shanghai") else dateTime(n.date-1day,08:12,"Shanghai")
+  upsert("ups2.demo.alarm.a01.test",{
+    upsAlarmRecord,subjectRef:upsA01,siteRef:site,floorRef:floor1,
+    dis:"计划放电测试已完成",upsRiskLevel:"info",upsAlarmState:"acknowledged",upsAlarmVersion:1,
+    upsRuleVersion:"demo-prototype-v2.4",raisedAt:testAt,
+    acknowledgedAt:testAt,acknowledgedBy:"模拟演示，非真实人员确认",
+    upsAlarmBasis:"模拟完成提示；未执行任何真实放电测试"})
+  impedance:readAll(upsExternalCode=="ups2.demo.a01.batteryImpedance").first->id
+  upsert("ups2.demo.alarm.a01.impedance",{
+    upsAlarmRecord,subjectRef:upsA01,siteRef:site,floorRef:floor1,
+    dis:"电池组内阻持续上升，建议安排复测",upsRiskLevel:"warning",upsAlarmState:"open",upsAlarmVersion:0,
+    upsRuleVersion:"demo-prototype-v2.4",raisedAt:observedAt-1day,triggerValue:3.8mΩ,threshold:3.5mΩ,
+    evidenceRefs:[impedance],-acknowledgedAt,-acknowledgedBy,
+    upsAlarmBasis:"模拟阈值与模拟告警；未连接生产告警规则"})
+  // hisWrite is asynchronous; wait before reporting the snapshot as seeded.
+  hisSync(30sec)
+  finalRecords:readAll(upsExternalCode).findAll(r=>r->upsExternalCode.startsWith("ups2.demo."))
+  finalRecords.each(r=>assertOwned(r,false))
+  if(finalRecords.size!=98) throw("UPS2_DEMO expected 98 records after seed; run read-only verification")
+  {seeded:true,project:project,simulatedRecordCount:finalRecords.size,siteRef:site,
+   siteCount:1,floorCount:2,equipCount:3,batteryGroupCount:3,pointCount:66,
+   numericPointCount:45,historySampleCount:1080,assessmentCount:3,riskCount:9,
+   recommendationCount:9,alarmCount:2,snapshotAt:observedAt,historyStart:baseTs,historyEnd:currentHour}
+end

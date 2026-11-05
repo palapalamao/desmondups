@@ -1,0 +1,88 @@
+// Project tags and enums. Reuse verified standard tags before adding new ones.
+
+ups:         Marker <doc:"desmodUPS 应用域标识">
+upsReadOnly: Marker <doc:"只读对象；平台不得向其写控制点">
+upsBatteryGroup: Marker <doc:"作为整体被监测和维护的 UPS 电池组">
+
+UpsTopology: Enum {
+  onlineDoubleConversion <doc:"在线双变换">
+  lineInteractive        <doc:"后备式或线互动">
+  modularN1              <doc:"模块化 N+1">
+  unknown                <doc:"拓扑尚未确认">
+}
+upsTopology: UpsTopology? <doc:"UPS 拓扑">
+
+UpsOperatingMode: Enum {
+  online  <doc:"市电在线供电">
+  battery <doc:"电池供电">
+  bypass  <doc:"旁路供电">
+  offline <doc:"确认停机">
+  fault   <doc:"设备报告故障模式">
+  unknown <doc:"模式缺失、过期或未映射">
+}
+upsOperatingMode: UpsOperatingMode? <doc:"统一运行模式">
+
+UpsDataSource: Enum {
+  measured  <doc:"由设备或批准接口直接采集">
+  derived   <doc:"按已批准规则从输入数据推导">
+  manual    <doc:"由授权人员录入">
+  simulated <doc:"演示或测试数据，禁止进入生产告警和统计">
+}
+upsDataSource: UpsDataSource <doc:"数据产生方式">
+
+UpsDataQuality: Enum {
+  valid   <doc:"有效，可按业务规则参与展示与计算">
+  stale   <doc:"超过过期时间，仅可作为带时间的历史参考">
+  missing <doc:"应有数据未取得">
+  invalid <doc:"类型、范围、单位或质量校验失败">
+}
+upsDataQuality: UpsDataQuality <doc:"数据可用性状态">
+
+UpsAlarmState: Enum {
+  open         <doc:"待确认">
+  acknowledged <doc:"已经人工确认">
+  inProgress   <doc:"正在诊断或采取措施">
+  resolved     <doc:"触发条件已恢复或风险已受控，等待复核">
+  closed       <doc:"授权人员完成关闭复核">
+}
+upsAlarmState: UpsAlarmState? <doc:"告警生命周期状态">
+
+UpsAssessmentState: Enum {
+  insufficientData <doc:"数据覆盖不足，不能形成确定结论">
+  calculated       <doc:"已经按指定规则版本计算">
+  reviewed         <doc:"已经专业人员复核">
+  superseded       <doc:"已有较新评估替代展示，历史仍保留">
+}
+upsAssessmentState: UpsAssessmentState? <doc:"健康评估状态">
+
+UpsRiskLevel: Enum {
+  info     <doc:"提示">
+  warning  <doc:"预警">
+  critical <doc:"严重风险">
+  unknown  <doc:"证据不足，风险级别未知">
+}
+upsRiskLevel: UpsRiskLevel? <doc:"统一风险级别">
+
+UpsConfidence: Enum {
+  high        <doc:"高可信度">
+  medium      <doc:"中可信度">
+  low         <doc:"低可信度">
+  unavailable <doc:"不可评估">
+}
+upsConfidence: UpsConfidence? <doc:"结果可信度；须附判断理由">
+
+upsRequiredRuntime: Number? <unit:"min", doc:"业务要求的最低保障时长">
+upsRatedPower:      Number? <unit:"kW", doc:"额定有功容量；需确认是否为降额后值">
+upsCellCount:       Int?    <doc:"电池组单体数量">
+upsInstallDate:     Date?   <doc:"资产安装日期">
+upsBaselineValue:   Number? <doc:"检测基线值；来源和日期必须另行记录">
+upsBaselineSource:  Str?    <doc:"基线来源，如出厂、检测或批准统计">
+upsSourceSystem:    Str?    <doc:"原始系统或连接器稳定标识">
+upsExternalCode:    Str?    <doc:"外部原始编码，保留原值">
+upsSamplePeriodSec: Number? <unit:"s", doc:"期望采集周期">
+upsStaleAfterSec:   Number? <unit:"s", doc:"超过该时长未收到有效值即为过期">
+upsMappingVersion:  Str?    <doc:"实际使用的映射版本">
+upsRuleVersion:     Str?    <doc:"产生告警或评估的规则版本">
+upsObservedAt: DateTime <doc:"观测产生时间；不得以记录修改时间代替">
+upsAlarmVersion:  Int      <doc:"告警记录乐观并发版本；初始值为 0">
+upsHealthScore:   Number   <minVal:0, maxVal:100, doc:"健康评估分数，范围 0–100">

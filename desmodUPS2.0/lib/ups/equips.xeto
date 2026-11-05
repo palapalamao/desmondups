@@ -1,0 +1,57 @@
+// Candidate FIN hierarchy and equipment specs. Standard base types must be verified in target runtime.
+
+UpsFloor: Dict {
+  ups
+  floor
+  space
+  siteRef: Ref
+  floorNum: Int?
+}
+
+UpsEquip: Equip {
+  ups
+  upsReadOnly
+  elec
+  siteRef: Ref
+  floorRef: Ref <of:UpsFloor>
+  upsTopology
+  upsRatedPower
+  upsRequiredRuntime
+  points: {
+    operatingMode:       UpsOperatingModePoint
+    batteryVoltage:      UpsBatteryVoltage?
+    batteryImpedance:    UpsBatteryImpedance?
+    batteryTemp:         UpsBatteryTemperature?
+    chargeCurrent:       UpsChargeCurrent?
+    batteryCapacity:     UpsBatteryCapacityPct?
+    runtimeEstimate:     UpsRuntimeEstimate?
+    loadPct:             UpsLoadPct?
+    loadPower:           UpsLoadPower?
+    inverterVoltage:     UpsInverterVoltage?
+    inverterFrequency:   UpsInverterFrequency?
+    inverterThd:         UpsInverterThd?
+    rectifierStatus:     UpsRectifierStatus?
+    capacitorHealth:     UpsCapacitorHealthPct?
+    fanStatus:           UpsFanStatus?
+    ambientTemp:         UpsAmbientTemperature?
+    humidity:            UpsHumidityPct?
+    airQuality:          UpsAirQuality?
+    waterDetected:       UpsWaterDetected?
+    transferStatus:      UpsTransferStatus?
+    bypassAvailable:     UpsBypassAvailable?
+    lastTransferMs:      UpsLastTransferMs?
+  }
+}
+
+UpsBatteryGroup: Equip {
+  ups
+  upsReadOnly
+  upsBatteryGroup
+  equipRef: Ref <of:UpsEquip, doc:"归属 UPS">
+  siteRef: Ref
+  floorRef: Ref <of:UpsFloor>
+  upsCellCount
+  upsInstallDate
+  upsBaselineValue
+  upsBaselineSource
+}

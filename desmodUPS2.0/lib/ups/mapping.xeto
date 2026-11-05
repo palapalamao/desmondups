@@ -1,0 +1,22 @@
+// Versioned mapping from unstable external identifiers to stable internal refs.
+
+upsExternalMapping: Marker <doc:"外部编码映射记录">
+
+UpsExternalMapping: Dict {
+  ups
+  upsExternalMapping
+  id: Ref
+  upsSourceSystem: Str
+  externalType: Str
+  upsExternalCode: Str
+  internalRef: Ref
+  effective: Span
+  upsMappingVersion: Str
+  transformRef: Ref?
+  ratio: Number? <doc:"一对多拆分比例；同组总和必须为 1">
+}
+
+// Invariants enforced by the application service:
+// 1. Same sourceSystem + externalType + externalCode spans must not overlap.
+// 2. Unmapped records are retained in quarantine and never guessed.
+// 3. Mapping changes create a new effective span; history is not rewritten.

@@ -1,0 +1,284 @@
+// desmodUPS candidate definitions for FIN 5.3 / Haystack 3.
+// Equivalent source specifications live in ../lib/ups/*.xeto.
+
+---
+def:^ups
+is:^marker
+doc:"desmodUPS 应用域标识"
+---
+def:^upsReadOnly
+is:^marker
+doc:"只读对象；平台不得向其写控制点"
+---
+def:^upsDemo
+is:^marker
+doc:"模拟示例数据；禁止进入生产告警、统计或健康评估"
+---
+def:^upsBatteryGroup
+is:^marker
+doc:"作为整体被监测和维护的 UPS 电池组"
+---
+def:^upsTopology
+is:^str
+enum:
+  - onlineDoubleConversion: 在线双变换
+  - lineInteractive: 后备式或线互动
+  - modularN1: 模块化 N+1
+  - unknown: 尚未确认
+doc:"UPS 拓扑"
+---
+def:^upsOperatingMode
+is:^str
+enum:
+  - online: 市电在线供电
+  - battery: 电池供电
+  - bypass: 旁路供电
+  - offline: 确认停机
+  - fault: 设备报告故障模式
+  - unknown: 模式缺失、过期或未映射
+doc:"统一运行模式"
+---
+def:^upsDataSource
+is:^str
+enum:
+  - measured: 实测
+  - derived: 推导
+  - manual: 人工
+  - simulated: 模拟
+doc:"数据产生方式"
+---
+def:^upsDataQuality
+is:^str
+enum:
+  - valid: 有效
+  - stale: 过期
+  - missing: 缺失
+  - invalid: 无效
+doc:"数据可用性状态"
+---
+def:^upsAlarmState
+is:^str
+enum:
+  - open: 待确认
+  - acknowledged: 已确认
+  - inProgress: 处理中
+  - resolved: 已恢复待复核
+  - closed: 已关闭
+doc:"告警生命周期状态"
+---
+def:^upsAssessmentState
+is:^str
+enum:
+  - insufficientData: 数据不足
+  - calculated: 已计算
+  - reviewed: 已复核
+  - superseded: 已替代
+doc:"健康评估状态"
+---
+def:^upsRiskLevel
+is:^str
+enum:
+  - info: 提示
+  - warning: 预警
+  - critical: 严重
+  - unknown: 未知
+doc:"统一风险级别"
+---
+def:^upsRequiredRuntime
+is:^number
+doc:"业务要求的最低保障时长，单位 min"
+---
+def:^upsRatedPower
+is:^number
+doc:"额定有功容量，单位 kW"
+---
+def:^upsCellCount
+is:^number
+doc:"电池组单体数量"
+---
+def:^upsInstallDate
+is:^date
+doc:"设备或电池组投运日期"
+---
+def:^upsBaselineValue
+is:^number
+doc:"检测基线值"
+---
+def:^upsBaselineSource
+is:^str
+doc:"基线来源"
+---
+def:^upsSourceSystem
+is:^str
+doc:"原始系统或连接器稳定标识"
+---
+def:^upsExternalCode
+is:^str
+doc:"外部原始编码"
+---
+def:^upsSamplePeriodSec
+is:^number
+doc:"期望采集周期，单位 s"
+---
+def:^upsStaleAfterSec
+is:^number
+doc:"数据过期时长，单位 s"
+---
+def:^upsMappingVersion
+is:^str
+doc:"实际使用的映射版本"
+---
+def:^upsRuleVersion
+is:^str
+doc:"产生告警或评估的规则版本"
+---
+def:^upsConfidence
+is:^str
+enum:
+  - high: 高
+  - medium: 中
+  - low: 低
+  - unavailable: 不可评估
+doc:"结果可信度"
+---
+def:^upsMode
+is:^marker
+doc:"UPS 运行模式点"
+---
+def:^upsBatteryVolt
+is:^marker
+doc:"电池组电压点"
+---
+def:^upsBatteryImpedance
+is:^marker
+doc:"电池组内阻点"
+---
+def:^upsBatteryCapacity
+is:^marker
+doc:"电池容量百分比或厂家 SOC 点"
+---
+def:^upsRuntimeEstimate
+is:^marker
+doc:"预计续航点；不表示电池寿命"
+---
+def:^upsLoadRate
+is:^marker
+doc:"UPS 当前负载率点"
+---
+def:^upsInverter
+is:^marker
+doc:"逆变器侧监测点"
+---
+def:^upsRectifier
+is:^marker
+doc:"整流器或充电器状态点"
+---
+def:^upsCapacitorHealth
+is:^marker
+doc:"电容健康度点"
+---
+def:^upsFanStatus
+is:^marker
+doc:"风机状态点"
+---
+def:^upsAirQuality
+is:^marker
+doc:"机房空气质量状态点"
+---
+def:^upsWaterDetected
+is:^marker
+doc:"漏水检测点"
+---
+def:^upsTransfer
+is:^marker
+doc:"转换开关或切换事件点"
+---
+def:^upsBypassAvailable
+is:^marker
+doc:"旁路可用性点"
+---
+def:^upsBatteryTemp
+is:^marker
+doc:"电池温度点"
+---
+def:^upsChargeCurrent
+is:^marker
+doc:"充电电流点"
+---
+def:^upsLoadPower
+is:^marker
+doc:"当前负载有功功率点"
+---
+def:^upsVoltage
+is:^marker
+doc:"UPS 电压点；与部件标记组合使用"
+---
+def:^upsFrequency
+is:^marker
+doc:"UPS 频率点；与部件标记组合使用"
+---
+def:^upsThd
+is:^marker
+doc:"UPS 总谐波失真点；与部件标记组合使用"
+---
+def:^upsAmbientTemp
+is:^marker
+doc:"UPS 环境温度点"
+---
+def:^upsHumidity
+is:^marker
+doc:"UPS 环境湿度点"
+---
+def:^upsTransferStatus
+is:^marker
+doc:"转换开关状态点"
+---
+def:^upsTransferDuration
+is:^marker
+doc:"最近一次转换耗时点"
+---
+def:^upsLastTransferAt
+is:^dateTime
+doc:"最近一次转换发生时间"
+---
+def:^upsObservedAt
+is:^dateTime
+doc:"观测产生时间；不得以记录修改时间代替"
+---
+def:^upsAlarmVersion
+is:^number
+doc:"告警记录乐观并发版本；初始值为 0"
+---
+def:^upsHealthScore
+is:^number
+minVal:0
+maxVal:100
+doc:"健康评估分数，范围 0–100"
+---
+def:^dueDate
+is:^date
+doc:"维护建议计划完成日期"
+---
+def:^upsRuleSet
+is:^marker
+doc:"告警或健康评估规则集"
+---
+def:^upsAlarmRecord
+is:^marker
+doc:"需要人工处置的告警记录"
+---
+def:^upsHealthAssessment
+is:^marker
+doc:"指定对象、窗口和规则版本下的健康评估"
+---
+def:^upsRiskItem
+is:^marker
+doc:"评估识别的风险项"
+---
+def:^upsRecommendation
+is:^marker
+doc:"等待专业人员复核的维护建议"
+---
+def:^upsExternalMapping
+is:^marker
+doc:"外部编码映射记录"
