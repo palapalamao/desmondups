@@ -55,7 +55,11 @@
       <section class="panel panel--predictive" aria-labelledby="predictive-title"><header class="panel__head"><h3 id="predictive-title">预测性维护</h3><span class="panel__tag" id="predictive-meta">最新健康评估</span></header><div class="panel__body" id="predictive-body"><div class="empty-state">正在读取健康评估…</div></div></section>
       <section class="panel panel--alarms panel--wide" aria-labelledby="alarms-title"><header class="panel__head"><h3 id="alarms-title">告警</h3><span class="panel__tag" id="alarm-count">正在读取</span></header><div class="panel__body"><div class="alarm-list" id="alarm-list"><div class="empty-state">正在读取当前 UPS 的活动告警…</div></div></div></section>
     </div>
-    <footer class="dash__footer"><p>数据来自 FIN 设备树与历史接口 · 设备遥测只读 · 告警确认需授权</p><p class="connection-line"><span class="connection-dot" aria-hidden="true"></span><span id="connection-status">连接 FIN API…</span><span id="project-name"></span><span id="last-refresh"></span><button class="text-button" id="refresh-data" type="button">刷新数据</button></p></footer>
+    <footer class="dash__footer">
+      <p>数据来自 FIN 设备树与历史接口 · 设备遥测只读 · 告警确认需授权</p>
+      <p class="connection-line"><span class="connection-dot" aria-hidden="true"></span><span id="connection-status">连接 FIN API…</span><span id="project-name"></span><span id="last-refresh"></span><button class="text-button" id="refresh-data" type="button">刷新数据</button></p>
+      <p class="app-version"><span>当前版本</span><span id="app-version">—</span></p>
+    </footer>
     <div class="visually-hidden" id="live-status" aria-live="polite" aria-atomic="true"></div>
   </main>
   <dialog class="history-dialog" id="history-dialog" aria-labelledby="history-title" aria-describedby="history-subtitle">

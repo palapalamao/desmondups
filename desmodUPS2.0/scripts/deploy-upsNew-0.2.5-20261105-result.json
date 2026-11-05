@@ -1,0 +1,20 @@
+﻿{
+    "status":  "installed",
+    "phase":  "complete",
+    "version":  "0.2.5",
+    "source":  "D:\\mygithub\\desmodUPS2.0\\build\\lib\\fan\\upsNew.pod",
+    "target":  "C:\\Program Files (x86)\\FIN\\FIN 5.3.0.2761\\lib\\fan\\upsNew.pod",
+    "expectedHash":  "9134A206835BFC26C6AA55F753CB54B081AEDDCAC96B5B950AD8C9CE24E45F94",
+    "backup":  "D:\\mygithub\\desmodUPS2.0\\deployment-backups\\upsNew-0.2.5-20261105\\upsNew.pod",
+    "originalService":  "Running",
+    "replacementAttempted":  true,
+    "replaced":  true,
+    "serviceStarted":  true,
+    "httpReady":  true,
+    "error":  null,
+    "rollback":  null,
+    "startedAt":  "2026-11-05T18:08:00.3870231+08:00",
+    "lastHttpError":  "无法连接到远程服务器",
+    "actualHash":  "9134A206835BFC26C6AA55F753CB54B081AEDDCAC96B5B950AD8C9CE24E45F94",
+    "completedAt":  "2026-11-05T18:08:33.0987108+08:00"
+}

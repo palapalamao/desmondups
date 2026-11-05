@@ -6,7 +6,7 @@ class Build : BuildPod
   {
     podName = "upsNew"
     summary = "Read-only UPS monitoring and assessment extension for FIN 5.3"
-    version = Version("0.2.3")
+    version = Version("0.2.5")
     outPodDir = `build/lib/fan/`
     depends = [
       "sys 1.0+",

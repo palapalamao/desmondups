@@ -1,9 +1,25 @@
 # ups2 UPS 设计稿演示
 
-发布版本：upsNew 0.2.3，FIN 5.3.0.2761。
+当前发布版本：upsNew 0.2.5，FIN 5.3.0.2761。
+
+首页最下方显示“当前版本 upsNew v0.2.5”，版本从 `ui-src/package.json`
+自动进入前端构建；连接信息中的项目名仅出现一次。顶部应用启动器只将 `icon` 渲染为 CSS 类，
+故菜单采用本机 `css/icons.css` 已定义的 `icon-battery-full`，`iconType:"class"`。
+设计的青绿色 UPS 机柜与闪电 SVG 保留于 `ui/ups-menu-icon-0.2.4.svg`；它可用于支持图片的普通导航菜单，
+顶部入口不支持该图片分支。未修改 FIN 核心文件。
+本次 Pod SHA256 为 `9134A206835BFC26C6AA55F753CB54B081AEDDCAC96B5B950AD8C9CE24E45F94`。
+部署脚本、结果和旧版本备份分别为 `scripts/deploy-upsNew-0.2.5-20261105.ps1`、
+`scripts/deploy-upsNew-0.2.5-20261105-result.json`、`deployment-backups/upsNew-0.2.5-20261105/upsNew.pod`。
+前端构建和 21 个 Fantom 测试方法 / 171 项断言通过；18 项前端逻辑测试亦已通过。
+安装、服务及页面验收已通过。18:10:44（上海时间）重建模拟快照，98 条记录、66 个当前值、
+45 条各 24 样本的历史均通过只读验收，设备点无 writable/curTracksWrite。
+实际页面已确认 `upsNew v0.2.5`、单次项目名和顶部电池图标。
+证据为 `.codex-artifacts/ups2-0.2.5-verification.txt`、
+`.codex-artifacts/ups2-0.2.5-final-desktop.jpg`、`.codex-artifacts/ups2-0.2.5-menu-icon.jpg`、
+`.codex-artifacts/ups2-0.2.5-footer.jpg`。
 
 打开 `http://localhost:8080/finMobile/ups2`，在 FIN 左上角应用菜单选择 `upsNew`。
-原生菜单使用 `index-0.2.3.html` 及同版本脚本、样式文件，避免旧路径缓存。
+原生菜单使用 `index-0.2.5.html` 及同版本脚本、样式文件，避免旧路径缓存。
 浅色设计基准为 `.codex-artifacts/upsnew-figma-prototype-light.png`；深色基准为原始 UPS Fleet Monitor 原型。
 
 ## 模拟数据
@@ -35,7 +51,7 @@ Folio 输入框可能先将输入选为查询标签，需要再按 Enter 提交�
 验收预期 `verified:true`、`currentValueCount:66`、`writablePointCount:0`、
 `curTracksWritePointCount:0`、`spaceRefViolationCount:0`。
 
-## 发布证据
+## 0.2.3 完整演示验收记录
 
 - 构建产物：`build/lib/fan/upsNew.pod`。
 - SHA256：`242E5D8DD19FDD3702857D2971FA0083B404DC218B4BB6FFB1D516BB27331B2B`。

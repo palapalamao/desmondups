@@ -7,13 +7,13 @@ overridable
 doc: "在 FIN 顶栏注册 upsNew UPS 运行监测应用。"
 src:
   () => do
-    root: "/pod/upsNew/ui/index-0.2.3.html"
+    root: "/pod/upsNew/ui/index-0.2.5.html"
     action: "top.app.LoadApplication('" + root + "#overview', null, null, {app: '_upsNew'});top.app.ToggleCollapse(true);"
     [{
       displayName: "upsNew",
       appId: "upsNewApp",
       link: "",
-      icon: "icon-bolt",
+      icon: "icon-battery-full",
       iconType: "class",
       ui: "mobile",
       minUiTarget: "phone",

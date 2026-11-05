@@ -1,5 +1,6 @@
 import { Client } from 'haystack-nclient';
 import { HDateTime } from 'haystack-core';
+import { version as appVersion } from './package.json';
 import { value,scalar,ref,dis,has,escapeHtml as esc,selectPoint,pointNumber,pointQuality,telemetryQuality,runtimeState,numberText,formatUnitValue,formatClock,formatTime,timestamp } from './point-schema.js';
 import { readTheme,setTheme,applyTheme } from './theme.js';
 import { parseHistory,historyStats,chartSegments,rangeBounds,historyExpression,customEpoch } from './history.js';
@@ -51,7 +52,7 @@ function renderHero(){
   const score=scalar(state.assessment,'upsHealthScore'),validScore=typeof score==='number'&&Number.isFinite(score)&&score>=0&&score<=100;
   text('health-score',validScore?numberText(score,0):'—');text('health-label',validScore?(isDemo()?'模拟健康评分':'健康评分'):'尚无评分');
   const ring=$('health-progress');if(ring){ring.style.strokeDasharray='301.593';ring.style.strokeDashoffset=String(validScore?301.593*(1-score/100):301.593);}
-  text('project-name',state.project??'未连接');text('connection-status',`${isDemo()?'模拟演示 · ':''}已连接 ${state.project}`);
+  text('project-name',state.project??'未连接');text('connection-status',`${isDemo()?'模拟演示 · ':''}已连接`);
 }
 
 function sparkline(field,label,tone){
@@ -180,4 +181,5 @@ async function start(){state.project=projectName();if(!state.project)throw Error
 setInterval(clock,1000);let elapsed=0;
 setInterval(()=>{if(document.hidden||!state.client)return;elapsed+=15;refreshTelemetry().catch(showError);if(elapsed%30===0&&state.equip)readAlarms(state.selectionVersion).catch(showError);if(elapsed%60===0&&state.equip)readSparklines(state.selectionVersion).catch(showError);if(elapsed%300===0)loadTree().catch(showError);},15000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.client)refreshTelemetry().catch(showError);});
+text('app-version',`upsNew v${appVersion}`);
 start().catch(error=>{text('connection-status','FIN 连接失败');showError(error);});

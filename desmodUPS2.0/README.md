@@ -54,7 +54,7 @@ desmodUPS2.0/
 - 设备控制范围尚未定义；DEMO 的停电模拟按钮不构成真实设备写控制需求。
 - FIN 导航层级按项目约束固定为 `Site → Floor → Equip → Point`；不建立通用 Space 层级，设备和点位显式携带 `floorRef`。
 
-当前发布版本为 `0.2.3`。页面数据通过接口读取当前项目的设备树、Folio 和历史；运行时 Pod 不携带模拟实例。设备与点位通道严格只读；仅告警确认、处置和关闭可更新业务记录。授权的 `ups2` 演示数据携带 `upsDemo`、`upsDataSource:"simulated"`，其健康评分使用独立的 `upsDemoAssessment()` 读取，正式健康评估仍排除模拟结果。
+当前发布版本为 `0.2.5`。首页最下方显示从前端包配置自动读取的版本号，FIN 顶部应用入口使用原生兼容的 UPS 电池图标。页面数据通过接口读取当前项目的设备树、Folio 和历史；运行时 Pod 不携带模拟实例。设备与点位通道严格只读；仅告警确认、处置和关闭可更新业务记录。授权的 `ups2` 演示数据携带 `upsDemo`、`upsDataSource:"simulated"`，其健康评分使用独立的 `upsDemoAssessment()` 读取，正式健康评估仍排除模拟结果。
 
 ## 构建与测试
 
@@ -71,5 +71,5 @@ $env:FAN_ENV_PATH=(Resolve-Path 'build').Path
 
 构建产物位于 `build/lib/fan/upsNew.pod`。部署到目标 FIN 前仍需核对现场协议、正式点表、认证权限和 Xeto 库兼容性。
 
-`ups2` 演示初始化、只读验收、0.2.3 发布哈希与备份位置见 [演示与发布记录](delivery/ups2-demo.md)。
+`ups2` 演示初始化、只读验收、发布哈希与备份位置见 [演示与发布记录](delivery/ups2-demo.md)。
 历史接口在 `hisRead` 后执行 `hisClip`，去除日期范围外的邻接样本。移动端目前仅有 CSS 响应式支持，尚未实际验收。

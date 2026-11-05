@@ -4352,8 +4352,8 @@
       }
       return __privateGet(this, _version);
     }
-    set version(version) {
-      __privateSet(this, _version, version);
+    set version(version2) {
+      __privateSet(this, _version, version2);
     }
     get meta() {
       if (!__privateGet(this, _meta)) {
@@ -6269,13 +6269,13 @@
   var _a7;
   _a7 = GRID_STORE_SYMBOL;
   var GridObjStore = class {
-    constructor(version, meta, columns, rows) {
+    constructor(version2, meta, columns, rows) {
       __publicField(this, "version");
       __publicField(this, "meta");
       __publicField(this, "columns");
       __publicField(this, "rows");
       __publicField(this, _a7, GRID_STORE_SYMBOL);
-      this.version = version;
+      this.version = version2;
       this.meta = meta;
       this.columns = columns;
       this.rows = rows;
@@ -6401,7 +6401,7 @@
         let meta;
         let columns;
         let rows;
-        let version = DEFAULT_GRID_VERSION;
+        let version2 = DEFAULT_GRID_VERSION;
         const value2 = arg;
         if (value2 === void 0) {
           rows = [];
@@ -6410,7 +6410,7 @@
             meta = value2.meta;
             columns = value2.getColumns();
             rows = value2.getRows();
-            version = value2.version;
+            version2 = value2.version;
           } else if (valueIsKind(value2, Kind.Dict)) {
             rows = [value2];
           } else {
@@ -6422,7 +6422,7 @@
           if (value2.meta) {
             meta = makeValue(value2.meta);
             if (meta.has(GRID_VERSION_NAME)) {
-              version = meta.get(GRID_VERSION_NAME)?.value ?? DEFAULT_GRID_VERSION;
+              version2 = meta.get(GRID_VERSION_NAME)?.value ?? DEFAULT_GRID_VERSION;
               meta.remove(GRID_VERSION_NAME);
             }
           }
@@ -6436,10 +6436,10 @@
             rows = value2.rows?.map((row) => makeValue(row)) ?? [];
           }
           if (value2.version) {
-            version = value2.version || DEFAULT_GRID_VERSION;
+            version2 = value2.version || DEFAULT_GRID_VERSION;
           }
         }
-        this.$store = new GridObjStore(version, meta ?? HDict.make(), (columns ?? []).map((column) => new GridColumn(column.name, column.meta)), rows ?? []);
+        this.$store = new GridObjStore(version2, meta ?? HDict.make(), (columns ?? []).map((column) => new GridColumn(column.name, column.meta)), rows ?? []);
         if (!columns?.length) {
           this.refreshColumns();
         }
@@ -6502,8 +6502,8 @@
     /**
      * Sets the grid's version number.
      */
-    set version(version) {
-      this.$store.version = version;
+    set version(version2) {
+      this.$store.version = version2;
     }
     /**
      * The grid's meta data.
@@ -9360,8 +9360,8 @@
         this.scanner.expect("<", Kind.Grid).consume().expect("<", Kind.Grid).consume().consumeWhiteSpace();
       }
       this.scanner.expect("v", Kind.Grid).consume().expect("e", Kind.Grid).consume().expect("r", Kind.Grid).consume().consumeSpacesAndTabs().expect(":", Kind.Grid).consume().consumeSpacesAndTabs();
-      const version = this.string().value;
-      if (!version) {
+      const version2 = this.string().value;
+      if (!version2) {
         throw new LocalizedError({
           message: "Grid does not contain version (ver) in meta data",
           lex: "lexerGridDoesNotContainVersion",
@@ -9430,7 +9430,7 @@
       if (!rows.length && columns.length === 1 && columns[0].name === "empty") {
         columns.splice(0, 1);
       }
-      return new HGrid(new GridObjStore(version, meta, columns, rows));
+      return new HGrid(new GridObjStore(version2, meta, columns, rows));
     }
     /**
      * @returns The grid meta data.
@@ -12710,8 +12710,8 @@
     get version() {
       return this.getStore().version;
     }
-    set version(version) {
-      this.getStore().version = version;
+    set version(version2) {
+      this.getStore().version = version2;
     }
     get meta() {
       return this.getStore().meta;
@@ -12762,8 +12762,8 @@
     get version() {
       return this.getStore().version;
     }
-    set version(version) {
-      this.getStore().version = version;
+    set version(version2) {
+      this.getStore().version = version2;
     }
     get meta() {
       return this.getStore().meta;
@@ -17417,6 +17417,9 @@
   _loadDefsPromise2 = new WeakMap();
   var Client = _Client;
 
+  // package.json
+  var version = "0.2.5";
+
   // point-schema.js
   function value(dict, tag) {
     return typeof dict?.get === "function" ? dict.get(tag) : dict?.[tag];
@@ -17690,8 +17693,8 @@
     next() {
       return ++__privateWrapper(this, _version2)._;
     }
-    current(version) {
-      return version === __privateGet(this, _version2);
+    current(version2) {
+      return version2 === __privateGet(this, _version2);
     }
   };
   _version2 = new WeakMap();
@@ -17722,10 +17725,10 @@
   }
   async function alarmAck(alarm, evaluate2, refresh) {
     const id = ref(alarm);
-    const version = scalar(alarm, "upsAlarmVersion");
-    if (!id || !Number.isInteger(version) || version < 0) throw Error("\u544A\u8B66\u7F3A\u5C11\u6709\u6548\u7248\u672C\uFF0C\u65E0\u6CD5\u786E\u8BA4");
+    const version2 = scalar(alarm, "upsAlarmVersion");
+    if (!id || !Number.isInteger(version2) || version2 < 0) throw Error("\u544A\u8B66\u7F3A\u5C11\u6709\u6548\u7248\u672C\uFF0C\u65E0\u6CD5\u786E\u8BA4");
     try {
-      return await evaluate2(`upsAlarmAck(${axonRef(id)}, null, ${version})`);
+      return await evaluate2(`upsAlarmAck(${axonRef(id)}, null, ${version2})`);
     } catch (error) {
       const text2 = error?.message ?? String(error);
       if (text2.includes("UPS-3002")) {
@@ -17850,7 +17853,7 @@
       ring.style.strokeDashoffset = String(validScore ? 301.593 * (1 - score / 100) : 301.593);
     }
     text("project-name", state.project ?? "\u672A\u8FDE\u63A5");
-    text("connection-status", `${isDemo() ? "\u6A21\u62DF\u6F14\u793A \xB7 " : ""}\u5DF2\u8FDE\u63A5 ${state.project}`);
+    text("connection-status", `${isDemo() ? "\u6A21\u62DF\u6F14\u793A \xB7 " : ""}\u5DF2\u8FDE\u63A5`);
   }
   function sparkline(field, label, tone) {
     const p = point(field), history = p ? state.histories.get(ref(p)) : null, series = history?.series ?? [], latest = n(field);
@@ -17887,42 +17890,42 @@
       return `<div class="alarm-row${stage === "acknowledged" ? " is-ack" : ""}"><span class="alarm-row__level status-${severityClass[level] ?? "unknown"}">${escapeHtml({ info: "\u63D0\u793A", warning: "\u8B66\u544A", critical: "\u4E25\u91CD", unknown: "\u672A\u77E5" }[level] ?? level ?? "\u672A\u77E5")}</span><span class="alarm-row__text">${escapeHtml(dis(alarm))}</span><time class="alarm-row__time">${escapeHtml(formatTime(value(alarm, "raisedAt"), state.tz))}</time>${stage === "open" ? `<button type="button" class="alarm-row__action" data-ack-ref="${escapeHtml(ref(alarm))}">\u786E\u8BA4\u544A\u8B66</button>` : `<span class="alarm__acked" aria-disabled="true">${escapeHtml({ acknowledged: "\u5DF2\u786E\u8BA4", inProgress: "\u5904\u7F6E\u4E2D", resolved: "\u5DF2\u6062\u590D" }[stage] ?? stage)}</span>`}</div>`;
     }).join("") : '<div class="empty-state">\u5F53\u524D\u8BBE\u5907\u6CA1\u6709\u6D3B\u52A8 UPS \u544A\u8B66</div>');
   }
-  async function readAssessment(equip, version) {
+  async function readAssessment(equip, version2) {
     const assessment = first(await evaluate(`${isDemo(equip) ? "upsDemoAssessment" : "upsLatestAssessment"}(${axonRef(ref(equip))})`));
-    if (!state.selection.current(version)) return;
+    if (!state.selection.current(version2)) return;
     state.assessment = assessment;
     state.risks = [];
     state.recommendations = /* @__PURE__ */ new Map();
     if (assessment) {
       const risks = orderRisks(assessment, gridRows(await evaluate(`upsAssessmentRiskItems(${axonRef(ref(assessment))})`))), results = await Promise.allSettled(risks.map((r) => evaluate(`upsRiskRecommendations(${axonRef(ref(r))})`)));
-      if (!state.selection.current(version)) return;
+      if (!state.selection.current(version2)) return;
       state.risks = risks;
       state.recommendations = recommendationsByRisk(results.map((result, index) => ({ riskRef: ref(risks[index]), rows: result.status === "fulfilled" ? gridRows(result.value) : [] })));
     }
-    if (state.selection.current(version)) {
+    if (state.selection.current(version2)) {
       renderHero();
       renderPanels();
     }
   }
-  async function readAlarms(version) {
+  async function readAlarms(version2) {
     const equipId = ref(state.equip), alarms = gridRows(await evaluate(`upsActiveAlarms({equipRef:${axonRef(equipId)}})`));
-    if (state.selection.current(version)) {
+    if (state.selection.current(version2)) {
       state.alarms = alarms;
       renderAlarms();
     }
   }
-  async function readSparklines(version) {
+  async function readSparklines(version2) {
     const points = ["capacity", "load"].map((field) => point(field)).filter(Boolean), range = rangeBounds("24h");
     const results = await historyResults(points, async (p) => parseHistory(await evaluate(historyExpression(ref(p), range))));
-    if (!state.selection.current(version)) return;
+    if (!state.selection.current(version2)) return;
     results.forEach((result, i) => state.histories.set(ref(points[i]), result.status === "fulfilled" ? { series: result.value } : { error: errorMessage(result.reason) }));
     renderPanels();
   }
   async function selectEquipment(id) {
     const equip = state.equips.find((e) => ref(e) === id);
     if (!equip) return;
-    const version = state.selection.next();
-    state.selectionVersion = version;
+    const version2 = state.selection.next();
+    state.selectionVersion = version2;
     state.historyGate.next();
     if ($("history-dialog")?.open) $("history-dialog").close();
     state.equip = equip;
@@ -17939,7 +17942,7 @@
     renderAlarms();
     announce(`\u6B63\u5728\u8BFB\u53D6 ${dis(equip)}`);
     const results = await Promise.allSettled([evaluate(`upsEquipSummary(${axonRef(id)})`), evaluate(`upsEquipPoints(${axonRef(id)})`)]);
-    if (!state.selection.current(version)) return;
+    if (!state.selection.current(version2)) return;
     if (results[0].status === "fulfilled") state.equip = first(results[0].value) ?? equip;
     if (results[1].status === "fulfilled") state.points = gridRows(results[1].value);
     results.filter((r) => r.status === "rejected").forEach((r) => showError(r.reason));
@@ -17948,8 +17951,8 @@
     renderTabs();
     renderHero();
     renderPanels();
-    const related = await Promise.allSettled([readAssessment(state.equip, version), readAlarms(version), readSparklines(version)]);
-    if (!state.selection.current(version)) return;
+    const related = await Promise.allSettled([readAssessment(state.equip, version2), readAlarms(version2), readSparklines(version2)]);
+    if (!state.selection.current(version2)) return;
     related.filter((r) => r.status === "rejected").forEach((r) => showError(r.reason));
     announce(`${dis(state.equip)} \u5DF2\u52A0\u8F7D${isDemo() ? "\uFF0C\u5F53\u524D\u4E3A\u6A21\u62DF\u6570\u636E" : ""}`);
   }
@@ -17963,8 +17966,8 @@
     if (selection.equip) {
       const selected = ref(selection.equip);
       if (selection.preserve) {
-        const version = state.selectionVersion;
-        const results = await Promise.allSettled([refreshTelemetry(), readAssessment(state.equip, version), readAlarms(version), readSparklines(version)]);
+        const version2 = state.selectionVersion;
+        const results = await Promise.allSettled([refreshTelemetry(), readAssessment(state.equip, version2), readAlarms(version2), readSparklines(version2)]);
         results.filter((result) => result.status === "rejected").forEach((result) => showError(result.reason));
         setTimezone();
       } else await selectEquipment(selected);
@@ -17999,10 +18002,10 @@
   async function refreshTelemetry() {
     if (!state.equip || state.telemetryBusy || document.hidden) return;
     state.telemetryBusy = true;
-    const version = state.selectionVersion, id = ref(state.equip);
+    const version2 = state.selectionVersion, id = ref(state.equip);
     try {
       const results = await Promise.allSettled([evaluate(`upsEquipSummary(${axonRef(id)})`), evaluate(`upsEquipPoints(${axonRef(id)})`)]);
-      if (!state.selection.current(version)) return;
+      if (!state.selection.current(version2)) return;
       if (results[0].status === "fulfilled") state.equip = first(results[0].value) ?? state.equip;
       if (results[1].status === "fulfilled") state.points = gridRows(results[1].value);
       renderHero();
@@ -18222,6 +18225,7 @@
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && state.client) refreshTelemetry().catch(showError);
   });
+  text("app-version", `upsNew v${version}`);
   start().catch((error) => {
     text("connection-status", "FIN \u8FDE\u63A5\u5931\u8D25");
     showError(error);

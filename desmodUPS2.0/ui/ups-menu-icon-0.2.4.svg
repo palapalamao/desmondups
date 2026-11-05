@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" role="img" aria-labelledby="title">
+  <title id="title">upsNew UPS 供电监测</title>
+  <rect x="4.5" y="1.5" width="15" height="20" rx="2.5" fill="#07857b"/>
+  <rect x="7.5" y="4.5" width="6.5" height="2.5" rx=".75" fill="#d9f5ef"/>
+  <circle cx="16.25" cy="5.75" r=".85" fill="#d9f5ef"/>
+  <path d="M13.25 9 8.5 15h3.15l-.9 4.5L16 13h-3.2L13.25 9Z" fill="#fff"/>
+  <path d="M7.5 22.5h2M14.5 22.5h2" stroke="#07857b" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

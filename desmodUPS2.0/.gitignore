@@ -12,12 +12,16 @@
 
 # Superseded generated bundles and local deployment attempts
 /ui/*-0.2.[12].*
+/ui/*-0.2.4.*
+!/ui/ups-menu-icon-0.2.4.svg
 /scripts/deploy-upsNew-0.1.1-*.ps1
 /scripts/deploy-upsNew-0.2.[0-2]-*.ps1
+/scripts/deploy-upsNew-0.2.4-*.ps1
 /scripts/deploy-upsNew.ps1
 /scripts/inspect-fin-*
 /scripts/*-result.json
 !/scripts/deploy-upsNew-0.2.3-20261105-result.json
+!/scripts/deploy-upsNew-0.2.5-20261105-result.json
 /scripts/deploy-result.json
 /demo/**/*.zip
 
@@ -30,3 +34,7 @@
 !/.codex-artifacts/ups2-0.2.3-final-dark.jpg
 !/.codex-artifacts/ups2-0.2.3-verification.txt
 !/.codex-artifacts/ups2-0.2.3-ui-verification.json
+!/.codex-artifacts/ups2-0.2.5-final-desktop.jpg
+!/.codex-artifacts/ups2-0.2.5-menu-icon.jpg
+!/.codex-artifacts/ups2-0.2.5-footer.jpg
+!/.codex-artifacts/ups2-0.2.5-verification.txt
