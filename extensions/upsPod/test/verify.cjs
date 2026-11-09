@@ -7,6 +7,11 @@ const core = require("../frontend/app.js");
 const FinApi = require("../frontend/fin-api.js");
 const projectContextPath = path.join(__dirname, "..", "frontend", "project-context.js");
 const ProjectContext = fs.existsSync(projectContextPath) ? require(projectContextPath) : {};
+const I18n = require("../frontend/i18n.js");
+
+const zh = I18n.create({ navigatorLanguage: "zh-CN", development: true });
+core.setTranslator(zh.t);
+ProjectContext.setTranslator(zh.t);
 
 let pass = 0, total = 0;
 function tc(id, name, fn) {
@@ -157,7 +162,7 @@ tc("TC-FIN-08", "poll failure preserves snapshot and later success clears the er
   const first = { units: [{ id: "first" }] }, second = { units: [{ id: "second" }] };
   const failed = core.pollTransition({ snapshot: first, loadError: null }, { ok: false, error: new Error("offline") });
   assert.strictEqual(failed.snapshot, first);
-  assert.match(failed.loadError, /offline/);
+  assert.match(core.renderMessageDescriptor(failed.loadError), /offline/);
   const recovered = core.pollTransition(failed, { ok: true, snapshot: second });
   assert.strictEqual(recovered.snapshot, second);
   assert.strictEqual(recovered.loadError, null);
@@ -223,6 +228,29 @@ tc("TC-FIN-13", "project discovery never accepts query or api-path fallbacks", (
   ].forEach((environment) => {
     assert.throws(() => ProjectContext.resolveProjectContext(environment), /项目|project/i);
   });
+});
+
+tc("TC-I18N-02", "runtime and project-context messages translate from semantic descriptors", () => {
+  const zh = I18n.create({ navigatorLanguage: "zh-CN", development: true });
+  const en = I18n.create({ navigatorLanguage: "en-US", development: true });
+  assert.strictEqual(typeof core.setTranslator, "function");
+  assert.strictEqual(typeof core.renderMessageDescriptor, "function");
+  assert.strictEqual(typeof ProjectContext.setTranslator, "function");
+
+  core.setTranslator(en.t);
+  ProjectContext.setTranslator(en.t);
+  assert.throws(() => ProjectContext.resolveProjectContext(browserEnvironment()), /Unable to determine the FIN project/);
+  assert.throws(() => ProjectContext.resolveProjectContext(browserEnvironment({
+    parentPath: "/finMobile/alpha/", topPath: "/finMobile/beta/",
+  })), /conflicting project contexts/);
+  const failed = core.pollTransition({ snapshot: { units: [] }, loadError: null },
+    { ok: false, error: new Error("<img src=x onerror=boom>") });
+  assert.deepStrictEqual(failed.loadError, {
+    key: "poll.failure", params: {}, detail: "<img src=x onerror=boom>",
+  });
+  assert.match(core.renderMessageDescriptor(failed.loadError, en.t), /^Live refresh failed/);
+  assert.match(core.renderMessageDescriptor(failed.loadError, zh.t), /^实时刷新失败/);
+  assert.match(core.renderMessageDescriptor(failed.loadError, en.t), /<img src=x onerror=boom>/);
 });
 
 console.log(`\n${pass}/${total} passed${process.exitCode ? " (failures present)" : ""}`);

@@ -5,6 +5,10 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  var translate = function (key) { return key; };
+  function t(key, params) { return translate(key, params); }
+  function setTranslator(fn) { translate = typeof fn === "function" ? fn : translate; }
+
   function zincExprGrid(expr) {
     return 'ver:"3.0"\nexpr\n' + JSON.stringify(String(expr)) + "\n";
   }
@@ -92,9 +96,9 @@
       method: "POST",
       credentials: "same-origin",
     });
-    await checkedText(auth, "FIN 会话校验接口失败");
+    await checkedText(auth, t("api.sessionFailed"));
     var attestKey = auth.headers.get("fin-stack-auth");
-    if (!attestKey) throw new Error("FIN 会话校验接口未返回 fin-stack-auth");
+    if (!attestKey) throw new Error(t("api.attestMissing"));
 
     var response = await fetchImpl(evalUrl, {
       method: "POST",
@@ -106,29 +110,30 @@
       },
       body: zincExprGrid(expr),
     });
-    var text = await checkedText(response, "Folio 数据接口失败");
+    var text = await checkedText(response, t("api.folioFailed"));
     if (!/^ver:/m.test(text)) {
       var contentType = String(response.headers.get("content-type") || "").toLowerCase();
       if (contentType.indexOf("text/html") >= 0 || /<title>\s*login\s*<\/title>/i.test(text)) {
-        throw new Error("FIN 登录会话已失效，请重新登录后刷新页面");
+        throw new Error(t("api.sessionExpired"));
       }
-      throw new Error("Folio 数据接口返回格式不是 Zinc Grid");
+      throw new Error(t("data.zincFormat"));
     }
 
     var metaLine = text.split(/\r?\n/, 1)[0];
     if (/(?:^|\s)err(?:\s|$)/.test(metaLine)) {
       var dis = metaLine.match(/(?:^|\s)dis:"((?:\\.|[^"\\])*)"/);
-      var detail = "Axon 执行失败";
+      var detail = t("api.axonDefault");
       if (dis) {
         try { detail = JSON.parse('"' + dis[1] + '"'); }
         catch (ignore) { detail = dis[1]; }
       }
-      throw new Error("Folio Axon 执行失败：" + detail);
+      throw new Error(t("api.axonFailed", { detail: detail }));
     }
     return text;
   }
 
   return {
+    setTranslator: setTranslator,
     axonString: axonString,
     zincExprGrid: zincExprGrid,
     responseDetail: responseDetail,

@@ -4,6 +4,12 @@ const assert = require("assert");
 const FinApi = require("../frontend/fin-api.js");
 const core = require("../frontend/app.js");
 const ProjectContext = require("../frontend/project-context.js");
+const I18n = require("../frontend/i18n.js");
+
+const zh = I18n.create({ navigatorLanguage: "zh-CN", development: true });
+FinApi.setTranslator(zh.t);
+core.setTranslator(zh.t);
+ProjectContext.setTranslator(zh.t);
 
 function response(status, body, headers) {
   const map = Object.fromEntries(Object.entries(headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
@@ -160,6 +166,24 @@ async function testTreeOperationRequiresOneRow() {
   await assert.rejects(() => adapter.treeUpdate("p:1", { dis: "SOC" }), /operation result|操作结果/i);
 }
 
+async function testEnglishErrorsPreserveRawDetail() {
+  const en = I18n.create({ navigatorLanguage: "en-US", development: true });
+  assert.strictEqual(typeof FinApi.setTranslator, "function");
+  FinApi.setTranslator(en.t);
+  await assert.rejects(
+    () => FinApi.evalZinc(async () => response(200, "", {}), "/api/mytest/eval", "upsOverview()"),
+    /did not return fin-stack-auth/
+  );
+  const fetchImpl = async url => url === "/finStackAuth"
+    ? response(200, "", { "fin-stack-auth": "session-key" })
+    : response(400, "<b>bad &quot;input&quot;</b>", { "content-type": "text/html" });
+  await assert.rejects(
+    () => FinApi.evalZinc(fetchImpl, "/api/mytest/eval", "upsOverview()"),
+    error => /Folio data API failed/.test(error.message) && /HTTP 400/.test(error.message) &&
+      /bad "input"/.test(error.message)
+  );
+}
+
 (async () => {
   await testAuthenticatedEval();
   console.log("PASS TC-FIN-API-01 会话校验头");
@@ -179,6 +203,8 @@ async function testTreeOperationRequiresOneRow() {
   console.log("PASS TC-FIN-API-08 树接口表达式与 Zinc 结果");
   await testTreeOperationRequiresOneRow();
   console.log("PASS TC-FIN-API-09 树操作结果关闭失败");
+  await testEnglishErrorsPreserveRawDetail();
+  console.log("PASS TC-I18N-03 FIN API errors translate and preserve raw detail");
 })().catch(err => {
   console.error("FAIL", err.stack || err);
   process.exit(1);

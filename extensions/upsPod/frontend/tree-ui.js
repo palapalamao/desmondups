@@ -13,6 +13,41 @@
     equip: ["dis", "navName", "make", "model", "serial", "ratedKva"],
     point: ["dis", "navName", "kind", "unit"],
   };
+  var translate = function (key) { return key; };
+
+  function t(key, params) { return translate(key, params); }
+  function setTranslator(fn) { translate = typeof fn === "function" ? fn : translate; }
+  function messageDescriptor(key, params, detail) {
+    return { key: key, params: params || {}, detail: detail === undefined || detail === null ? "" : String(detail) };
+  }
+  function renderMessageDescriptor(descriptor, translator) {
+    if (!descriptor) return "";
+    if (typeof descriptor === "string") return descriptor;
+    var fn = typeof translator === "function" ? translator : t;
+    var params = Object.assign({}, descriptor.params || {});
+    if (descriptor.detailDescriptor) params.detail = renderMessageDescriptor(descriptor.detailDescriptor, fn);
+    else if (descriptor.detail !== undefined) params.detail = descriptor.detail;
+    return fn(descriptor.key, params);
+  }
+  function localizedError(key, params, detail) {
+    var descriptor = messageDescriptor(key, params, detail);
+    var error = new Error(renderMessageDescriptor(descriptor));
+    error.i18nDescriptor = descriptor;
+    error.rawDetail = detail;
+    return error;
+  }
+  function descriptorFromError(error, fallbackKey) {
+    if (error && error.i18nDescriptor) return error.i18nDescriptor;
+    return messageDescriptor(fallbackKey, {}, String(error && error.message || error || t("common.unknownError")));
+  }
+  function operationState(status, descriptor, conflictId) {
+    var operation = { status: status, messageDescriptor: descriptor || null, conflictId: conflictId || null };
+    Object.defineProperty(operation, "message", {
+      enumerable: true,
+      get: function () { return renderMessageDescriptor(operation.messageDescriptor); },
+    });
+    return operation;
+  }
 
   function text(value) { return value === undefined || value === null ? "" : String(value); }
 
@@ -21,7 +56,7 @@
     if (type === "floor") return { dis: "", navName: "" };
     if (type === "equip") return { dis: "", navName: "", make: "", model: "", serial: "", ratedKva: "" };
     if (type === "point") return { dis: "", navName: "", kind: "Number", unit: "", metric: "upsSocPct" };
-    throw new Error("不支持的设备树层级：" + type);
+    throw localizedError("tree.unsupportedType", { type: type });
   }
 
   function normalizeRow(row) {
@@ -50,15 +85,15 @@
     });
     model.floors.forEach(function (record) {
       var site = model.byId[record.siteId];
-      record.parentChain = [site ? site.dis : record.siteId || "未知站点"];
+      record.parentChain = [site ? site.dis : record.siteId || t("tree.unknownSite")];
     });
     model.equips.forEach(function (record) {
       var site = model.byId[record.siteId], floor = model.byId[record.floorId];
-      record.parentChain = [site ? site.dis : record.siteId || "未知站点", floor ? floor.dis : record.floorId || "未知楼层"];
+      record.parentChain = [site ? site.dis : record.siteId || t("tree.unknownSite"), floor ? floor.dis : record.floorId || t("tree.unknownFloor")];
     });
     model.points.forEach(function (record) {
       var site = model.byId[record.siteId], floor = model.byId[record.floorId], equip = model.byId[record.equipId];
-      record.parentChain = [site ? site.dis : record.siteId || "未知站点", floor ? floor.dis : record.floorId || "未知楼层", equip ? equip.dis : record.equipId || "未知 UPS"];
+      record.parentChain = [site ? site.dis : record.siteId || t("tree.unknownSite"), floor ? floor.dis : record.floorId || t("tree.unknownFloor"), equip ? equip.dis : record.equipId || t("tree.unknownEquip")];
     });
     return model;
   }
@@ -92,13 +127,13 @@
           return "ups-tree:" + project + ":" + hex;
         } catch (ignoreRandomValues) {}
       }
-      throw new Error("安全随机数不可用，无法创建记录");
+      throw localizedError("tree.cryptoMissing");
     };
   }
 
-  function required(value, label) {
+  function required(value, labelKey) {
     var normalized = text(value).trim();
-    if (!normalized) throw new Error("请填写" + label);
+    if (!normalized) throw localizedError("tree.required", { label: t(labelKey) });
     return normalized;
   }
 
@@ -106,9 +141,9 @@
     if (value !== undefined && value !== null && text(value).trim() !== "") payload[name] = text(value).trim();
   }
 
-  function numeric(value, label) {
+  function numeric(value, labelKey) {
     var number = Number(value);
-    if (text(value).trim() === "" || !Number.isFinite(number)) throw new Error(label + "必须是数字");
+    if (text(value).trim() === "" || !Number.isFinite(number)) throw localizedError("tree.numeric", { label: t(labelKey) });
     return number;
   }
 
@@ -116,28 +151,28 @@
     draft = draft || {};
     selections = selections || {};
     var payload = {
-      dis: required(draft.dis, "显示名称"),
-      navName: required(draft.navName, "导航名称"),
+      dis: required(draft.dis, "tree.displayName"),
+      navName: required(draft.navName, "tree.navigationName"),
     };
     if (type === "site") optional(payload, "tz", draft.tz);
     else {
-      payload.siteRef = required(selections.siteId, "所属站点");
-      if (type === "equip" || type === "point") payload.floorRef = required(selections.floorId, "所属楼层");
-      if (type === "point") payload.equipRef = required(selections.equipId, "所属 UPS");
+      payload.siteRef = required(selections.siteId, "tree.parentSite");
+      if (type === "equip" || type === "point") payload.floorRef = required(selections.floorId, "tree.parentFloor");
+      if (type === "point") payload.equipRef = required(selections.equipId, "tree.parentEquip");
     }
     if (type === "equip") {
       optional(payload, "make", draft.make);
       optional(payload, "model", draft.model);
       optional(payload, "serial", draft.serial);
-      if (text(draft.ratedKva).trim() !== "") payload.ratedKva = numeric(draft.ratedKva, "额定容量");
+      if (text(draft.ratedKva).trim() !== "") payload.ratedKva = numeric(draft.ratedKva, "tree.ratedKva");
     }
     if (type === "point") {
-      payload.kind = required(draft.kind, "数据类别");
-      payload.unit = required(draft.unit, "单位");
-      if (METRICS.indexOf(draft.metric) < 0) throw new Error("请选择一个支持的数据类型");
+      payload.kind = required(draft.kind, "tree.kind");
+      payload.unit = required(draft.unit, "tree.unit");
+      if (METRICS.indexOf(draft.metric) < 0) throw localizedError("tree.metricRequired");
       payload[draft.metric] = true;
     }
-    payload.upsTreeKey = required(key, "创建标识");
+    payload.upsTreeKey = required(key, "tree.createKey");
     return payload;
   }
 
@@ -159,21 +194,21 @@
   }
 
   function buildUpdatePayload(type, draft, original) {
-    if (!UPDATE_FIELDS[type]) throw new Error("不支持的设备树层级：" + type);
+    if (!UPDATE_FIELDS[type]) throw localizedError("tree.unsupportedType", { type: type });
     var payload = {};
     UPDATE_FIELDS[type].forEach(function (name) {
       var before = original[name] === undefined || original[name] === null
         ? (name === "ratedKva" ? null : "") : original[name];
       var after = draft[name] === undefined || draft[name] === null ? "" : draft[name];
       if (name === "ratedKva" && text(after).trim() === "") after = null;
-      else if (name === "ratedKva") after = numeric(after, "额定容量");
+      else if (name === "ratedKva") after = numeric(after, "tree.ratedKva");
       else if (typeof after === "string") after = after.trim();
       if (String(after) !== String(before)) payload[name] = after;
     });
     return payload;
   }
 
-  function errorText(error) { return String(error && error.message || error || "未知错误"); }
+  function errorText(error) { return String(error && error.message || error || t("common.unknownError")); }
 
   function createTreeController(adapter, options) {
     options = options || {};
@@ -188,7 +223,7 @@
       keys: { site: null, floor: null, equip: null, point: null },
       edit: null,
       pendingMutation: null,
-      operation: { status: "idle", message: "", conflictId: null },
+      operation: operationState("idle", null, null),
     };
 
     function find(type, id) {
@@ -247,22 +282,24 @@
         var index = TYPES.indexOf(pending.type);
         state.activeType = TYPES[Math.min(index + 1, TYPES.length - 1)];
         state.mode = "create";
-        state.operation = { status: "success", message: pending.result.status === "existing" ? "已确认现有记录" : "创建成功", conflictId: null };
+        state.operation = operationState("success", messageDescriptor(pending.result.status === "existing" ? "tree.existingConfirmed" : "tree.created"));
       } else {
         if (!updateConfirmed(pending)) return false;
         var fresh = find(pending.type, pending.id);
         state.edit = { type: fresh.type, id: fresh.id, original: fresh, draft: editDraft(fresh.type, fresh) };
-        state.operation = { status: "success", message: pending.result.status === "unchanged" ? "内容未变化" : "保存成功", conflictId: null };
+        state.operation = operationState("success", messageDescriptor(pending.result.status === "unchanged" ? "tree.unchanged" : "tree.saved"));
       }
       state.pendingMutation = null;
       return true;
     }
 
-    function markUnconfirmed(detail) {
-      var message = "写入结果未确认，可刷新或用同一请求重试";
-      if (detail) message += "：" + detail;
-      state.operation = { status: "error", message: message, conflictId: null };
-      var error = new Error(message);
+    function markUnconfirmed(detailDescriptor) {
+      var descriptor = detailDescriptor
+        ? { key: "tree.unconfirmedDetail", params: {}, detailDescriptor: detailDescriptor }
+        : messageDescriptor("tree.unconfirmed");
+      state.operation = operationState("error", descriptor);
+      var error = new Error(renderMessageDescriptor(descriptor));
+      error.i18nDescriptor = descriptor;
       error.unconfirmed = true;
       return error;
     }
@@ -276,26 +313,26 @@
         state.treeLoaded = true;
         state.treeError = null;
         if (state.pendingMutation) {
-          if (!finalizePending()) markUnconfirmed("刷新后未找到相符记录");
+          if (!finalizePending()) markUnconfirmed(messageDescriptor("tree.recordMissingAfterRefresh"));
         } else if (clearOperationError && state.operation.status === "error") {
-          state.operation = { status: "idle", message: "", conflictId: null };
+          state.operation = operationState("idle", null, null);
         }
         return state.tree;
       }).catch(function (error) {
-        if (requestSequence === refreshSequence) state.treeError = errorText(error);
+        if (requestSequence === refreshSequence) state.treeError = descriptorFromError(error, "tree.readFailed");
         throw error;
       }).finally(endActivity);
     }
 
     function prepare(type) {
-      if (TYPES.indexOf(type) < 0) throw new Error("不支持的设备树层级：" + type);
+      if (TYPES.indexOf(type) < 0) throw localizedError("tree.unsupportedType", { type: type });
       state.activeType = type;
       state.mode = "create";
       state.edit = null;
       if (!state.keys[type]) {
         try { state.keys[type] = nextKey(); }
         catch (error) {
-          state.operation = { status: "error", message: errorText(error), conflictId: null };
+          state.operation = operationState("error", descriptorFromError(error, "tree.createFailed"));
           return null;
         }
       }
@@ -329,7 +366,7 @@
 
     function edit(type, id) {
       var record = select(type, id);
-      if (!record) throw new Error("未找到要编辑的记录");
+      if (!record) throw localizedError("tree.editNotFound");
       state.activeType = type;
       state.mode = "edit";
       state.edit = { type: type, id: record.id, original: record, draft: editDraft(type, record) };
@@ -339,74 +376,74 @@
     function create(type) {
       prepare(type);
       if (!state.keys[type]) {
-        var keyError = new Error(state.operation.message || "安全随机数不可用，无法创建记录");
+        var keyError = localizedError("tree.cryptoMissing");
         return Promise.reject(keyError);
       }
       var payload;
       try { payload = buildCreatePayload(type, state.drafts[type], state.selections, state.keys[type]); }
       catch (error) {
-        state.operation = { status: "error", message: errorText(error), conflictId: null };
+        state.operation = operationState("error", descriptorFromError(error, "tree.createFailed"));
         return Promise.reject(error);
       }
       beginActivity();
-      state.operation = { status: "working", message: "正在创建…", conflictId: null };
+      state.operation = operationState("working", messageDescriptor("tree.creating", { type: t("tree." + type) }));
       return Promise.resolve().then(function () { return adapter.treeCreate(type, payload); }).then(function (result) {
         if (result && result.status === "conflict") {
-          var conflict = new Error("名称或创建标识与现有记录冲突");
+          var conflict = localizedError("tree.conflict");
           conflict.conflictId = result.conflictId;
           throw conflict;
         }
         if (!result || ["created", "existing"].indexOf(result.status) < 0) {
-          throw new Error("创建结果无法确认");
+          throw localizedError("tree.createResultUnconfirmed");
         }
         state.pendingMutation = { kind: "create", type: type, payload: payload, result: result };
         return refresh(false).then(function () {
-          if (state.pendingMutation) throw markUnconfirmed("刷新后未找到相符记录");
+          if (state.pendingMutation) throw markUnconfirmed(messageDescriptor("tree.recordMissingAfterRefresh"));
           return result;
         }).catch(function (error) {
           if (error && error.unconfirmed) throw error;
-          if (state.pendingMutation) throw markUnconfirmed("刷新失败：" + errorText(error));
+          if (state.pendingMutation) throw markUnconfirmed(messageDescriptor("tree.refreshFailed", {}, errorText(error)));
           throw error;
         });
       }).catch(function (error) {
         if (!error || !error.unconfirmed) {
-          state.operation = { status: "error", message: errorText(error), conflictId: error && error.conflictId || null };
+          state.operation = operationState("error", descriptorFromError(error, "tree.createFailed"), error && error.conflictId || null);
         }
         throw error;
       }).finally(endActivity);
     }
 
     function update() {
-      if (!state.edit) return Promise.reject(new Error("请先选择要编辑的记录"));
+      if (!state.edit) return Promise.reject(localizedError("tree.selectEditFirst"));
       var payload;
       try {
         payload = buildUpdatePayload(state.edit.type, state.edit.draft, state.edit.original);
-        if (!Object.keys(payload).length) throw new Error("没有需要保存的更改");
+        if (!Object.keys(payload).length) throw localizedError("tree.noChangesToSave");
       } catch (error) {
-        state.operation = { status: "error", message: errorText(error), conflictId: null };
+        state.operation = operationState("error", descriptorFromError(error, "tree.updateFailed"));
         return Promise.reject(error);
       }
       beginActivity();
-      state.operation = { status: "working", message: "正在保存…", conflictId: null };
+      state.operation = operationState("working", messageDescriptor("tree.saving"));
       return Promise.resolve().then(function () { return adapter.treeUpdate(state.edit.id, payload); }).then(function (result) {
         if (result && result.status === "conflict") {
-          var conflict = new Error("名称与现有记录冲突");
+          var conflict = localizedError("tree.conflict");
           conflict.conflictId = result.conflictId;
           throw conflict;
         }
-        if (!result || ["updated", "unchanged"].indexOf(result.status) < 0) throw new Error("保存结果无法确认");
+        if (!result || ["updated", "unchanged"].indexOf(result.status) < 0) throw localizedError("tree.saveResultUnconfirmed");
         state.pendingMutation = { kind: "update", type: state.edit.type, id: state.edit.id, payload: payload, result: result };
         return refresh(false).then(function () {
-          if (state.pendingMutation) throw markUnconfirmed("刷新后记录内容与本次保存不一致");
+          if (state.pendingMutation) throw markUnconfirmed(messageDescriptor("tree.recordMismatchAfterRefresh"));
           return result;
         }).catch(function (error) {
           if (error && error.unconfirmed) throw error;
-          if (state.pendingMutation) throw markUnconfirmed("刷新失败：" + errorText(error));
+          if (state.pendingMutation) throw markUnconfirmed(messageDescriptor("tree.refreshFailed", {}, errorText(error)));
           throw error;
         });
       }).catch(function (error) {
         if (!error || !error.unconfirmed) {
-          state.operation = { status: "error", message: errorText(error), conflictId: error && error.conflictId || null };
+          state.operation = operationState("error", descriptorFromError(error, "tree.updateFailed"), error && error.conflictId || null);
         }
         throw error;
       }).finally(endActivity);
@@ -416,6 +453,9 @@
   }
 
   return {
+    setTranslator: setTranslator,
+    messageDescriptor: messageDescriptor,
+    renderMessageDescriptor: renderMessageDescriptor,
     TYPES: TYPES,
     METRICS: METRICS,
     UPDATE_FIELDS: UPDATE_FIELDS,

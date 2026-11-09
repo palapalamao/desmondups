@@ -4,6 +4,22 @@
 
   var SEV_RANK = { critical: 0, warning: 1, normal: 2, commLost: 3 };
   var VALID_SPANS = ["1h", "24h", "7d", "30d"];
+  var translate = function (key) { return key; };
+
+  function t(key, params) { return translate(key, params); }
+  function setTranslator(fn) { translate = typeof fn === "function" ? fn : translate; }
+  function messageDescriptor(key, detail, params) {
+    return { key: key, params: params || {}, detail: detail === undefined || detail === null ? "" : String(detail) };
+  }
+  function renderMessageDescriptor(descriptor, translator) {
+    if (descriptor === null || descriptor === undefined) return "";
+    if (typeof descriptor === "string") return descriptor;
+    var fn = typeof translator === "function" ? translator : t;
+    var params = Object.assign({}, descriptor.params || {});
+    if (descriptor.detail !== undefined) params.detail = descriptor.detail;
+    return fn(descriptor.key, params);
+  }
+  function errorDetail(error) { return String(error && error.rawDetail || error && error.message || error || t("common.unknownError")); }
 
   function topSeverity(unit) {
     if (unit.commLost) return "commLost";
@@ -121,7 +137,7 @@
     });
     return {
       source: raw.source || "fin-folio",
-      sourceText: raw.sourceText || "Folio 设备树数据",
+      sourceText: raw.sourceText || t("data.source"),
       pollPeriodMs: raw.pollPeriodMs || 10000,
       generatedAt: raw.generatedAt || Date.now(),
       sites: sites,
@@ -138,7 +154,7 @@
     if (!unit) return null;
     return { unit: unit, detail: null, available: false, dataGap: true, status: "unavailable",
       series: {}, events: [],
-      reason: "Folio 详情数据源尚未接入，当前仅提供实时总览。" };
+      reason: messageDescriptor("gap.detail") };
   }
 
   function unavailableHistory(units, id, query) {
@@ -152,7 +168,7 @@
       available: false,
       dataGap: true,
       status: "unavailable",
-      reason: "Folio 历史与事件数据源尚未接入；未从当前值反推曲线或事件。",
+      reason: messageDescriptor("gap.history"),
       series: series,
       events: [],
       meta: { span: normalized.span, grainMs: null, anchorTs: null, metrics: normalized.metrics },
@@ -177,7 +193,7 @@
         q: query, invalid: false, error: null };
     } catch (error) {
       return { page: "invalid", unitId: null, q: {}, invalid: true,
-        error: "路由编码无效，已拒绝解析。" };
+        error: messageDescriptor("unavailable.routeEncoding") };
     }
   }
 
@@ -197,7 +213,7 @@
 
   function parseZincGrid(text, parseScalar) {
     var lines = String(text || "").replace(/\r/g, "").split("\n").filter(function (line) { return line.trim() !== ""; });
-    if (!lines.length || lines[0].indexOf("ver:") !== 0) throw new Error("Folio 数据接口返回格式不是 Zinc Grid");
+    if (!lines.length || lines[0].indexOf("ver:") !== 0) throw new Error(t("data.zincFormat"));
     if (lines.length < 2) return { meta: {}, cols: [], rows: [] };
     var cols = splitZincLine(lines[1]).map(function (col) { return col.split(" ")[0].trim(); }).filter(Boolean);
     var rows = lines.slice(2).map(function (line) {
@@ -225,7 +241,7 @@
         commLost: !!row.commLost, mode: row.mode || "", ts: typeof row.ts === "number" ? row.ts : null,
       };
     });
-    return { source: "fin-folio", sourceText: "Folio 设备树数据", pollPeriodMs: 10000,
+    return { source: "fin-folio", sourceText: t("data.source"), pollPeriodMs: 10000,
       generatedAt: Date.now(), sites: Object.keys(sites).sort().map(function (id) { return sites[id]; }), units: units };
   }
 
@@ -233,21 +249,21 @@
     if (outcome && outcome.ok) return { snapshot: outcome.snapshot, loadError: null };
     var error = outcome && outcome.error;
     return { snapshot: state.snapshot,
-      loadError: "实时刷新失败，继续显示最后一次成功数据：" + String(error && error.message || error || "未知错误") };
+      loadError: messageDescriptor("poll.failure", errorDetail(error)) };
   }
 
   function assertResolvedProjectContext(context) {
     if (!context || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(String(context.project || ""))) {
-      throw new Error("调用需要已解析的 FIN 项目上下文");
+      throw new Error(t("context.required"));
     }
     var expectedUrl = "/api/" + encodeURIComponent(context.project) + "/eval";
-    if (context.evalUrl !== expectedUrl) throw new Error("FIN 项目上下文与 API 地址不一致");
+    if (context.evalUrl !== expectedUrl) throw new Error(t("context.urlMismatch"));
     return context;
   }
 
   function operationResult(grid) {
     if (!grid || !Array.isArray(grid.rows) || grid.rows.length !== 1) {
-      throw new Error("Folio 树操作结果必须包含一行 operation result");
+      throw new Error(t("api.operationRow"));
     }
     return grid.rows[0];
   }
@@ -258,9 +274,9 @@
     var finApi = options.finApi;
     var fetchImpl = options.fetchImpl;
     if (!finApi || typeof finApi.evalZinc !== "function" || typeof finApi.axonString !== "function") {
-      throw new Error("FIN API 客户端不可用");
+      throw new Error(t("api.clientMissing"));
     }
-    if (typeof fetchImpl !== "function") throw new Error("FIN 网络客户端不可用");
+    if (typeof fetchImpl !== "function") throw new Error(t("api.networkMissing"));
 
     var adapter = {
       snapshot: null,
@@ -309,7 +325,7 @@
     options = options || {};
     var projectContextApi = options.projectContextApi;
     if (!projectContextApi || typeof projectContextApi.resolveProjectContext !== "function") {
-      throw new Error("FIN 项目上下文解析器不可用");
+      throw new Error(t("context.parserMissing"));
     }
     return createFinAdapter({
       projectContext: projectContextApi.resolveProjectContext(environment),
@@ -339,6 +355,9 @@
     pollTransition: pollTransition,
     createFinAdapter: createFinAdapter,
     createFinAdapterFromEnvironment: createFinAdapterFromEnvironment,
+    setTranslator: setTranslator,
+    messageDescriptor: messageDescriptor,
+    renderMessageDescriptor: renderMessageDescriptor,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;

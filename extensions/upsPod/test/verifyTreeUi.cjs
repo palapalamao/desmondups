@@ -5,7 +5,12 @@ const fs = require("fs");
 const path = require("path");
 const Ractive = require("../frontend/vendor/ractive.min.js");
 const TreeUi = require("../frontend/tree-ui.js");
+const I18n = require("../frontend/i18n.js");
 const core = require("../frontend/app.js");
+
+const zh = I18n.create({ navigatorLanguage: "zh-CN", development: true });
+TreeUi.setTranslator(zh.t);
+core.setTranslator(zh.t);
 
 const rows = [
   { id: "s:1", type: "site", dis: "北区", navName: "north", tz: "Asia/Shanghai", status: "ok" },
@@ -446,7 +451,20 @@ function deferred() {
   assert.match(fixtureHtml, /value="UPS A 交互修改"/);
   assert.match(fixtureHtml, />保存更改<\/button>/);
 
+  const en = I18n.create({ navigatorLanguage: "en-US", development: true });
+  assert.strictEqual(typeof TreeUi.setTranslator, "function");
+  assert.strictEqual(typeof TreeUi.renderMessageDescriptor, "function");
+  TreeUi.setTranslator(en.t);
+  assert.throws(() => TreeUi.buildCreatePayload("site", { dis: "", navName: "site" }, {}, "key"), /Enter Display name/);
+  assert.throws(() => TreeUi.buildCreatePayload("point", {
+    dis: "Point", navName: "point", kind: "Number", unit: "%", metric: "bad",
+  }, { siteId: "s:1", floorId: "f:1", equipId: "e:1" }, "key"), /supported data type/);
+  const descriptor = { key: "tree.unconfirmedDetail", params: {}, detail: "<img onerror=boom>" };
+  assert.match(TreeUi.renderMessageDescriptor(descriptor, en.t), /^The write result is unconfirmed/);
+  assert.match(TreeUi.renderMessageDescriptor(descriptor, en.t), /<img onerror=boom>/);
+
   console.log("PASS TC-TREE-UI-01 route, hierarchy, stable keys, exact payloads, recovery, and safe edit boundary");
+  console.log("PASS TC-I18N-04 tree validation and stored message descriptors translate");
 })().catch(error => {
   console.error("FAIL", error.stack || error);
   process.exit(1);
