@@ -35,11 +35,11 @@ src:
       keepOpen:    true
     }
     [
-      {displayName:"UPS 车队监控", appId:"", isDivider:true, level:0, order:-320, ui:"mobile"},
+      {displayName:"UPS Fleet / UPS 车队", appId:"", isDivider:true, level:0, order:-320, ui:"mobile"},
 
       // 顶级入口 —— 落在车队总览
       {
-        displayName: "UPS 总览",
+        displayName: "UPS 总览 / Overview",
         appId:       "upsApp",
         link:        "",
         icon:        "icon-gauge",
@@ -52,13 +52,13 @@ src:
       },
 
       // ── 监控 ────────────────────────────────────────────────
-      entry("设备详情", "/ups/unit/ups-pod-01",              -318, "sm-ups"),
-      entry("历史趋势", "/ups/history/ups-pod-01?metrics=soc,load", -317, "chart-no-axes-column"),
-      entry("告警中心", "/ups/alarms",    -316, "icon-alert"),
+      entry("设备详情 / Details", "/ups/unit/ups-pod-01",              -318, "sm-ups"),
+      entry("历史趋势 / History", "/ups/history/ups-pod-01?metrics=soc,load", -317, "chart-no-axes-column"),
+      entry("告警 / Alarms", "/ups/alarms",    -316, "icon-alert"),
 
       // ── 管理 ────────────────────────────────────────────────
-      entry("运行配置", "/ups/config",                     -315, "icon-settings"),
-      entry("审计追踪", "/ups/audit",                       -314, "icon-file"),
-      entry("设备树管理", "/ups/tree",                      -313, "icon-sitemap")
+      entry("配置 / Configuration", "/ups/config",                     -315, "icon-settings"),
+      entry("审计 / Audit", "/ups/audit",                       -314, "icon-file"),
+      entry("设备树 / Device Tree", "/ups/tree",                      -313, "icon-sitemap")
     ].toGrid
   end
