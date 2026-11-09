@@ -321,7 +321,7 @@ function deferred() {
   const helper = fs.readFileSync(path.join(__dirname, "..", "frontend", "tree-ui.js"), "utf8");
   const styles = fs.readFileSync(path.join(__dirname, "..", "frontend", "styles.css"), "utf8");
   const menu = fs.readFileSync(path.join(__dirname, "..", "lib", "menu.trio"), "utf8");
-  assert.match(menu, /设备树管理[\s\S]*\/ups\/tree/);
+  assert.match(menu, /设备树 \/ Device Tree[\s\S]*\/ups\/tree/);
   assert.match(html, /t\('tree\.title'\)/);
   assert.match(html, /t\('tree\.immutableRule'\)/);
   assert.match(html, /t\('tree\.previewSave'\)/);

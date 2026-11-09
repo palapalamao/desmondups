@@ -86,18 +86,18 @@ function findR3AppHits(source, label) {
     if (!allowedDateNow.has(match.index)) hits.push(prefix + "unexpected Date.now at offset " + match.index);
   }
 
-  const allowedDateDisplay = uniqueMatchIndex(source,
-    /tsText:\s*unit\.ts\s*===\s*null\s*\?\s*"无数据"\s*:\s*new Date\(unit\.ts\)\.toLocaleTimeString\(\)/g,
-    "new Date", hits, prefix + "telemetry timestamp display");
+  uniqueMatchIndex(source,
+    /tsText:\s*unit\.ts\s*===\s*null\s*\?\s*t\("common\.noData"\)\s*:\s*activeI18n\.formatTime\(unit\.ts\)/g,
+    "activeI18n.formatTime", hits, prefix + "localized telemetry timestamp display");
   for (const match of source.matchAll(/new\s+Date\s*\([^)]*\)/g)) {
-    if (match.index !== allowedDateDisplay) hits.push(prefix + "unexpected new Date at offset " + match.index);
+    hits.push(prefix + "unexpected new Date at offset " + match.index);
   }
 
-  if (!/var\s+adapter\s*=\s*null\s*;/.test(source) ||
+  if (!/var\s+adapter\s*=\s*null(?:\s*[,;])/.test(source) ||
       !/adapter\s*=\s*createFinAdapterFromEnvironment\(global,\s*\{/.test(source)) {
     hits.push(prefix + "Folio-only adapter contract missing");
   }
-  if (!/function\s+showFatal\s*\(error\)\s*\{[\s\S]*?加载失败（fail-closed，不兜底）[\s\S]*?\}/.test(source)) {
+  if (!/function\s+showFatal\s*\(error\)\s*\{[\s\S]*?t\("fatal\.prefix",\s*\{\s*detail:[\s\S]*?\}\);[\s\S]*?\}/.test(source)) {
     hits.push(prefix + "fail-closed fatal contract missing");
   }
   if (!/catch\s*\(error\)\s*\{\s*showFatal\(error\);\s*return;\s*\}/.test(source) || !/\.catch\(showFatal\)/.test(source)) {

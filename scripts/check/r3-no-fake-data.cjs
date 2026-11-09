@@ -99,7 +99,7 @@ function assertGapContract(core, label) {
   const failedPoll = core.pollTransition({ snapshot: previous, loadError: null },
     { ok: false, error: new Error("offline") });
   assert.strictEqual(failedPoll.snapshot, previous, label + " failed poll snapshot");
-  assert.match(failedPoll.loadError, /offline/, label + " failed poll error");
+  assert.match(failedPoll.loadError.detail, /offline/, label + " failed poll error");
 }
 
 try {
