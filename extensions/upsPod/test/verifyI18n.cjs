@@ -1,9 +1,11 @@
 "use strict";
 
 const assert = require("assert");
+const fs = require("fs");
 const path = require("path");
 
 const I18n = require(path.join(__dirname, "..", "frontend", "i18n.js"));
+const core = require(path.join(__dirname, "..", "frontend", "app.js"));
 
 function storage(initial) {
   const values = Object.assign({}, initial);
@@ -69,4 +71,53 @@ try {
 }
 assert.strictEqual(production.t("missing.everywhere"), "[missing.everywhere]");
 
+const frontend = path.join(__dirname, "..", "frontend");
+for (const file of ["index.html", "app.js", "project-context.js", "fin-api.js", "tree-ui.js"]) {
+  const source = fs.readFileSync(path.join(frontend, file), "utf8")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "")
+    .replaceAll("中文", "");
+  assert.doesNotMatch(source, /[\u3400-\u9fff]/, `${file} contains untranslated product text`);
+  for (const match of source.matchAll(/\bt\(["']([^"']+)["']/g)) {
+    if (match[1].endsWith(".")) continue;
+    assert.ok(Object.prototype.hasOwnProperty.call(I18n.dictionaries["zh-CN"], match[1]),
+      `${file} references missing translation key ${match[1]}`);
+  }
+}
+
+assert.strictEqual(typeof core.createAppRuntime, "function");
+const switchI18n = I18n.create({ navigatorLanguage: "zh-CN", storage: storage(), development: true });
+const banner = { textContent: "", attrs: {}, setAttribute(name, value) { this.attrs[name] = value; } };
+const buttons = ["zh-CN", "en-US"].map(language => ({ attrs: { "data-language": language },
+  getAttribute(name) { return this.attrs[name]; }, setAttribute(name, value) { this.attrs[name] = value; } }));
+const fakeDocument = {
+  documentElement: { lang: "" }, title: "",
+  getElementById(id) { return id === "data-mode" ? banner : null; },
+  querySelectorAll(selector) { return selector === "[data-language]" ? buttons : []; },
+};
+const fakeLocation = { hash: "#/ups/tree" };
+const state = { filter: { site: "s:1" }, page: 3, draft: { dis: "Keep me" }, selection: "e:1" };
+let rerenders = 0;
+const calls = { load: 0, treeRead: 0, treeCreate: 0, treeUpdate: 0 };
+const runtime = core.createAppRuntime({ document: fakeDocument, location: fakeLocation, i18n: switchI18n,
+  adapter: { projectName: () => "mytest", load: () => calls.load++, treeRead: () => calls.treeRead++,
+    treeCreate: () => calls.treeCreate++, treeUpdate: () => calls.treeUpdate++ },
+  state, rerender: () => { rerenders++; } });
+runtime.updateChrome();
+assert.strictEqual(fakeDocument.documentElement.lang, "zh-CN");
+assert.match(fakeDocument.title, /UPS/);
+assert.match(banner.textContent, /mytest/);
+const stateBefore = JSON.stringify(state), hashBefore = fakeLocation.hash;
+assert.strictEqual(runtime.setLanguage("en-US"), true);
+assert.strictEqual(fakeDocument.documentElement.lang, "en-US");
+assert.match(fakeDocument.title, /Fleet/);
+assert.match(banner.textContent, /Current project: mytest/);
+assert.strictEqual(buttons[1].attrs["aria-pressed"], "true");
+assert.strictEqual(fakeLocation.hash, hashBefore);
+assert.strictEqual(JSON.stringify(state), stateBefore);
+assert.deepStrictEqual(calls, { load: 0, treeRead: 0, treeCreate: 0, treeUpdate: 0 });
+assert.strictEqual(rerenders, 1);
+
 console.log("PASS TC-I18N-01 dictionary parity, detection, persistence, interpolation, formatting and missing-key behavior");
+console.log("PASS TC-I18N-05 language switch updates chrome without navigation, refetch, or state reset");

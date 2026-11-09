@@ -322,11 +322,11 @@ function deferred() {
   const styles = fs.readFileSync(path.join(__dirname, "..", "frontend", "styles.css"), "utf8");
   const menu = fs.readFileSync(path.join(__dirname, "..", "lib", "menu.trio"), "utf8");
   assert.match(menu, /设备树管理[\s\S]*\/ups\/tree/);
-  assert.match(html, /设备树管理/);
-  assert.match(html, /层级与数据类型创建后不可更改/);
-  assert.match(html, /即将保存/);
+  assert.match(html, /t\('tree\.title'\)/);
+  assert.match(html, /t\('tree\.immutableRule'\)/);
+  assert.match(html, /t\('tree\.previewSave'\)/);
   assert.doesNotMatch(html, /<input[^>]+(?:curVal|curStatusTs)|<select[^>]+(?:curVal|curStatusTs)/i);
-  assert.doesNotMatch(html, /删除|更换父级|运行值|告警确认/);
+  assert.doesNotMatch(html, /tree\.delete|tree\.changeParent|tree\.writeValue|alarm\.acknowledge/);
   assert.match(app, /route\.page === "tree"[\s\S]*renderTree\(\)/);
   assert.match(app, /treeController\.refresh\(\)/);
   assert.doesNotMatch(helper, /Math\.random|Date\.now/);
@@ -339,10 +339,39 @@ function deferred() {
   assert.ok(templateStart >= 0 && templateEnd > templateStart, "Ractive template must exist");
   const template = html.slice(templateStart + marker.length, templateEnd);
   assert.doesNotThrow(() => Ractive.parse(template));
+  Ractive.DEBUG = false;
+
+  const enUi = I18n.create({ navigatorLanguage: "en-US", development: true });
+  const hostile = '<img src=x onerror=alert(1)>';
+  function renderTemplate(data, translator) {
+    const instance = new Ractive({ template, data: Object.assign({
+      loadError: null, t: translator.t,
+      message: value => core.renderMessageDescriptor(value, translator.t),
+      severityLabel: severity => translator.t({ critical: "overview.severityCritical", warning: "overview.severityWarning",
+        normal: "overview.severityNormal", commLost: "overview.severityCommunicationLost" }[severity]),
+      freshnessLabel: (fresh, time) => fresh === "ok" ? translator.t("overview.collected", { time }) : translator.t("overview.gap"),
+    }, data) });
+    return instance.toHTML();
+  }
+  const enOverview = renderTemplate({ view: "overview", sites: [{ id: "s:1", name: hostile }],
+    filter: { site: "", comm: "", mode: "", sev: "" }, pageSize: "50", newRisks: [],
+    stats: { critical: 0, warning: 0, normal: 1, commLost: 0 },
+    pagination: { total: 1, page: 1, pages: 1 }, badges: [{ sev: "normal", fresh: "ok", tsText: "12:00:00",
+      unit: { id: "e:1", name: hostile, siteName: hostile, location: "Room", mode: "online", loadPct: 20, soc: 90 } }] }, enUi);
+  assert.match(enOverview, /UPS Fleet Overview/);
+  assert.match(enOverview, /Communication/);
+  assert.doesNotMatch(enOverview, /[\u3400-\u9fff]/);
+  assert.doesNotMatch(enOverview, /<img/);
+  assert.match(enOverview, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  const enUnit = renderTemplate({ view: "unit", unitId: "missing", unit: null, gap: null }, enUi);
+  assert.match(enUnit, /Equipment missing was not found/);
+  const enUnavailable = renderTemplate({ view: "unavailable", title: enUi.t("unavailable.audit"),
+    reason: enUi.t("unavailable.backend") }, enUi);
+  assert.match(enUnavailable, /Audit Trail/);
+  assert.doesNotMatch(enUnavailable, /[\u3400-\u9fff]/);
 
   // Render the production template and drive its actual Ractive events. This keeps
   // the interaction contract executable without a FIN server or browser DOM.
-  Ractive.DEBUG = false;
   let fixtureRows = rows.slice();
   let fixtureCreateFails = true;
   const fixtureAdapter = {
@@ -396,10 +425,12 @@ function deferred() {
         ? state.edit.original.parentChain.join(" / ") : "顶层",
     };
   }
-  const fixture = new Ractive({ template, data: { view: "tree", tree: fixtureController.state,
-    treeVm: fixtureVm(), treeMetricLabel: metric => metric } });
+  const fixtureData = () => ({ view: "tree", tree: fixtureController.state,
+    treeVm: fixtureVm(), treeMetricLabel: metric => metric, t: zh.t,
+    message: value => TreeUi.renderMessageDescriptor(value, zh.t) });
+  const fixture = new Ractive({ template, data: fixtureData() });
   function fixtureRender() {
-    fixture.reset({ view: "tree", tree: fixtureController.state, treeVm: fixtureVm(), treeMetricLabel: metric => metric });
+    fixture.reset(fixtureData());
   }
   let fixtureAction = Promise.resolve();
   fixture.on("treeCreate", function (event, type) {

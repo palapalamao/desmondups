@@ -334,6 +334,41 @@
     });
   }
 
+  function createAppRuntime(options) {
+    options = options || {};
+    var doc = options.document;
+    var locationApi = options.location;
+    var i18n = options.i18n;
+    var adapterApi = options.adapter || null;
+    var rerender = typeof options.rerender === "function" ? options.rerender : function () {};
+
+    function updateChrome() {
+      doc.documentElement.lang = i18n.language();
+      doc.title = i18n.t("app.title");
+      var banner = doc.getElementById("data-mode");
+      if (banner) {
+        banner.setAttribute("aria-label", i18n.t("data.source"));
+        banner.textContent = adapterApi ? i18n.t("source.connected", { project: adapterApi.projectName() }) : i18n.t("source.connecting");
+      }
+      var languageSwitch = doc.getElementById("language-switch");
+      if (languageSwitch) languageSwitch.setAttribute("aria-label", i18n.t("language.label"));
+      Array.prototype.forEach.call(doc.querySelectorAll("[data-language]"), function (button) {
+        var selected = button.getAttribute("data-language") === i18n.language();
+        button.setAttribute("aria-pressed", selected ? "true" : "false");
+        button.setAttribute("aria-label", i18n.t("language.label"));
+      });
+    }
+
+    function setLanguage(language) {
+      if (!i18n.setLanguage(language)) return false;
+      updateChrome();
+      rerender({ preserveState: true, hash: locationApi && locationApi.hash });
+      return true;
+    }
+
+    return { updateChrome: updateChrome, setLanguage: setLanguage, state: options.state || null };
+  }
+
   var upsCore = {
     SEV_RANK: SEV_RANK,
     topSeverity: topSeverity,
@@ -358,11 +393,12 @@
     setTranslator: setTranslator,
     messageDescriptor: messageDescriptor,
     renderMessageDescriptor: renderMessageDescriptor,
+    createAppRuntime: createAppRuntime,
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = upsCore; return; }
   global.upsCore = upsCore;
 
-  var adapter = null;
+  var adapter = null, activeI18n = null, appRuntime = null;
 
   var ractive = null, snapshot = null, previousSeverity = {}, loadError = null;
   var treeController = null, treeLoading = false;
@@ -379,6 +415,18 @@
 
   function resetView(data) {
     data.loadError = loadError;
+    data.lang = activeI18n.language();
+    data.t = t;
+    data.message = renderMessageDescriptor;
+    data.severityLabel = function (severity) {
+      return t({ critical: "overview.severityCritical", warning: "overview.severityWarning",
+        normal: "overview.severityNormal", commLost: "overview.severityCommunicationLost" }[severity] || "overview.severityNormal");
+    };
+    data.freshnessLabel = function (freshness, tsText) {
+      if (freshness === "ok") return t("overview.collected", { time: tsText });
+      if (freshness === "stale") return t("overview.stale", { time: tsText });
+      return t("overview.gap");
+    };
     ractive.reset(data);
   }
 
@@ -393,24 +441,24 @@
       badges: pagination.items.map(function (unit) {
         var severity = topSeverity(unit), freshness = classifyFreshness(unit.ts, now, snapshot.pollPeriodMs);
         return { unit: unit, sev: severity, fresh: freshness,
-          tsText: unit.ts === null ? "无数据" : new Date(unit.ts).toLocaleTimeString() };
+          tsText: unit.ts === null ? t("common.noData") : activeI18n.formatTime(unit.ts) };
       }) });
     previousSeverity = currentSeverity(snapshot.units);
   }
 
-  var TREE_TYPE_LABELS = { site: "站点", floor: "楼层", equip: "UPS", point: "点位" };
+  var TREE_TYPE_KEYS = { site: "tree.site", floor: "tree.floor", equip: "tree.equip", point: "tree.point" };
   var TREE_FIELD_LABELS = {
-    dis: "显示名称", navName: "导航名称", tz: "时区", siteRef: "所属站点",
-    floorRef: "所属楼层", equipRef: "所属 UPS", make: "厂商", model: "型号",
-    serial: "序列号", ratedKva: "额定容量（kVA）", kind: "数据类别", unit: "单位",
-    upsSocPct: "数据类型", upsLoadPct: "数据类型", upsBatteryTemp: "数据类型",
-    upsCommStatus: "数据类型", upsTreeKey: "创建标识", site: "站点标记",
-    upsSite: "UPS 站点标记", floor: "楼层标记", equip: "设备标记",
-    upsUnit: "UPS 标记", point: "点位标记",
+    dis: "tree.displayName", navName: "tree.navigationName", tz: "tree.timezone", siteRef: "tree.parentSite",
+    floorRef: "tree.parentFloor", equipRef: "tree.parentEquip", make: "tree.manufacturer", model: "tree.model",
+    serial: "tree.serial", ratedKva: "tree.ratedKva", kind: "tree.kind", unit: "tree.unit",
+    upsSocPct: "tree.metric", upsLoadPct: "tree.metric", upsBatteryTemp: "tree.metric",
+    upsCommStatus: "tree.metric", upsTreeKey: "tree.createKey", site: "tree.siteMarker",
+    upsSite: "tree.upsSiteMarker", floor: "tree.floorMarker", equip: "tree.equipMarker",
+    upsUnit: "tree.upsMarker", point: "tree.pointMarker",
   };
 
   function treeMetricLabel(metric) {
-    return { upsSocPct: "SOC", upsLoadPct: "负载", upsBatteryTemp: "电池温度", upsCommStatus: "通讯状态" }[metric] || "未识别";
+    return t({ upsSocPct: "tree.metricSoc", upsLoadPct: "tree.metricLoad", upsBatteryTemp: "tree.metricTemperature", upsCommStatus: "tree.metricCommunication" }[metric] || "tree.metricUnknown");
   }
 
   function treePreviewRows(type, state) {
@@ -421,12 +469,12 @@
         rows: Object.keys(payload).map(function (name) {
           var value = payload[name];
           if (global.TreeUi.METRICS.indexOf(name) >= 0) value = treeMetricLabel(name);
-          return { label: TREE_FIELD_LABELS[name] || name, value: value === true ? "是" : String(value) };
+          return { label: TREE_FIELD_LABELS[name] ? t(TREE_FIELD_LABELS[name]) : name, value: value === true ? t("common.yes") : String(value) };
         }),
       };
     } catch (error) {
       return { error: String(error.message || error), rows: [
-        { label: "创建标识", value: state.keys[type] || "" },
+        { label: t("tree.createKey"), value: state.keys[type] || "" },
       ] };
     }
   }
@@ -437,8 +485,8 @@
       return {
         error: null,
         rows: Object.keys(payload).map(function (name) {
-          return { label: TREE_FIELD_LABELS[name] || name,
-            value: payload[name] === null ? "清空" : String(payload[name]) };
+          return { label: TREE_FIELD_LABELS[name] ? t(TREE_FIELD_LABELS[name]) : name,
+            value: payload[name] === null ? t("common.clear") : String(payload[name]) };
         }),
       };
     } catch (error) {
@@ -453,7 +501,7 @@
     var updatePreview = state.mode === "edit" ? treeUpdatePreviewRows(state) : { rows: [], error: null };
     return {
       step: global.TreeUi.TYPES.indexOf(state.activeType) + 1,
-      typeLabel: TREE_TYPE_LABELS[state.mode === "edit" && state.edit ? state.edit.type : state.activeType],
+      typeLabel: t(TREE_TYPE_KEYS[state.mode === "edit" && state.edit ? state.edit.type : state.activeType]),
       draft: state.drafts[state.activeType],
       floors: global.TreeUi.childrenFor(state.tree, "floor", selections),
       equips: global.TreeUi.childrenFor(state.tree, "equip", selections),
@@ -465,18 +513,18 @@
       updatePreview: updatePreview.rows,
       updatePreviewError: updatePreview.error,
       parentText: state.edit && state.edit.original.parentChain && state.edit.original.parentChain.length
-        ? state.edit.original.parentChain.join(" / ") : "顶层",
+        ? state.edit.original.parentChain.join(" / ") : t("common.topLevel"),
     };
   }
 
-  function renderTreeState() {
-    if (treeController.state.mode === "create") treeController.prepare(treeController.state.activeType);
+  function renderTreeState(preserveDraft) {
+    if (!preserveDraft && treeController.state.mode === "create") treeController.prepare(treeController.state.activeType);
     resetView({ view: "tree", tree: treeController.state, treeVm: treeViewModel(), treeMetricLabel: treeMetricLabel });
   }
 
   function renderTree() {
     if (!global.TreeUi) {
-      resetView({ view: "unavailable", title: "设备树管理", reason: "设备树界面资源未加载。" });
+      resetView({ view: "unavailable", title: t("tree.title"), reason: t("tree.resourceMissing") });
       return;
     }
     if (!treeController) {
@@ -493,7 +541,7 @@
   function render() {
     var route = parseHash();
     if (route.invalid) {
-      resetView({ view: "unavailable", title: "路由不可用", reason: route.error });
+      resetView({ view: "unavailable", title: t("unavailable.routeTitle"), reason: route.error });
       return;
     }
     if (route.page === "unit" && route.unitId) {
@@ -511,8 +559,8 @@
       return;
     }
     if (["alarms", "config", "audit"].indexOf(route.page) >= 0) {
-      resetView({ view: "unavailable", title: route.page === "alarms" ? "告警中心" : route.page === "config" ? "运行配置" : "审计追踪",
-        reason: "该功能尚无 Folio 后端数据源，当前为只读数据缺口，未生成或修改任何演示状态。" });
+      resetView({ view: "unavailable", title: t(route.page === "alarms" ? "unavailable.alarms" : route.page === "config" ? "unavailable.config" : "unavailable.audit"),
+        reason: t("unavailable.backend") });
       return;
     }
     renderOverview(route.q);
@@ -529,19 +577,44 @@
     target.textContent = "";
     var message = document.createElement("div");
     message.className = "fatal";
-    message.textContent = "加载失败（fail-closed，不兜底）：" + String(error && error.message || error);
+    message.textContent = t("fatal.prefix", { detail: String(error && error.message || error) });
     target.appendChild(message);
   }
 
+  function updateLocalizedChrome() {
+    appRuntime.updateChrome();
+  }
+
+  function rerenderLocalizedView() {
+    if (!ractive) return;
+    if (parseHash().page === "tree" && treeController) renderTreeState(true);
+    else render();
+  }
+
+  function switchLanguage(language) { appRuntime.setLanguage(language); }
+
   function boot() {
+    activeI18n = global.UpsI18n.create({ navigatorLanguage: global.navigator && global.navigator.language,
+      storage: global.localStorage, development: false });
+    setTranslator(activeI18n.t);
+    global.ProjectContext.setTranslator(activeI18n.t);
+    global.FinApi.setTranslator(activeI18n.t);
+    global.TreeUi.setTranslator(activeI18n.t);
+    appRuntime = createAppRuntime({ document: document, location: location, i18n: activeI18n,
+      adapter: null, rerender: rerenderLocalizedView });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-language]"), function (button) {
+      button.addEventListener("click", function () { switchLanguage(button.getAttribute("data-language")); });
+    });
+    updateLocalizedChrome();
     try {
       adapter = createFinAdapterFromEnvironment(global, {
         projectContextApi: global.ProjectContext,
         finApi: global.FinApi,
         fetchImpl: global.fetch.bind(global),
       });
-      document.getElementById("data-mode").textContent = "Folio 设备树数据 · 当前项目：" + adapter.projectName() +
-        " · 实时读取 site/floor/equip/point；无静态兜底。";
+      appRuntime = createAppRuntime({ document: document, location: location, i18n: activeI18n,
+        adapter: adapter, rerender: rerenderLocalizedView });
+      updateLocalizedChrome();
     } catch (error) { showFatal(error); return; }
     adapter.load().then(function (loaded) {
       snapshot = loaded;

@@ -123,7 +123,7 @@ tc("TC-FIN-05", "production frontend has only the Folio adapter and no pseudo wr
     assert.doesNotMatch(app, re, "app.js contains " + label);
     assert.doesNotMatch(html, re, "index.html contains " + label);
   });
-  assert.match(html, /不可用|缺口/);
+  assert.match(html, /unit\.detailGap|overview\.trendUnavailable|overview\.gap/);
 });
 
 tc("TC-FIN-06", "encoded unit ids round-trip and malformed routes fail closed", () => {

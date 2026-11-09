@@ -1,191 +1,195 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>desmondUPS · UPS 车队监控</title>
+<title>desmondUPS</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="styles.css">
 <script src="vendor/ractive.min.js"></script>
 </head>
 <body>
-<aside id="data-mode" class="data-mode" aria-label="数据来源">正在连接当前 FIN 项目的 Folio 数据…</aside>
+<div id="language-switch" class="language-switch" role="group">
+  <button type="button" data-language="zh-CN">中文</button>
+  <button type="button" data-language="en-US">English</button>
+</div>
+<aside id="data-mode" class="data-mode"></aside>
 <div id="app"></div>
 
 <script id="overview-template" type="text/ractive">
-{{#if loadError}}<div class="fatal">{{loadError}}</div>{{/if}}
+{{#if loadError}}<div class="fatal">{{message(loadError)}}</div>{{/if}}
 {{#if view === "loading"}}
-  <div class="fatal">加载中…</div>
+  <div class="fatal">{{t('common.loading')}}</div>
 {{elseif view === "unit"}}
   <header class="page-head">
-    <button class="btn" on-click="@this.fire('goBack')">← 返回总览</button>
+    <button class="btn" on-click="@this.fire('goBack')">{{t('common.backOverview')}}</button>
     <h1>{{unit ? unit.name : unitId}}</h1>
   </header>
   {{#if unit}}
   <div class="archive-bar muted">
-    {{unit.siteName}} · {{unit.location}} · 厂商 {{unit.make || '—'}} · 型号 {{unit.model || '—'}} · 序列号 {{unit.serial || '—'}}
+    {{unit.siteName}} · {{unit.location}} · {{t('unit.manufacturer')}} {{unit.make || '—'}} · {{t('unit.model')}} {{unit.model || '—'}} · {{t('unit.serial')}} {{unit.serial || '—'}}
   </div>
   <div class="unit-grid">
     <section class="panel">
-      <h2>当前总览值</h2>
+      <h2>{{t('unit.current')}}</h2>
       <div class="stat-row"><span>SOC</span><b>{{unit.soc === null ? '—' : unit.soc + '%'}}</b></div>
-      <div class="stat-row"><span>负载</span><b>{{unit.loadPct === null ? '—' : unit.loadPct + '%'}}</b></div>
-      <div class="stat-row"><span>电池温度</span><b>{{unit.batteryTemp === null ? '—' : unit.batteryTemp + '°C'}}</b></div>
-      <button class="btn" on-click="@this.fire('goHistory', unit.id)">查看历史数据状态</button>
+      <div class="stat-row"><span>{{t('overview.load')}}</span><b>{{unit.loadPct === null ? '—' : unit.loadPct + '%'}}</b></div>
+      <div class="stat-row"><span>{{t('unit.batteryTemperature')}}</span><b>{{unit.batteryTemp === null ? '—' : unit.batteryTemp + '°C'}}</b></div>
+      <button class="btn" on-click="@this.fire('goHistory', unit.id)">{{t('unit.historyStatus')}}</button>
     </section>
     <section class="panel">
-      <h2>详情数据缺口</h2>
-      <div class="fatal">{{gap.reason}}</div>
-      <div class="muted">available=false · dataGap=true · 未从当前总览值推算详情。</div>
+      <h2>{{t('unit.detailGap')}}</h2>
+      <div class="fatal">{{message(gap.reason)}}</div>
+      <div class="muted">{{t('unit.detailContract')}}</div>
     </section>
   </div>
   {{else}}
-  <div class="fatal">未找到设备 {{unitId}}；未返回替代数据。</div>
+  <div class="fatal">{{t('unit.notFound', {id: unitId})}}</div>
   {{/if}}
 {{elseif view === "history"}}
   <header class="page-head">
-    <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
-    <h1>{{unit ? unit.name : unitId}} · 历史与事件</h1>
+    <button class="btn" on-click="@this.fire('goBack')">{{t('common.back')}}</button>
+    <h1>{{t('history.title', {name: unit ? unit.name : unitId})}}</h1>
   </header>
   {{#if unit}}
   <div class="history-wrap">
-    <div class="fatal">{{gap.reason}}</div>
-    <div class="muted">available=false · dataGap=true · series 为空 · events 为空。</div>
+    <div class="fatal">{{message(gap.reason)}}</div>
+    <div class="muted">{{t('history.contract')}}</div>
   </div>
   {{else}}
-  <div class="fatal">未找到设备 {{unitId}}；未返回替代历史。</div>
+  <div class="fatal">{{t('history.notFound', {id: unitId})}}</div>
   {{/if}}
 {{elseif view === "tree"}}
   <header class="page-head tree-page-head">
-    <a class="btn" href="#/ups/overview">← 返回总览</a>
+    <a class="btn" href="#/ups/overview">{{t('common.backOverview')}}</a>
     <div>
-      <h1>设备树管理</h1>
-      <p class="muted">按站点、楼层、UPS、点位逐级创建或维护基础信息。</p>
+      <h1>{{t('tree.title')}}</h1>
+      <p class="muted">{{t('tree.subtitle')}}</p>
     </div>
-    <button class="btn tree-refresh" disabled="{{tree.busy}}" on-click="@this.fire('treeRefresh')">刷新设备树</button>
+    <button class="btn tree-refresh" disabled="{{tree.busy}}" on-click="@this.fire('treeRefresh')">{{t('common.refresh')}}</button>
   </header>
-  <div class="tree-rule" role="note">层级与数据类型创建后不可更改</div>
-  {{#if tree.treeError}}<div class="tree-notice error" role="alert">读取失败：{{tree.treeError}}。继续显示上次成功读取的设备树。</div>{{/if}}
+  <div class="tree-rule" role="note">{{t('tree.immutableRule')}}</div>
+  {{#if tree.treeError}}<div class="tree-notice error" role="alert">{{message(tree.treeError)}}</div>{{/if}}
   {{#if tree.operation.status !== "idle"}}
     <div class="tree-notice {{tree.operation.status}}" role="status">
-      {{tree.operation.message}}
-      {{#if tree.operation.conflictId}}<span>冲突记录 ID：{{tree.operation.conflictId}}</span>{{/if}}
+      {{message(tree.operation.message)}}
+      {{#if tree.operation.conflictId}}<span>{{t('tree.conflictId', {id: tree.operation.conflictId})}}</span>{{/if}}
     </div>
   {{/if}}
 
   <main class="tree-layout">
-    <nav class="tree-rail" aria-label="设备层级">
+    <nav class="tree-rail" aria-label="{{t('tree.hierarchyAria')}}">
       <section class="rail-level {{tree.activeType === 'site' ? 'active' : ''}}">
-        <div class="rail-title"><span class="rail-index">1</span><b>站点</b><button class="rail-add" on-click="@this.fire('treePrepare', 'site')">创建</button></div>
-        {{#each tree.tree.sites}}<button class="rail-record {{tree.selections.siteId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'site', .id)"><span>{{.dis}}</span><small>{{.id}}</small></button>{{else}}<p class="rail-empty">先创建第一个站点。</p>{{/each}}
+        <div class="rail-title"><span class="rail-index">1</span><b>{{t('tree.site')}}</b><button class="rail-add" on-click="@this.fire('treePrepare', 'site')">{{t('common.create')}}</button></div>
+        {{#each tree.tree.sites}}<button class="rail-record {{tree.selections.siteId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'site', .id)"><span>{{.dis}}</span><small>{{.id}}</small></button>{{else}}<p class="rail-empty">{{t('tree.emptySite')}}</p>{{/each}}
       </section>
       <section class="rail-level {{tree.activeType === 'floor' ? 'active' : ''}}">
-        <div class="rail-title"><span class="rail-index">2</span><b>楼层</b><button class="rail-add" disabled="{{!tree.selections.siteId}}" on-click="@this.fire('treePrepare', 'floor')">创建</button></div>
-        {{#if !tree.selections.siteId}}<p class="rail-empty">请先选择或创建站点。</p>{{else}}{{#each treeVm.floors}}<button class="rail-record {{tree.selections.floorId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'floor', .id)"><span>{{.dis}}</span><small>{{.id}}</small></button>{{else}}<p class="rail-empty">该站点暂无楼层，请先创建楼层。</p>{{/each}}{{/if}}
+        <div class="rail-title"><span class="rail-index">2</span><b>{{t('tree.floor')}}</b><button class="rail-add" disabled="{{!tree.selections.siteId}}" on-click="@this.fire('treePrepare', 'floor')">{{t('common.create')}}</button></div>
+        {{#if !tree.selections.siteId}}<p class="rail-empty">{{t('tree.selectSiteFirst')}}</p>{{else}}{{#each treeVm.floors}}<button class="rail-record {{tree.selections.floorId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'floor', .id)"><span>{{.dis}}</span><small>{{.id}}</small></button>{{else}}<p class="rail-empty">{{t('tree.emptyFloor')}}</p>{{/each}}{{/if}}
       </section>
       <section class="rail-level {{tree.activeType === 'equip' ? 'active' : ''}}">
-        <div class="rail-title"><span class="rail-index">3</span><b>UPS</b><button class="rail-add" disabled="{{!tree.selections.floorId}}" on-click="@this.fire('treePrepare', 'equip')">创建</button></div>
-        {{#if !tree.selections.floorId}}<p class="rail-empty">请先选择或创建楼层。</p>{{else}}{{#each treeVm.equips}}<button class="rail-record {{tree.selections.equipId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'equip', .id)"><span>{{.dis}}</span><small>{{.id}}</small></button>{{else}}<p class="rail-empty">该楼层暂无 UPS，请先创建 UPS。</p>{{/each}}{{/if}}
+        <div class="rail-title"><span class="rail-index">3</span><b>{{t('tree.equip')}}</b><button class="rail-add" disabled="{{!tree.selections.floorId}}" on-click="@this.fire('treePrepare', 'equip')">{{t('common.create')}}</button></div>
+        {{#if !tree.selections.floorId}}<p class="rail-empty">{{t('tree.selectFloorFirst')}}</p>{{else}}{{#each treeVm.equips}}<button class="rail-record {{tree.selections.equipId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'equip', .id)"><span>{{.dis}}</span><small>{{.id}}</small></button>{{else}}<p class="rail-empty">{{t('tree.emptyEquip')}}</p>{{/each}}{{/if}}
       </section>
       <section class="rail-level {{tree.activeType === 'point' ? 'active' : ''}}">
-        <div class="rail-title"><span class="rail-index">4</span><b>点位</b><button class="rail-add" disabled="{{!tree.selections.equipId}}" on-click="@this.fire('treePrepare', 'point')">创建</button></div>
-        {{#if !tree.selections.equipId}}<p class="rail-empty">请先选择或创建 UPS。</p>{{else}}{{#each treeVm.points}}<button class="rail-record {{tree.selections.pointId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'point', .id)"><span>{{.dis}}</span><small>{{treeMetricLabel(.metric)}} · {{.id}}</small></button>{{else}}<p class="rail-empty">该 UPS 暂无点位，请创建一个标准点位。</p>{{/each}}{{/if}}
+        <div class="rail-title"><span class="rail-index">4</span><b>{{t('tree.point')}}</b><button class="rail-add" disabled="{{!tree.selections.equipId}}" on-click="@this.fire('treePrepare', 'point')">{{t('common.create')}}</button></div>
+        {{#if !tree.selections.equipId}}<p class="rail-empty">{{t('tree.selectEquipFirst')}}</p>{{else}}{{#each treeVm.points}}<button class="rail-record {{tree.selections.pointId === .id ? 'selected' : ''}}" on-click="@this.fire('treeEdit', 'point', .id)"><span>{{.dis}}</span><small>{{treeMetricLabel(.metric)}} · {{.id}}</small></button>{{else}}<p class="rail-empty">{{t('tree.emptyPoint')}}</p>{{/each}}{{/if}}
       </section>
     </nav>
 
     <section class="tree-workspace">
       {{#if tree.mode === "create"}}
-        <div class="workspace-title"><div><span class="step-kicker">第 {{treeVm.step}} 步，共 4 步</span><h2>创建{{treeVm.typeLabel}}</h2></div><span class="source-chip">来自当前 FIN 项目</span></div>
+        <div class="workspace-title"><div><span class="step-kicker">{{t('tree.step', {step: treeVm.step})}}</span><h2>{{t('tree.createType', {type: treeVm.typeLabel})}}</h2></div><span class="source-chip">{{t('tree.currentProject')}}</span></div>
         <form class="tree-form" on-input="@this.fire('treeChanged')" on-submit="@event.preventDefault(), @this.fire('treeCreate', tree.activeType)">
           {{#if tree.activeType !== "site"}}
-            <label>所属站点<select required value="{{tree.selections.siteId}}" on-change="@this.fire('treeParentChanged', 'site')"><option value="">请选择站点</option>{{#each tree.tree.sites}}<option value="{{.id}}">{{.dis}}</option>{{/each}}</select></label>
+            <label>{{t('tree.parentSite')}}<select required value="{{tree.selections.siteId}}" on-change="@this.fire('treeParentChanged', 'site')"><option value="">{{t('tree.chooseSite')}}</option>{{#each tree.tree.sites}}<option value="{{.id}}">{{.dis}}</option>{{/each}}</select></label>
           {{/if}}
           {{#if tree.activeType === "equip" || tree.activeType === "point"}}
-            <label>所属楼层<select required value="{{tree.selections.floorId}}" on-change="@this.fire('treeParentChanged', 'floor')"><option value="">请选择楼层</option>{{#each treeVm.floorChoices}}<option value="{{.id}}">{{.dis}}</option>{{/each}}</select></label>
+            <label>{{t('tree.parentFloor')}}<select required value="{{tree.selections.floorId}}" on-change="@this.fire('treeParentChanged', 'floor')"><option value="">{{t('tree.chooseFloor')}}</option>{{#each treeVm.floorChoices}}<option value="{{.id}}">{{.dis}}</option>{{/each}}</select></label>
           {{/if}}
           {{#if tree.activeType === "point"}}
-            <label>所属 UPS<select required value="{{tree.selections.equipId}}" on-change="@this.fire('treeParentChanged', 'equip')"><option value="">请选择 UPS</option>{{#each treeVm.equipChoices}}<option value="{{.id}}">{{.dis}}</option>{{/each}}</select></label>
+            <label>{{t('tree.parentEquip')}}<select required value="{{tree.selections.equipId}}" on-change="@this.fire('treeParentChanged', 'equip')"><option value="">{{t('tree.chooseEquip')}}</option>{{#each treeVm.equipChoices}}<option value="{{.id}}">{{.dis}}</option>{{/each}}</select></label>
           {{/if}}
-          <label>显示名称<input required maxlength="120" value="{{treeVm.draft.dis}}" placeholder="用户看到的名称"></label>
-          <label>导航名称<input required maxlength="120" value="{{treeVm.draft.navName}}" placeholder="例如 upsRoomA"></label>
-          {{#if tree.activeType === "site"}}<label>时区<input value="{{tree.drafts.site.tz}}" placeholder="例如 Asia/Shanghai"></label>{{/if}}
+          <label>{{t('tree.displayName')}}<input required maxlength="120" value="{{treeVm.draft.dis}}" placeholder="{{t('tree.placeholderDisplay')}}"></label>
+          <label>{{t('tree.navigationName')}}<input required maxlength="120" value="{{treeVm.draft.navName}}" placeholder="{{t('tree.placeholderNav')}}"></label>
+          {{#if tree.activeType === "site"}}<label>{{t('tree.timezone')}}<input value="{{tree.drafts.site.tz}}" placeholder="{{t('tree.placeholderTimezone')}}"></label>{{/if}}
           {{#if tree.activeType === "equip"}}
-            <label>厂商<input value="{{tree.drafts.equip.make}}"></label><label>型号<input value="{{tree.drafts.equip.model}}"></label>
-            <label>序列号<input value="{{tree.drafts.equip.serial}}"></label><label>额定容量（kVA）<input type="number" min="0" step="any" value="{{tree.drafts.equip.ratedKva}}"></label>
+            <label>{{t('tree.manufacturer')}}<input value="{{tree.drafts.equip.make}}"></label><label>{{t('tree.model')}}<input value="{{tree.drafts.equip.model}}"></label>
+            <label>{{t('tree.serial')}}<input value="{{tree.drafts.equip.serial}}"></label><label>{{t('tree.ratedKva')}}<input type="number" min="0" step="any" value="{{tree.drafts.equip.ratedKva}}"></label>
           {{/if}}
           {{#if tree.activeType === "point"}}
-            <label>数据类型<select value="{{tree.drafts.point.metric}}" on-change="@this.fire('treeChanged')"><option value="upsSocPct">SOC</option><option value="upsLoadPct">负载</option><option value="upsBatteryTemp">电池温度</option><option value="upsCommStatus">通讯状态</option></select></label>
-            <label>数据类别<input required value="{{tree.drafts.point.kind}}" placeholder="例如 Number 或 Bool"></label><label>单位<input required value="{{tree.drafts.point.unit}}" placeholder="例如 % 或 °C"></label>
+            <label>{{t('tree.metric')}}<select value="{{tree.drafts.point.metric}}" on-change="@this.fire('treeChanged')"><option value="upsSocPct">SOC</option><option value="upsLoadPct">{{t('tree.metricLoad')}}</option><option value="upsBatteryTemp">{{t('tree.metricTemperature')}}</option><option value="upsCommStatus">{{t('tree.metricCommunication')}}</option></select></label>
+            <label>{{t('tree.kind')}}<input required value="{{tree.drafts.point.kind}}" placeholder="{{t('tree.placeholderKind')}}"></label><label>{{t('tree.unit')}}<input required value="{{tree.drafts.point.unit}}" placeholder="{{t('tree.placeholderUnit')}}"></label>
           {{/if}}
           <div class="create-preview" aria-live="polite">
-            <h3>即将创建</h3>
-            {{#if treeVm.previewError}}<p class="preview-hint">{{treeVm.previewError}}，填写完整后将显示本次创建的全部信息。</p>{{/if}}
+            <h3>{{t('tree.previewCreate')}}</h3>
+            {{#if treeVm.previewError}}<p class="preview-hint">{{treeVm.previewError}} · {{t('tree.previewIncomplete')}}</p>{{/if}}
             <dl>{{#each treeVm.preview}}<div><dt>{{.label}}</dt><dd>{{.value}}</dd></div>{{/each}}</dl>
           </div>
-          <button class="btn primary tree-submit" type="submit" disabled="{{tree.busy}}">创建{{treeVm.typeLabel}}</button>
+          <button class="btn primary tree-submit" type="submit" disabled="{{tree.busy}}">{{t('tree.createType', {type: treeVm.typeLabel})}}</button>
         </form>
       {{else}}
-        <div class="workspace-title"><div><span class="step-kicker">维护现有记录</span><h2>{{tree.edit.original.dis}}</h2></div><span class="source-chip">{{treeVm.typeLabel}}</span></div>
-        <p class="immutable-copy">记录 ID、所属层级和数据类型只读。层级与数据类型创建后不可更改。</p>
-        <dl class="readonly-grid"><div><dt>记录 ID</dt><dd>{{tree.edit.id}}</dd></div><div><dt>所属层级</dt><dd>{{treeVm.parentText}}</dd></div>{{#if tree.edit.type === "point"}}<div><dt>数据类型</dt><dd>{{treeMetricLabel(tree.edit.original.metric)}}</dd></div>{{/if}}</dl>
+        <div class="workspace-title"><div><span class="step-kicker">{{t('tree.maintain')}}</span><h2>{{tree.edit.original.dis}}</h2></div><span class="source-chip">{{treeVm.typeLabel}}</span></div>
+        <p class="immutable-copy">{{t('tree.immutableCopy')}}</p>
+        <dl class="readonly-grid"><div><dt>{{t('tree.recordId')}}</dt><dd>{{tree.edit.id}}</dd></div><div><dt>{{t('tree.parentHierarchy')}}</dt><dd>{{treeVm.parentText}}</dd></div>{{#if tree.edit.type === "point"}}<div><dt>{{t('tree.metric')}}</dt><dd>{{treeMetricLabel(tree.edit.original.metric)}}</dd></div>{{/if}}</dl>
         <form class="tree-form" on-input="@this.fire('treeChanged')" on-submit="@event.preventDefault(), @this.fire('treeUpdate')">
-          <label>显示名称<input required maxlength="120" value="{{tree.edit.draft.dis}}"></label>
-          <label>导航名称<input required maxlength="120" value="{{tree.edit.draft.navName}}"></label>
-          {{#if tree.edit.type === "site"}}<label>时区<input value="{{tree.edit.draft.tz}}"></label>{{/if}}
-          {{#if tree.edit.type === "equip"}}<label>厂商<input value="{{tree.edit.draft.make}}"></label><label>型号<input value="{{tree.edit.draft.model}}"></label><label>序列号<input value="{{tree.edit.draft.serial}}"></label><label>额定容量（kVA）<input type="number" min="0" step="any" value="{{tree.edit.draft.ratedKva}}"></label>{{/if}}
-          {{#if tree.edit.type === "point"}}<label>数据类别<input required value="{{tree.edit.draft.kind}}"></label><label>单位<input required value="{{tree.edit.draft.unit}}"></label>{{/if}}
+          <label>{{t('tree.displayName')}}<input required maxlength="120" value="{{tree.edit.draft.dis}}"></label>
+          <label>{{t('tree.navigationName')}}<input required maxlength="120" value="{{tree.edit.draft.navName}}"></label>
+          {{#if tree.edit.type === "site"}}<label>{{t('tree.timezone')}}<input value="{{tree.edit.draft.tz}}"></label>{{/if}}
+          {{#if tree.edit.type === "equip"}}<label>{{t('tree.manufacturer')}}<input value="{{tree.edit.draft.make}}"></label><label>{{t('tree.model')}}<input value="{{tree.edit.draft.model}}"></label><label>{{t('tree.serial')}}<input value="{{tree.edit.draft.serial}}"></label><label>{{t('tree.ratedKva')}}<input type="number" min="0" step="any" value="{{tree.edit.draft.ratedKva}}"></label>{{/if}}
+          {{#if tree.edit.type === "point"}}<label>{{t('tree.kind')}}<input required value="{{tree.edit.draft.kind}}"></label><label>{{t('tree.unit')}}<input required value="{{tree.edit.draft.unit}}"></label>{{/if}}
           <div class="create-preview" aria-live="polite">
-            <h3>即将保存</h3>
+            <h3>{{t('tree.previewSave')}}</h3>
             {{#if treeVm.updatePreviewError}}<p class="preview-hint">{{treeVm.updatePreviewError}}</p>{{/if}}
-            {{#if treeVm.updatePreview.length}}<dl>{{#each treeVm.updatePreview}}<div><dt>{{.label}}</dt><dd>{{.value}}</dd></div>{{/each}}</dl>{{else}}<p class="preview-hint">尚未修改信息。</p>{{/if}}
+            {{#if treeVm.updatePreview.length}}<dl>{{#each treeVm.updatePreview}}<div><dt>{{.label}}</dt><dd>{{.value}}</dd></div>{{/each}}</dl>{{else}}<p class="preview-hint">{{t('tree.noChanges')}}</p>{{/if}}
           </div>
-          <button class="btn primary tree-submit" type="submit" disabled="{{tree.busy}}">保存更改</button>
+          <button class="btn primary tree-submit" type="submit" disabled="{{tree.busy}}">{{t('common.save')}}</button>
         </form>
       {{/if}}
     </section>
   </main>
 {{elseif view === "unavailable"}}
   <header class="page-head">
-    <button class="btn" on-click="@this.fire('goBack')">← 返回</button>
+    <button class="btn" on-click="@this.fire('goBack')">{{t('common.back')}}</button>
     <h1>{{title}}</h1>
   </header>
   <div class="fatal">{{reason}}</div>
 {{else}}
   <header class="page-head">
-    <h1>UPS 车队总览</h1>
-    <span class="muted">轮询 10s · Folio 实时数据</span>
-    <a class="btn overview-tree-link" href="#/ups/tree">设备树管理</a>
+    <h1>{{t('overview.title')}}</h1>
+    <span class="muted">{{t('overview.meta')}}</span>
+    <a class="btn overview-tree-link" href="#/ups/tree">{{t('overview.tree')}}</a>
   </header>
 
   {{#if newRisks.length}}
-  <div class="risk-banner">⚠ {{newRisks.length}} 台设备严重度恶化；刷新结果已按当前实时值排序。</div>
+  <div class="risk-banner">⚠ {{t('overview.risk', {count: newRisks.length})}}</div>
   {{/if}}
 
   <form class="filter-bar" on-submit="@event.preventDefault(), @this.fire('filter', @this.get('filter'))">
-    <label>站点
-      <select value="{{filter.site}}"><option value="">全部</option>{{#each sites}}<option value="{{.id}}">{{.name}}</option>{{/each}}</select>
+    <label>{{t('overview.site')}}
+      <select value="{{filter.site}}"><option value="">{{t('common.all')}}</option>{{#each sites}}<option value="{{.id}}">{{.name}}</option>{{/each}}</select>
     </label>
-    <label>通讯
-      <select value="{{filter.comm}}"><option value="">全部</option><option value="ok">正常</option><option value="lost">中断</option></select>
+    <label>{{t('overview.communication')}}
+      <select value="{{filter.comm}}"><option value="">{{t('common.all')}}</option><option value="ok">{{t('overview.communicationOk')}}</option><option value="lost">{{t('overview.communicationLost')}}</option></select>
     </label>
-    <label>模式
-      <select value="{{filter.mode}}"><option value="">全部</option><option value="online">市电</option><option value="battery">电池</option><option value="unknown">未知</option></select>
+    <label>{{t('overview.mode')}}
+      <select value="{{filter.mode}}"><option value="">{{t('common.all')}}</option><option value="online">{{t('overview.modeOnline')}}</option><option value="battery">{{t('overview.modeBattery')}}</option><option value="unknown">{{t('overview.modeUnknown')}}</option></select>
     </label>
-    <label>严重度
-      <select value="{{filter.sev}}"><option value="">全部</option><option value="critical">严重</option><option value="warning">警告</option><option value="normal">正常</option><option value="commLost">断讯</option></select>
+    <label>{{t('overview.severity')}}
+      <select value="{{filter.sev}}"><option value="">{{t('common.all')}}</option><option value="critical">{{t('overview.severityCritical')}}</option><option value="warning">{{t('overview.severityWarning')}}</option><option value="normal">{{t('overview.severityNormal')}}</option><option value="commLost">{{t('overview.severityLost')}}</option></select>
     </label>
-    <button class="btn primary" type="submit">筛选</button>
+    <button class="btn primary" type="submit">{{t('overview.filter')}}</button>
     <span class="spacer"></span>
-    <label>每页
+    <label>{{t('overview.pageSize')}}
       <select value="{{pageSize}}" on-change="@this.fire('setPageSize')"><option value="50">50</option><option value="100">100</option></select>
     </label>
   </form>
 
   <div class="stat-badges">
-    <span class="badge crit">严重 {{stats.critical}}</span>
-    <span class="badge warn">警告 {{stats.warning}}</span>
-    <span class="badge ok">正常 {{stats.normal}}</span>
-    <span class="badge lost">断讯 {{stats.commLost}}</span>
-    <span class="muted">共 {{pagination.total}} 台 · 第 {{pagination.page}}/{{pagination.pages}} 页</span>
+    <span class="badge crit">{{t('overview.severityCritical')}} {{stats.critical}}</span>
+    <span class="badge warn">{{t('overview.severityWarning')}} {{stats.warning}}</span>
+    <span class="badge ok">{{t('overview.severityNormal')}} {{stats.normal}}</span>
+    <span class="badge lost">{{t('overview.severityLost')}} {{stats.commLost}}</span>
+    <span class="muted">{{t('overview.total', {total: pagination.total, page: pagination.page, pages: pagination.pages})}}</span>
   </div>
 
   <div class="card-grid">
@@ -194,26 +198,27 @@
       <div class="card-head"><strong>{{.unit.name}}</strong><span class="dot mode-{{.unit.mode}}"></span></div>
       <div class="muted">{{.unit.siteName}} · {{.unit.location}}</div>
       <div class="metrics">
-        <span>负载 <b>{{.unit.loadPct === null ? '—' : .unit.loadPct + '%'}}</b></span>
+        <span>{{t('overview.load')}} <b>{{.unit.loadPct === null ? '—' : .unit.loadPct + '%'}}</b></span>
         <span>SOC <b>{{.unit.soc === null ? '—' : .unit.soc + '%'}}</b></span>
-        <span class="sev-label">{{sev === 'critical' ? '严重' : sev === 'warning' ? '警告' : sev === 'commLost' ? '通讯中断' : '正常'}}</span>
+        <span class="sev-label">{{severityLabel(sev)}}</span>
       </div>
-      <div class="trend-placeholder">趋势不可用 · Folio 历史数据源未接入</div>
-      <div class="fresh-{{fresh}}">{{fresh === 'ok' ? '采集 ' + tsText : fresh === 'stale' ? '参考值 · 采集 ' + tsText : '缺口 · 无数据'}}</div>
+      <div class="trend-placeholder">{{t('overview.trendUnavailable')}}</div>
+      <div class="fresh-{{fresh}}">{{freshnessLabel(fresh, tsText)}}</div>
     </div>
     {{else}}
-    <div class="fatal">当前筛选无 Folio 设备记录。</div>
+    <div class="fatal">{{t('overview.empty')}}</div>
     {{/each}}
   </div>
 
   {{#if pagination.pages > 1}}
   <nav class="pager">
-    <button class="btn" disabled="{{pagination.page <= 1}}" on-click="@this.fire('setPage', pagination.page - 1)">上一页</button>
-    <button class="btn" disabled="{{pagination.page >= pagination.pages}}" on-click="@this.fire('setPage', pagination.page + 1)">下一页</button>
+    <button class="btn" disabled="{{pagination.page <= 1}}" on-click="@this.fire('setPage', pagination.page - 1)">{{t('overview.previous')}}</button>
+    <button class="btn" disabled="{{pagination.page >= pagination.pages}}" on-click="@this.fire('setPage', pagination.page + 1)">{{t('overview.next')}}</button>
   </nav>
   {{/if}}
 {{/if}}
 </script>
+<script src="i18n.js"></script>
 <script src="project-context.js"></script>
 <script src="fin-api.js"></script>
 <script src="tree-ui.js"></script>
